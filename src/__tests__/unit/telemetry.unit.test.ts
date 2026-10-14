@@ -12,8 +12,6 @@ const SPAN_CONTEXT = {
   traceFlags: TraceFlags.SAMPLED,
 };
 
-// In production the NodeSDK registers this context manager; tests need it so
-// that context.with() actually propagates the active span.
 beforeAll(() => {
   context.setGlobalContextManager(
     new AsyncLocalStorageContextManager().enable(),

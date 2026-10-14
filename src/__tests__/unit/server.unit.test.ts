@@ -26,8 +26,6 @@ class ThrowingController implements IController {
         next(new Error('unexpected failure'));
       },
     );
-    // Violates the contract on purpose: the 404 Error schema requires
-    // message and status, so response validation raises a 500 HttpError
     this.router.get('/users/:id', (req: Request, res: Response) => {
       res.status(404).json({});
     });
