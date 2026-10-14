@@ -20,9 +20,6 @@ export class UserController implements IController {
     this.router.delete('/users/:id', this.deleteUser);
   }
 
-  /**
-   * Fetch users with pagination (limit/offset coerced by the OpenAPI validator)
-   */
   getUsers = async (
     req: Request,
     res: Response,
@@ -40,9 +37,6 @@ export class UserController implements IController {
     }
   };
 
-  /**
-   * Fetch a user by ID
-   */
   getUserById = async (
     req: Request<{ id: string }>,
     res: Response,
@@ -56,20 +50,18 @@ export class UserController implements IController {
     }
   };
 
-  /**
-   * Create a new user
-   */
   createUser = async (
     req: Request,
     res: Response,
     next: NextFunction,
   ): Promise<void> => {
-    const { id, name, email, createdAt } = req.body;
+    const { id, name, email, createdAt, password } = req.body;
     try {
       const newUser = await this.userService.createUser({
         id,
         name,
         email,
+        password,
         createdAt: createdAt ? new Date(createdAt) : new Date(),
       });
       res.status(201).json(newUser);
@@ -78,9 +70,6 @@ export class UserController implements IController {
     }
   };
 
-  /**
-   * Update a user's information by ID
-   */
   updateUser = async (
     req: Request<{ id: string }>,
     res: Response,
@@ -98,9 +87,6 @@ export class UserController implements IController {
     }
   };
 
-  /**
-   * Delete a user by ID
-   */
   deleteUser = async (
     req: Request<{ id: string }>,
     res: Response,
@@ -114,9 +100,6 @@ export class UserController implements IController {
     }
   };
 
-  /**
-   * Get the router with all routes
-   */
   public getRoutes(): Router {
     return this.router;
   }

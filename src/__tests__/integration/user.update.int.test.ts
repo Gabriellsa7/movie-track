@@ -11,6 +11,7 @@ beforeEach(async () => {
     id: new mongoose.Types.ObjectId().toHexString(),
     email: `update-${Date.now()}@email.com`,
     name: 'Whitebeard',
+    password: 'secret123',
     createdAt: new Date(),
   };
   await Muser.create(existingUser);

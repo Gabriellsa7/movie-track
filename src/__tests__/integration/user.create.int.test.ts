@@ -10,6 +10,7 @@ beforeEach(async () => {
     id: new mongoose.Types.ObjectId().toHexString(),
     email: `create-${new mongoose.Types.ObjectId().toHexString()}@email.com`,
     name: 'Whitebeard',
+    password: 'secret123',
     createdAt: new Date(),
   };
 });
@@ -34,10 +35,10 @@ describe('When we try to create a valid user', () => {
 
 describe('When we create a user without providing createdAt', () => {
   it('should return 201 with a server-generated createdAt', async () => {
-    const { id, name, email } = paramsCreate;
+    const { id, name, email, password } = paramsCreate;
     const { body, statusCode } = await supertest(app.app)
       .post(`/users`)
-      .send({ id, name, email });
+      .send({ id, name, email, password });
 
     expect(statusCode).toBe(201);
     expect(new Date(body.createdAt).getTime()).not.toBeNaN();
