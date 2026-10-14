@@ -11,7 +11,6 @@ export default [
   ...tseslint.configs.recommended,
   {
     rules: {
-      // Allow unused variables if they start with an underscore
       "@typescript-eslint/no-unused-vars": [
         "warn",
         {

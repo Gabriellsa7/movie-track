@@ -70,10 +70,6 @@ export class Server {
     );
   }
 
-  /**
-   * Central error handler: the only place that translates errors into HTTP
-   * responses, always matching the Error/ValidationError contract schemas.
-   */
   private errorHandler() {
     this.app.use(
       (err: Error, req: Request, res: Response, _next: NextFunction) => {

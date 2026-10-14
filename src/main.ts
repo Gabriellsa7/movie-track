@@ -1,5 +1,3 @@
-// OpenTelemetry must be initialized before any instrumented module (express,
-// mongoose, http) is imported. Keep this import as the first line.
 import './infrastructure/telemetry/tracing';
 import path from 'path';
 import { Logger } from 'traceability';
@@ -35,7 +33,6 @@ async function start() {
       await app.closeDatabase();
       process.exit(0);
     });
-    // Failsafe: force exit if connections refuse to drain
     setTimeout(() => process.exit(1), SHUTDOWN_TIMEOUT_MILLISECONDS).unref();
   };
   process.once('SIGTERM', () => shutdown('SIGTERM'));

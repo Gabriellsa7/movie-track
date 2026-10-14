@@ -22,5 +22,4 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=15s --retries=3 \
   CMD wget -qO- "http://localhost:${PORT:-3000}/health" || exit 1
 
-# node directly (not yarn) so SIGTERM reaches the process for graceful shutdown
 CMD ["node", "dist/src/main.js"]

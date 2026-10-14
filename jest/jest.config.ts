@@ -11,9 +11,6 @@ const config: Config = {
   setupFiles: ['../jest/setup-tests.ts'],
   testEnvironment: 'node',
   transform: { '^.+\\.(t|j)s$': 'ts-jest' },
-  // Runtime bootstrap (main.ts, telemetry SDK) is exercised at runtime, not by
-  // tests. The 80/80 threshold is enforced on the merged unit+int report via
-  // `yarn coverage:check` (nyc), since each suite covers different layers.
   collectCoverageFrom: [
     '**/*.ts',
     '!main.ts',

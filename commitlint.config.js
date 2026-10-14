@@ -1,5 +1,3 @@
-// Org standard: .cursor/rules/ai_knowledge_base/code-versioning/commits/COMMITLINT_CONFIG.md
-// body/footer line length checks are disabled to allow long URLs in footers.
 module.exports = {
   extends: ['@commitlint/config-conventional'],
   rules: {
