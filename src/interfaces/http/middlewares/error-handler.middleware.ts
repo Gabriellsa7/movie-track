@@ -1,43 +1,36 @@
 import { ErrorRequestHandler } from 'express';
-import { HttpError } from 'express-openapi-validator/dist/framework/types';
 import { Logger } from 'traceability';
-import { DomainError } from '../../../domain/errors/domain.error';
+import { toErrorResponse } from './error-response.mapper';
+
+const SERVICE_UNAVAILABLE = 503;
+const FIRST_SERVER_ERROR = 500;
 
 export const errorHandlerMiddleware: ErrorRequestHandler = (
-  err: Error,
-  _req,
+  err: unknown,
+  req,
   res,
-  _next,
+  next,
 ) => {
-  if (err instanceof DomainError) {
-    res.status(err.status).json({
-      message: err.message,
-      status: err.status,
-      ...(err.code && { code: err.code }),
+  const response = toErrorResponse(err);
+
+  if (response.status >= FIRST_SERVER_ERROR) {
+    const error = err instanceof Error ? err : new Error(String(err));
+    Logger.error(error.message, {
+      eventName:
+        response.status === SERVICE_UNAVAILABLE
+          ? 'server.dependency_unavailable'
+          : 'server.error',
+      status: response.status,
+      code: response.code,
+      method: req.method,
+      path: req.path,
+      stack: error.stack,
     });
+  }
+
+  if (res.headersSent) {
+    next(err);
     return;
   }
-  if (err instanceof HttpError) {
-    if (err.status >= 500) {
-      Logger.error(err.message, {
-        eventName: 'server.http_error',
-        status: err.status,
-        errors: err.errors,
-      });
-    }
-    res.status(err.status).json({
-      message: err.message,
-      status: err.status,
-      errors: err.errors,
-    });
-    return;
-  }
-  Logger.error(err.message, {
-    eventName: 'server.error',
-    stack: err.stack,
-  });
-  res.status(500).json({
-    message: 'Internal Server Error',
-    status: 500,
-  });
+  res.status(response.status).json(response);
 };

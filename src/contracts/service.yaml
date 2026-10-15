@@ -76,6 +76,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
     post:
       tags:
         - Users
@@ -117,6 +119,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /users/{id}:
     parameters:
@@ -148,6 +152,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
     put:
       tags:
         - Users
@@ -193,6 +199,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
     delete:
       tags:
         - Users
@@ -228,6 +236,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /users/{id}/password:
     parameters:
@@ -267,6 +277,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /auth/login:
     post:
@@ -303,6 +315,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
   /auth/refresh:
     post:
@@ -339,6 +353,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
 
 components:
   parameters:
@@ -358,6 +374,19 @@ components:
       description: 'Access token from POST /auth/login, sent as `Authorization: Bearer <token>`'
 
   responses:
+    UnexpectedError:
+      description: >
+        Any other error, in the same shape: 405 METHOD_NOT_ALLOWED, 413 PAYLOAD_TOO_LARGE,
+        415 UNSUPPORTED_MEDIA_TYPE, 503 SERVICE_UNAVAILABLE (database down) or
+        500 INTERNAL_ERROR (unexpected, logged with the trace id)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: 'Service temporarily unavailable'
+            status: 503
+            code: 'SERVICE_UNAVAILABLE'
     Unauthorized:
       description: Missing, invalid or expired token (INVALID_TOKEN, TOKEN_EXPIRED), or wrong current password (INVALID_CREDENTIALS)
       content:
@@ -585,34 +614,37 @@ components:
       required:
         - message
         - status
+        - code
       properties:
         message:
           type: string
-          description: Error message describing what went wrong
+          description: Human-readable error message
           example: 'User not found'
         status:
           type: integer
-          description: HTTP status code
+          description: HTTP status code (same as the response status)
           example: 404
         code:
           type: string
-          description: Machine-readable error code
+          description: >
+            Machine-readable error code. Domain codes (USER_NOT_FOUND, EMAIL_TAKEN,
+            INVALID_CREDENTIALS, INVALID_TOKEN, TOKEN_EXPIRED, FORBIDDEN_RESOURCE) or
+            generic ones: VALIDATION_ERROR, INVALID_JSON, BAD_REQUEST, UNAUTHORIZED,
+            FORBIDDEN, NOT_FOUND, ROUTE_NOT_FOUND, METHOD_NOT_ALLOWED, CONFLICT,
+            DUPLICATE_KEY, PAYLOAD_TOO_LARGE, UNSUPPORTED_MEDIA_TYPE, REQUEST_ABORTED,
+            SERVICE_UNAVAILABLE, INTERNAL_ERROR
           example: 'USER_NOT_FOUND'
-        timestamp:
-          type: string
-          format: date-time
-          description: When the error occurred
-          example: '2025-07-15T17:30:00.000Z'
-        path:
-          type: string
-          description: The API endpoint that generated the error
-          example: '/users/123'
+        errors:
+          type: array
+          description: Per-field details, present on validation errors
+          items:
+            $ref: '#/components/schemas/FieldError'
     ValidationError:
       type: object
       required:
         - message
         - status
-        - errors
+        - code
       properties:
         message:
           type: string
@@ -622,33 +654,29 @@ components:
           type: integer
           description: HTTP status code
           example: 400
-        timestamp:
+        code:
           type: string
-          format: date-time
-          description: When the error occurred
-          example: '2025-07-15T17:30:00.000Z'
-        path:
-          type: string
-          description: The API endpoint that generated the error
-          example: '/users'
+          description: VALIDATION_ERROR for an invalid field, INVALID_JSON for a malformed body
+          example: 'VALIDATION_ERROR'
         errors:
           type: array
           description: List of specific validation errors
           items:
-            type: object
-            properties:
-              field:
-                type: string
-                description: The field that failed validation
-                example: 'email'
-              message:
-                type: string
-                description: The validation error message
-                example: 'Email is required'
-              value:
-                type: string
-                description: The invalid value provided
-                example: ''
+            $ref: '#/components/schemas/FieldError'
+    FieldError:
+      type: object
+      required:
+        - field
+        - message
+      properties:
+        field:
+          type: string
+          description: The field that failed validation
+          example: 'email'
+        message:
+          type: string
+          description: The validation error message
+          example: 'should match format "email"'
     Login:
       type: object
       additionalProperties: false

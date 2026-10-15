@@ -67,6 +67,78 @@ describe('When an unexpected error reaches the central handler', () => {
   });
 });
 
+describe('When the request body is not valid JSON', () => {
+  it('should respond 400 with the INVALID_JSON code', async () => {
+    const { statusCode, body } = await supertest(app.app)
+      .post('/users')
+      .set('Content-Type', 'application/json')
+      .send('{ "name": "Boruto", }');
+
+    expect(statusCode).toBe(400);
+    expect(body).toEqual({
+      message: 'Malformed JSON body',
+      status: 400,
+      code: 'INVALID_JSON',
+    });
+  });
+});
+
+describe('When the request body is larger than the limit', () => {
+  it('should respond 413 with the PAYLOAD_TOO_LARGE code', async () => {
+    const { statusCode, body } = await supertest(app.app)
+      .post('/users')
+      .set('Content-Type', 'application/json')
+      .send(JSON.stringify({ name: 'x'.repeat(4 * 1024 * 1024) }));
+
+    expect(statusCode).toBe(413);
+    expect(body).toMatchObject({ status: 413, code: 'PAYLOAD_TOO_LARGE' });
+  });
+});
+
+describe('When the request breaks the contract', () => {
+  it('should respond 400 listing every invalid field', async () => {
+    const { statusCode, body } = await supertest(app.app)
+      .post('/users')
+      .send({ name: 'Boruto', email: 'not-an-email', passwordHash: 'x' });
+
+    expect(statusCode).toBe(400);
+    expect(body).toMatchObject({
+      message: 'Validation failed',
+      status: 400,
+      code: 'VALIDATION_ERROR',
+    });
+    expect(body.errors).toEqual(
+      expect.arrayContaining([
+        { field: 'email', message: 'should match format "email"' },
+        { field: 'passwordHash', message: 'should NOT have additional properties' },
+      ]),
+    );
+  });
+
+  it.each([
+    ['get', '/movies', 404, 'ROUTE_NOT_FOUND'],
+    ['patch', '/users', 405, 'METHOD_NOT_ALLOWED'],
+  ] as const)(
+    'should respond %s %s with %i %s',
+    async (method, url, status, code) => {
+      const { statusCode, body } = await supertest(app.app)[method](url);
+
+      expect(statusCode).toBe(status);
+      expect(body).toMatchObject({ status, code });
+    },
+  );
+
+  it('should respond 415 for a body that is not JSON', async () => {
+    const { statusCode, body } = await supertest(app.app)
+      .post('/users')
+      .set('Content-Type', 'text/plain')
+      .send('hello');
+
+    expect(statusCode).toBe(415);
+    expect(body).toMatchObject({ status: 415, code: 'UNSUPPORTED_MEDIA_TYPE' });
+  });
+});
+
 describe('When a response violates the contract', () => {
   it('should log and respond 500 through the central handler', async () => {
     const { statusCode, body } = await supertest(app.app).get(
