@@ -34,6 +34,34 @@ describe('When we load the environment configuration', () => {
     });
   });
 
+  it('should use 10 bcrypt rounds when BCRYPT_ROUNDS is not set', () => {
+    process.env = {
+      ...ORIGINAL_ENV,
+      DATABASE_URI: 'mongodb://localhost/test',
+    };
+    delete process.env.BCRYPT_ROUNDS;
+
+    jest.isolateModules(() => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { env } = require('../../infrastructure/config/env');
+      expect(env.bcryptRounds).toBe(10);
+    });
+  });
+
+  it('should read the bcrypt rounds from BCRYPT_ROUNDS', () => {
+    process.env = {
+      ...ORIGINAL_ENV,
+      DATABASE_URI: 'mongodb://localhost/test',
+      BCRYPT_ROUNDS: '12',
+    };
+
+    jest.isolateModules(() => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { env } = require('../../infrastructure/config/env');
+      expect(env.bcryptRounds).toBe(12);
+    });
+  });
+
   it('should throw naming the missing required variable', () => {
     process.env = { ...ORIGINAL_ENV };
     delete process.env.DATABASE_URI;
