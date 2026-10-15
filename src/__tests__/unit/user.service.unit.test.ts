@@ -234,6 +234,17 @@ describe('When we list users', () => {
     );
   });
 
+  it('should list without filter when no arguments are provided', async () => {
+    userRepositoryRead.listUsers.mockResolvedValue([]);
+
+    await userService.listUsers();
+
+    expect(userRepositoryRead.listUsers).toHaveBeenCalledWith(
+      {},
+      { limit: 20, offset: 0 },
+    );
+  });
+
   it('should forward the pagination provided by the caller', async () => {
     userRepositoryRead.listUsers.mockResolvedValue([]);
 
