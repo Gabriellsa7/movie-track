@@ -2,7 +2,6 @@ import express, {
   Request,
   Response,
   Application,
-  NextFunction,
   RequestHandler,
 } from 'express';
 import { ContextAsyncHooks, Logger } from 'traceability';
@@ -11,8 +10,7 @@ import { IController } from './controllers/controller.interface';
 import mongoose from 'mongoose';
 import * as OpenApiValidator from 'express-openapi-validator';
 import helmet from 'helmet';
-import { HttpError } from 'express-openapi-validator/dist/framework/types';
-import { DomainError } from '../../domain/errors/domain.error';
+import { errorHandlerMiddleware } from './middlewares/error-handler.middleware';
 
 export class Server {
   public app: Application;
@@ -71,41 +69,7 @@ export class Server {
   }
 
   private errorHandler() {
-    this.app.use(
-      (err: Error, req: Request, res: Response, _next: NextFunction) => {
-        if (err instanceof DomainError) {
-          res.status(err.status).json({
-            message: err.message,
-            status: err.status,
-            ...(err.code && { code: err.code }),
-          });
-          return;
-        }
-        if (err instanceof HttpError) {
-          if (err.status >= 500) {
-            Logger.error(err.message, {
-              eventName: 'server.http_error',
-              status: err.status,
-              errors: err.errors,
-            });
-          }
-          res.status(err.status).json({
-            message: err.message,
-            status: err.status,
-            errors: err.errors,
-          });
-          return;
-        }
-        Logger.error(err.message, {
-          eventName: 'server.error',
-          stack: err.stack,
-        });
-        res.status(500).json({
-          message: 'Internal Server Error',
-          status: 500,
-        });
-      },
-    );
+    this.app.use(errorHandlerMiddleware);
   }
 
   private routes(controllers: Array<IController>, pathRoute = '/') {
