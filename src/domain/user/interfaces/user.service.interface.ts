@@ -54,11 +54,6 @@ export interface IUserService {
   updateUserById(params: IParamsUpdateUser): Promise<IUserPrivate>;
   changePassword(params: IParamsChangePassword): Promise<void>;
   deleteUser(params: IParamsDeleteUser): Promise<void>;
-  deleteUserById(id: string): Promise<IUserPrivate>;
-  listUsers(
-    filter: Partial<IUser>,
-    pagination?: Partial<IPagination>,
-  ): Promise<IUserPrivate[]>;
   listPublicUsers(
     params: IParamsListUsers,
   ): Promise<IPaginatedResult<IUserPublicSummary>>;

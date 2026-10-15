@@ -18,16 +18,6 @@ export class UserRepositoryRead implements IUserRepositoryRead {
     return Muser.findOne({ email }, HIDE_USER_INTERNAL_FIELDS).lean<IUser>();
   }
 
-  async listUsers(
-    filter: Partial<IUser>,
-    pagination: IPagination,
-  ): Promise<IUser[]> {
-    return Muser.find(filter, HIDE_USER_INTERNAL_FIELDS)
-      .skip(pagination.offset)
-      .limit(pagination.limit)
-      .lean<IUser[]>();
-  }
-
   async searchUsers(
     search: string | undefined,
     pagination: IPagination,
