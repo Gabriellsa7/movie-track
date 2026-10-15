@@ -73,4 +73,50 @@ describe('When we load the environment configuration', () => {
       ).toThrow('Missing required environment variable: DATABASE_URI');
     });
   });
+
+  it('should use 1h as the JWT expiration when JWT_EXPIRES_IN is not set', () => {
+    process.env = { ...ORIGINAL_ENV, DATABASE_URI: 'mongodb://localhost/test' };
+    delete process.env.JWT_EXPIRES_IN;
+
+    jest.isolateModules(() => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { env } = require('../../infrastructure/config/env');
+      expect(env.jwtExpiresIn).toBe('1h');
+    });
+  });
+
+  it('should throw when JWT_SECRET is missing', () => {
+    process.env = { ...ORIGINAL_ENV, DATABASE_URI: 'mongodb://localhost/test' };
+    delete process.env.JWT_SECRET;
+
+    jest.isolateModules(() => {
+      expect(() =>
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        require('../../infrastructure/config/env'),
+      ).toThrow('Missing required environment variable: JWT_SECRET');
+    });
+  });
+
+  it('should use 7d as the refresh token expiration when REFRESH_TOKEN_EXPIRES_IN is not set', () => {
+    process.env = { ...ORIGINAL_ENV, DATABASE_URI: 'mongodb://localhost/test' };
+    delete process.env.REFRESH_TOKEN_EXPIRES_IN;
+
+    jest.isolateModules(() => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { env } = require('../../infrastructure/config/env');
+      expect(env.refreshTokenExpiresIn).toBe('7d');
+    });
+  });
+
+  it('should throw when REFRESH_TOKEN_SECRET is missing', () => {
+    process.env = { ...ORIGINAL_ENV, DATABASE_URI: 'mongodb://localhost/test' };
+    delete process.env.REFRESH_TOKEN_SECRET;
+
+    jest.isolateModules(() => {
+      expect(() =>
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        require('../../infrastructure/config/env'),
+      ).toThrow('Missing required environment variable: REFRESH_TOKEN_SECRET');
+    });
+  });
 });
