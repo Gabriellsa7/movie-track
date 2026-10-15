@@ -69,7 +69,9 @@ describe('When an unexpected error reaches the central handler', () => {
 
 describe('When a response violates the contract', () => {
   it('should log and respond 500 through the central handler', async () => {
-    const { statusCode, body } = await supertest(app.app).get('/users/any-id');
+    const { statusCode, body } = await supertest(app.app).get(
+      '/users/00000000-0000-4000-8000-000000000000',
+    );
 
     expect(statusCode).toBe(500);
     expect(body).toMatchObject({ status: 500 });

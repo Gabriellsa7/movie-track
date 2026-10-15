@@ -45,7 +45,7 @@ No exceptions — every file follows the pattern above.
 | Enum (Agents.md, no example in code yet) | `E` + PascalCase, UPPER members | `EStatus.ACTIVE` |
 
 Methods have intent-revealing names: `findUserByEmail`, `updateUserById`,
-`listUsers` — never generic ones like `get` or `handle`.
+`searchUsers` — never generic ones like `get` or `handle`.
 
 ## Code patterns
 
@@ -68,16 +68,17 @@ Methods have intent-revealing names: `findUserByEmail`, `updateUserById`,
 ## HTTP responses (the `user` slice pattern)
 
 All error responses follow the contract's `Error`/`ValidationError` schemas
-(`{ message, status, ... }`) and are produced **only** by the central error handler:
+(`{ message, status, code?, ... }`) and are produced **only** by the central error handler:
 
 | Situation | Status | Body | Origin |
 | --- | --- | --- | --- |
 | Created | 201 | created entity | controller |
 | Read/updated | 200 | entity | controller |
-| Deleted | 200 | `{ message: 'User deleted successfully' }` | controller |
+| Deleted / no content | 204 | empty | controller |
 | Invalid payload (contract) | 400 | `{ message, status, errors[] }` | OpenApiValidator → handler |
-| Not found | 404 | `{ message: 'User not found', status: 404 }` | `NotFoundError` → handler |
-| Conflict (e.g. duplicated email) | 409 | `{ message, status: 409 }` | `ConflictError` → handler |
+| Wrong password | 401 | `{ message, status: 401, code: 'INVALID_CREDENTIALS' }` | `UnauthorizedError` → handler |
+| Not found | 404 | `{ message: 'User not found', status: 404, code: 'USER_NOT_FOUND' }` | `NotFoundError` → handler |
+| Conflict (e.g. duplicated email) | 409 | `{ message, status: 409, code: 'EMAIL_TAKEN' }` | `ConflictError` → handler |
 | Unexpected error | 500 | `{ message: 'Internal Server Error', status: 500 }` | handler (with structured log) |
 
 ## OpenAPI contract (`src/contracts/service.yaml`)
@@ -90,7 +91,8 @@ compatible with the current contract:
 - Route resources: kebab-case, plural (`/users`, `/user-profiles`) — this repo does not use an `/api` prefix
 - Every endpoint documented with success **and** error examples; types with
   specific formats (`format: email`, `date-time`) and limits where applicable
-- List endpoints take `limit`/`offset` query params with sensible bounds
+- List endpoints take `page`/`limit` query params with sensible bounds and answer `{ items, total, page, limit }`
+- `code` on error responses is optional and comes from the domain error (`new NotFoundError('User not found', 'USER_NOT_FOUND')`)
 
 ## Style and tooling
 

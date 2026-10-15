@@ -1,9 +1,17 @@
-import { IPagination } from '../../common/pagination.interface';
+import {
+  IPaginatedResult,
+  IPagination,
+} from '../../common/pagination.interface';
 import { IClock } from '../../common/providers/clock.provider';
 import { IPasswordHasher } from '../../common/providers/password-hasher.provider';
 import { IUserRepositoryRead } from '../repository/user.repository.read';
 import { IUserRepositoryWrite } from '../repository/user.repository.write';
-import { IUser, IUserPrivate } from './user.interface';
+import {
+  IUser,
+  IUserPrivate,
+  IUserPublicProfile,
+  IUserPublicSummary,
+} from './user.interface';
 
 export interface IParamsCreateUser {
   name: string;
@@ -14,6 +22,22 @@ export interface IParamsCreateUser {
 export interface IParamsUpdateUser {
   id: string;
   userData: Partial<Pick<IUser, 'name' | 'email'>>;
+}
+
+export interface IParamsChangePassword {
+  id: string;
+  currentPassword: string;
+  newPassword: string;
+}
+
+export interface IParamsDeleteUser {
+  id: string;
+  password: string;
+}
+
+export interface IParamsListUsers {
+  search?: string;
+  pagination: IPagination;
 }
 
 export interface IParamsUserService {
@@ -28,9 +52,10 @@ export interface IUserService {
   getUserById(id: string): Promise<IUserPrivate>;
   getUserByEmail(email: string): Promise<IUserPrivate>;
   updateUserById(params: IParamsUpdateUser): Promise<IUserPrivate>;
-  deleteUserById(id: string): Promise<IUserPrivate>;
-  listUsers(
-    filter: Partial<IUser>,
-    pagination?: Partial<IPagination>,
-  ): Promise<IUserPrivate[]>;
+  changePassword(params: IParamsChangePassword): Promise<void>;
+  deleteUser(params: IParamsDeleteUser): Promise<void>;
+  listPublicUsers(
+    params: IParamsListUsers,
+  ): Promise<IPaginatedResult<IUserPublicSummary>>;
+  getPublicProfile(id: string): Promise<IUserPublicProfile>;
 }

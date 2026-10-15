@@ -1,5 +1,4 @@
 import { randomUUID } from 'crypto';
-import mongoose from 'mongoose';
 import supertest from 'supertest';
 import { app } from '../../../jest/setup-integration-tests';
 import { Muser } from '../../infrastructure/db/mongo/models/user.model';
@@ -64,7 +63,7 @@ describe('When we update a user with an email used by another user', () => {
 describe('When we update a user that does not exist', () => {
   it('should return 404 with the contract error shape', async () => {
     const { body, statusCode } = await supertest(app.app)
-      .put(`/users/${new mongoose.Types.ObjectId().toHexString()}`)
+      .put(`/users/${randomUUID()}`)
       .send({ name: 'Nobody' });
 
     expect(statusCode).toBe(404);

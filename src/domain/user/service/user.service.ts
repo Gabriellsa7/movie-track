@@ -1,23 +1,28 @@
 import { randomUUID } from 'crypto';
 import { IUserRepositoryRead } from '../repository/user.repository.read';
 import { IUserRepositoryWrite } from '../repository/user.repository.write';
-import { IUser, IUserPrivate } from '../interfaces/user.interface';
 import {
+  IUser,
+  IUserPrivate,
+  IUserPublicProfile,
+  IUserPublicSummary,
+} from '../interfaces/user.interface';
+import {
+  IParamsChangePassword,
   IParamsCreateUser,
+  IParamsDeleteUser,
+  IParamsListUsers,
   IParamsUpdateUser,
   IParamsUserService,
   IUserService,
 } from '../interfaces/user.service.interface';
 import { ConflictError } from '../../errors/conflict.error';
 import { NotFoundError } from '../../errors/not-found.error';
-import { IPagination } from '../../common/pagination.interface';
+import { UnauthorizedError } from '../../errors/unauthorized.error';
+import { IPaginatedResult } from '../../common/pagination.interface';
 import { IClock } from '../../common/providers/clock.provider';
 import { IPasswordHasher } from '../../common/providers/password-hasher.provider';
 import { User } from '../user.entity';
-
-const DEFAULT_LIST_LIMIT = 20;
-const DEFAULT_LIST_OFFSET = 0;
-const EMAIL_TAKEN_MESSAGE = 'A user with this email already exists';
 
 export class UserService implements IUserService {
   private userRepositoryRead: IUserRepositoryRead;
@@ -41,7 +46,7 @@ export class UserService implements IUserService {
     const email = this.normalizeEmail(params.email);
     const existingUser = await this.userRepositoryRead.findUserByEmail(email);
     if (existingUser) {
-      throw new ConflictError(EMAIL_TAKEN_MESSAGE);
+      throw this.emailTakenError();
     }
 
     const passwordHash = await this.passwordHasher.hash(params.password);
@@ -59,11 +64,7 @@ export class UserService implements IUserService {
   }
 
   async getUserById(id: string): Promise<IUserPrivate> {
-    const user = await this.userRepositoryRead.findUserById(id);
-    if (!user) {
-      throw new NotFoundError('User not found');
-    }
-    return this.toUserPrivate(user);
+    return this.toUserPrivate(await this.findExistingUser(id));
   }
 
   async getUserByEmail(email: string): Promise<IUserPrivate> {
@@ -71,7 +72,7 @@ export class UserService implements IUserService {
       this.normalizeEmail(email),
     );
     if (!user) {
-      throw new NotFoundError('User not found');
+      throw this.userNotFoundError();
     }
     return this.toUserPrivate(user);
   }
@@ -89,7 +90,7 @@ export class UserService implements IUserService {
         userData.email,
       );
       if (userWithEmail && userWithEmail.id !== params.id) {
-        throw new ConflictError(EMAIL_TAKEN_MESSAGE);
+        throw this.emailTakenError();
       }
     }
 
@@ -98,38 +99,94 @@ export class UserService implements IUserService {
       userData,
     );
     if (!updatedUser) {
-      throw new NotFoundError('User not found');
+      throw this.userNotFoundError();
     }
     return this.toUserPrivate(updatedUser);
   }
 
-  async deleteUserById(id: string): Promise<IUserPrivate> {
-    const deletedUser = await this.userRepositoryWrite.deleteUserById(id);
-    if (!deletedUser) {
-      throw new NotFoundError('User not found');
-    }
-    return this.toUserPrivate(deletedUser);
+  async changePassword(params: IParamsChangePassword): Promise<void> {
+    const user = await this.findExistingUser(params.id);
+    await this.ensurePasswordMatches(params.currentPassword, user);
+
+    const passwordHash = await this.passwordHasher.hash(params.newPassword);
+    await this.userRepositoryWrite.updateUserById(params.id, {
+      passwordHash,
+      updatedAt: this.clock.now(),
+    });
   }
 
-  async listUsers(
-    filter: Partial<IUser> = {},
-    pagination: Partial<IPagination> = {},
-  ): Promise<IUserPrivate[]> {
-    const { limit = DEFAULT_LIST_LIMIT, offset = DEFAULT_LIST_OFFSET } =
-      pagination;
-    const users = await this.userRepositoryRead.listUsers(filter, {
-      limit,
-      offset,
-    });
-    return users.map((user) => this.toUserPrivate(user));
+  async deleteUser(params: IParamsDeleteUser): Promise<void> {
+    const user = await this.findExistingUser(params.id);
+    await this.ensurePasswordMatches(params.password, user);
+    await this.userRepositoryWrite.deleteUserById(params.id);
+  }
+
+  async listPublicUsers(
+    params: IParamsListUsers,
+  ): Promise<IPaginatedResult<IUserPublicSummary>> {
+    const { search, pagination } = params;
+    const [users, total] = await Promise.all([
+      this.userRepositoryRead.searchUsers(search, pagination),
+      this.userRepositoryRead.countUsers(search),
+    ]);
+    return {
+      items: users.map((user) => this.toUserPublicSummary(user)),
+      total,
+      page: Math.floor(pagination.offset / pagination.limit) + 1,
+      limit: pagination.limit,
+    };
+  }
+
+  async getPublicProfile(id: string): Promise<IUserPublicProfile> {
+    const user = await this.findExistingUser(id);
+    return {
+      ...this.toUserPublicSummary(user),
+      memberSince: user.createdAt,
+    };
+  }
+
+  private async findExistingUser(id: string): Promise<IUser> {
+    const user = await this.userRepositoryRead.findUserById(id);
+    if (!user) {
+      throw this.userNotFoundError();
+    }
+    return user;
+  }
+
+  private async ensurePasswordMatches(
+    password: string,
+    user: IUser,
+  ): Promise<void> {
+    const matches = await this.passwordHasher.compare(
+      password,
+      user.passwordHash,
+    );
+    if (!matches) {
+      throw new UnauthorizedError('Invalid credentials', 'INVALID_CREDENTIALS');
+    }
   }
 
   private normalizeEmail(email: string): string {
     return email.trim().toLowerCase();
   }
 
+  private emailTakenError(): ConflictError {
+    return new ConflictError(
+      'A user with this email already exists',
+      'EMAIL_TAKEN',
+    );
+  }
+
+  private userNotFoundError(): NotFoundError {
+    return new NotFoundError('User not found', 'USER_NOT_FOUND');
+  }
+
   private toUserPrivate(user: IUser): IUserPrivate {
     const { passwordHash, avatarPublicId, ...userPrivate } = user;
     return userPrivate;
+  }
+
+  private toUserPublicSummary(user: IUser): IUserPublicSummary {
+    return { id: user.id, name: user.name, avatarUrl: user.avatarUrl };
   }
 }

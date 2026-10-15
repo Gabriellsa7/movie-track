@@ -77,6 +77,7 @@ export class Server {
           res.status(err.status).json({
             message: err.message,
             status: err.status,
+            ...(err.code && { code: err.code }),
           });
           return;
         }

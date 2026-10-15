@@ -6,6 +6,7 @@ import { IPasswordHasher } from '../../domain/common/providers/password-hasher.p
 import { IClock } from '../../domain/common/providers/clock.provider';
 import { ConflictError } from '../../domain/errors/conflict.error';
 import { NotFoundError } from '../../domain/errors/not-found.error';
+import { UnauthorizedError } from '../../domain/errors/unauthorized.error';
 
 const NOW = new Date('2026-02-01T00:00:00.000Z');
 
@@ -39,7 +40,6 @@ beforeEach(() => {
   userRepositoryRead = {
     findUserById: jest.fn(),
     findUserByEmail: jest.fn(),
-    listUsers: jest.fn(),
     searchUsers: jest.fn(),
     countUsers: jest.fn(),
   };
@@ -95,7 +95,7 @@ describe('When we create a user', () => {
         email: 'WHITEBEARD@email.com',
         password: 'secret123',
       }),
-    ).rejects.toThrow(ConflictError);
+    ).rejects.toMatchObject({ status: 409, code: 'EMAIL_TAKEN' });
     expect(userRepositoryRead.findUserByEmail).toHaveBeenCalledWith(
       'whitebeard@email.com',
     );
@@ -204,57 +204,128 @@ describe('When we update a user', () => {
   });
 });
 
-describe('When we delete a user', () => {
-  it('should delete and return the user without private fields', async () => {
-    userRepositoryWrite.deleteUserById.mockResolvedValue(A_USER);
+describe('When we change a user password', () => {
+  it('should store the new hash when the current password matches', async () => {
+    userRepositoryRead.findUserById.mockResolvedValue(A_USER);
+    passwordHasher.compare.mockResolvedValue(true);
 
-    const result = await userService.deleteUserById(A_USER.id);
+    await userService.changePassword({
+      id: A_USER.id,
+      currentPassword: 'secret123',
+      newPassword: 'newSecret456',
+    });
 
-    expect(result).toEqual(A_USER_PRIVATE);
-    expect(userRepositoryWrite.deleteUserById).toHaveBeenCalledWith(A_USER.id);
+    expect(passwordHasher.compare).toHaveBeenCalledWith(
+      'secret123',
+      A_USER.passwordHash,
+    );
+    expect(userRepositoryWrite.updateUserById).toHaveBeenCalledWith(A_USER.id, {
+      passwordHash: 'hashed-newSecret456',
+      updatedAt: NOW,
+    });
+  });
+
+  it('should throw UnauthorizedError when the current password is wrong', async () => {
+    userRepositoryRead.findUserById.mockResolvedValue(A_USER);
+    passwordHasher.compare.mockResolvedValue(false);
+
+    await expect(
+      userService.changePassword({
+        id: A_USER.id,
+        currentPassword: 'wrong123',
+        newPassword: 'newSecret456',
+      }),
+    ).rejects.toMatchObject({ status: 401, code: 'INVALID_CREDENTIALS' });
+    expect(userRepositoryWrite.updateUserById).not.toHaveBeenCalled();
   });
 
   it('should throw NotFoundError when the user does not exist', async () => {
-    userRepositoryWrite.deleteUserById.mockResolvedValue(null);
+    userRepositoryRead.findUserById.mockResolvedValue(null);
 
-    await expect(userService.deleteUserById('missing-id')).rejects.toThrow(
-      NotFoundError,
-    );
+    await expect(
+      userService.changePassword({
+        id: 'missing-id',
+        currentPassword: 'secret123',
+        newPassword: 'newSecret456',
+      }),
+    ).rejects.toMatchObject({ status: 404, code: 'USER_NOT_FOUND' });
   });
 });
 
-describe('When we list users', () => {
-  it('should apply default pagination and hide private fields', async () => {
-    userRepositoryRead.listUsers.mockResolvedValue([A_USER]);
+describe('When we delete a user confirming the password', () => {
+  it('should delete the user when the password matches', async () => {
+    userRepositoryRead.findUserById.mockResolvedValue(A_USER);
+    passwordHasher.compare.mockResolvedValue(true);
 
-    const users = await userService.listUsers({ name: A_USER.name });
+    await userService.deleteUser({ id: A_USER.id, password: 'secret123' });
 
-    expect(users).toEqual([A_USER_PRIVATE]);
-    expect(userRepositoryRead.listUsers).toHaveBeenCalledWith(
-      { name: A_USER.name },
-      { limit: 20, offset: 0 },
-    );
+    expect(userRepositoryWrite.deleteUserById).toHaveBeenCalledWith(A_USER.id);
   });
 
-  it('should list without filter when no arguments are provided', async () => {
-    userRepositoryRead.listUsers.mockResolvedValue([]);
+  it('should throw UnauthorizedError and keep the user when the password is wrong', async () => {
+    userRepositoryRead.findUserById.mockResolvedValue(A_USER);
+    passwordHasher.compare.mockResolvedValue(false);
 
-    await userService.listUsers();
-
-    expect(userRepositoryRead.listUsers).toHaveBeenCalledWith(
-      {},
-      { limit: 20, offset: 0 },
-    );
+    await expect(
+      userService.deleteUser({ id: A_USER.id, password: 'wrong123' }),
+    ).rejects.toThrow(UnauthorizedError);
+    expect(userRepositoryWrite.deleteUserById).not.toHaveBeenCalled();
   });
 
-  it('should forward the pagination provided by the caller', async () => {
-    userRepositoryRead.listUsers.mockResolvedValue([]);
+  it('should throw NotFoundError when the user does not exist', async () => {
+    userRepositoryRead.findUserById.mockResolvedValue(null);
 
-    await userService.listUsers({}, { limit: 5, offset: 10 });
+    await expect(
+      userService.deleteUser({ id: 'missing-id', password: 'secret123' }),
+    ).rejects.toThrow(NotFoundError);
+  });
+});
 
-    expect(userRepositoryRead.listUsers).toHaveBeenCalledWith(
-      {},
-      { limit: 5, offset: 10 },
+describe('When we list public users', () => {
+  it('should return only public fields with pagination metadata', async () => {
+    userRepositoryRead.searchUsers.mockResolvedValue([A_USER]);
+    userRepositoryRead.countUsers.mockResolvedValue(41);
+
+    const result = await userService.listPublicUsers({
+      search: 'white',
+      pagination: { limit: 20, offset: 40 },
+    });
+
+    expect(result).toEqual({
+      items: [
+        { id: A_USER.id, name: A_USER.name, avatarUrl: A_USER.avatarUrl },
+      ],
+      total: 41,
+      page: 3,
+      limit: 20,
+    });
+    expect(userRepositoryRead.searchUsers).toHaveBeenCalledWith('white', {
+      limit: 20,
+      offset: 40,
+    });
+    expect(userRepositoryRead.countUsers).toHaveBeenCalledWith('white');
+  });
+});
+
+describe('When we get a public profile', () => {
+  it('should return public fields and the member since date', async () => {
+    userRepositoryRead.findUserById.mockResolvedValue(A_USER);
+
+    const profile = await userService.getPublicProfile(A_USER.id);
+
+    expect(profile).toEqual({
+      id: A_USER.id,
+      name: A_USER.name,
+      avatarUrl: A_USER.avatarUrl,
+      memberSince: A_USER.createdAt,
+    });
+  });
+
+  it('should throw NotFoundError when the user does not exist', async () => {
+    userRepositoryRead.findUserById.mockResolvedValue(null);
+
+    await expect(userService.getPublicProfile('missing-id')).rejects.toThrow(
+      NotFoundError,
     );
   });
 });

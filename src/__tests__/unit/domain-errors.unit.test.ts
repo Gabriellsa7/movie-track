@@ -1,6 +1,7 @@
 import { DomainError } from '../../domain/errors/domain.error';
 import { NotFoundError } from '../../domain/errors/not-found.error';
 import { ConflictError } from '../../domain/errors/conflict.error';
+import { UnauthorizedError } from '../../domain/errors/unauthorized.error';
 
 describe('When we create domain errors without arguments', () => {
   it('should default DomainError to status 500', () => {
@@ -24,5 +25,26 @@ describe('When we create domain errors without arguments', () => {
     expect(error).toBeInstanceOf(DomainError);
     expect(error.message).toBe('Resource already exists');
     expect(error.status).toBe(409);
+  });
+
+  it('should default UnauthorizedError to a generic 401 message', () => {
+    const error = new UnauthorizedError();
+
+    expect(error).toBeInstanceOf(DomainError);
+    expect(error.message).toBe('Unauthorized');
+    expect(error.status).toBe(401);
+    expect(error.code).toBeUndefined();
+  });
+});
+
+describe('When we create domain errors with a code', () => {
+  it('should expose the code for the error handler', () => {
+    expect(new NotFoundError('User not found', 'USER_NOT_FOUND')).toMatchObject(
+      { status: 404, code: 'USER_NOT_FOUND' },
+    );
+    expect(new ConflictError('Taken', 'EMAIL_TAKEN').code).toBe('EMAIL_TAKEN');
+    expect(new UnauthorizedError('Nope', 'INVALID_CREDENTIALS').code).toBe(
+      'INVALID_CREDENTIALS',
+    );
   });
 });
