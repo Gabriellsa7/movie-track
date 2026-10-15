@@ -5,6 +5,7 @@ import { Server } from './interfaces/http/server';
 import { env } from './infrastructure/config/env';
 
 import { UserControllerFactory } from './infrastructure/config/factories/user.controller.factory';
+import { AuthControllerFactory } from './infrastructure/config/factories/auth.controller.factory';
 
 const OPEN_API_SPEC_FILE_LOCATION = path.resolve(
   __dirname,
@@ -15,7 +16,7 @@ const SHUTDOWN_TIMEOUT_MILLISECONDS = 10000;
 
 const app = new Server({
   port: env.port,
-  controllers: [UserControllerFactory.create()],
+  controllers: [UserControllerFactory.create(), AuthControllerFactory.create()],
   databaseURI: env.databaseUri,
   apiSpecLocation: OPEN_API_SPEC_FILE_LOCATION,
 });
