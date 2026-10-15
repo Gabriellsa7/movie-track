@@ -5,7 +5,7 @@ const CREATED_AT = new Date('2026-01-01T00:00:00.000Z');
 const LATER = new Date('2026-02-01T00:00:00.000Z');
 
 const A_USER: IUser = {
-  id: 'user-1',
+  _id: 'user-1',
   name: 'Whitebeard',
   email: 'whitebeard@email.com',
   passwordHash: 'hashed-secret123',
@@ -16,7 +16,7 @@ const A_USER: IUser = {
 };
 
 describe('When we create a user entity', () => {
-  it('should generate the id and normalize name and email', () => {
+  it('should normalize name and email and leave the id to the database', () => {
     const user = new User({
       name: '  Whitebeard  ',
       email: ' WhiteBeard@Email.com ',
@@ -24,7 +24,7 @@ describe('When we create a user entity', () => {
       createdAt: CREATED_AT,
     });
 
-    expect(user.id).toMatch(/^[0-9a-f-]{36}$/);
+    expect(user).not.toHaveProperty('_id');
     expect(user.name).toBe('Whitebeard');
     expect(user.email).toBe('whitebeard@email.com');
     expect(user.updatedAt).toBe(CREATED_AT);
@@ -88,7 +88,7 @@ describe('When we change a user password hash', () => {
 describe('When we map a user to its responses', () => {
   it('should hide the password hash and avatar public id from the private view', () => {
     expect(User.toUserPrivate(A_USER)).toEqual({
-      id: A_USER.id,
+      id: A_USER._id,
       name: A_USER.name,
       email: A_USER.email,
       avatarUrl: A_USER.avatarUrl,
@@ -99,12 +99,12 @@ describe('When we map a user to its responses', () => {
 
   it('should expose only public fields in the summary and profile', () => {
     expect(User.toUserPublicSummary(A_USER)).toEqual({
-      id: A_USER.id,
+      id: A_USER._id,
       name: A_USER.name,
       avatarUrl: A_USER.avatarUrl,
     });
     expect(User.toUserPublicProfile(A_USER)).toEqual({
-      id: A_USER.id,
+      id: A_USER._id,
       name: A_USER.name,
       avatarUrl: A_USER.avatarUrl,
       memberSince: A_USER.createdAt,

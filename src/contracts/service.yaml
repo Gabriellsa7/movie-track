@@ -364,7 +364,7 @@ components:
       required: true
       schema:
         type: string
-        format: uuid
+        pattern: '^[0-9a-fA-F]{24}$'
       description: The ID of the user
   securitySchemes:
     bearerAuth:
@@ -449,7 +449,7 @@ components:
       properties:
         id:
           type: string
-          format: uuid
+          pattern: '^[0-9a-fA-F]{24}$'
           description: The unique identifier of the user
         name:
           type: string
@@ -468,7 +468,7 @@ components:
       properties:
         id:
           type: string
-          format: uuid
+          pattern: '^[0-9a-fA-F]{24}$'
           description: The unique identifier of the user
         name:
           type: string
@@ -516,7 +516,7 @@ components:
       properties:
         id:
           type: string
-          format: uuid
+          pattern: '^[0-9a-fA-F]{24}$'
           description: The unique identifier of the user
         name:
           type: string

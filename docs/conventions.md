@@ -35,7 +35,7 @@ No exceptions — every file follows the pattern above.
 | Domain interface | `I` + PascalCase | `IUser`, `IUserService`, `IController`, `IPagination` |
 | Parameter interface | `IParams` + action/context | `IParamsCreateUser`, `IParamsUpdateUser`, `IParamsUserService` |
 | Repository contract | `I<Feature>Repository<Read\|Write>` | `IUserRepositoryRead`, `IUserRepositoryWrite` |
-| Persistence interface | `IM` + PascalCase, extends the domain interface | `IMUser extends IUser` (adds `_id: Types.ObjectId`; lives in the schema file) |
+| Persistence interface | `IM` + PascalCase, extends the domain interface | `IMUser extends Omit<IUser, '_id'>` (redeclares `_id: Types.ObjectId`; lives in the schema file) |
 | Class | PascalCase, no prefix | `UserService`, `UserController`, `Server`, `User` |
 | Factory | `<Feature><Type>Factory` | `UserServiceFactory`, `UserControllerFactory` |
 | Mongoose model | `M` + lowercase, typed with `IM*` | `Muser = mongoose.model<IMUser>('user', userSchema)` |
@@ -65,7 +65,7 @@ Methods have intent-revealing names: `findUserByEmail`, `updateUserById`,
   errors in `new Error(string)` — that loses the type and the stack.
 - **Entities** (`user.entity.ts` is the reference) implement their domain interface with:
   - declared properties and a `constructor(params: IParams<Feature>)` that owns the
-    invariants (generates `id` with `randomUUID()` when missing, trims/normalizes fields,
+    invariants (keeps `_id` only when given — MongoDB generates it on insert —, trims/normalizes fields,
     defaults dates, only sets optional fields that have a value);
   - instance methods for state changes (`updateProfile(data, updatedAt)`,
     `changePasswordHash(hash, updatedAt)`), so services never assign fields directly;

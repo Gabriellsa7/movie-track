@@ -4,7 +4,7 @@ import supertest from 'supertest';
 import { app } from '../../../jest/setup-integration-tests';
 import { Muser } from '../../infrastructure/db/mongo/models/user.model';
 import { IUser } from '../../domain/user/interfaces/user.interface';
-import { authHeaderFor } from '../testUtils';
+import { authHeaderFor, newObjectId } from '../testUtils';
 
 const PASSWORD = 'secret123';
 const NEW_PASSWORD = 'newSecret456';
@@ -14,7 +14,7 @@ let existingUser: IUser;
 
 beforeEach(async () => {
   existingUser = {
-    id: randomUUID(),
+    _id: newObjectId(),
     email: `password-${randomUUID()}@email.com`,
     name: 'Whitebeard',
     passwordHash: await bcrypt.hash(PASSWORD, LOW_COST_ROUNDS),
@@ -27,11 +27,11 @@ beforeEach(async () => {
 describe('When we change the password with the right current password', () => {
   it('should return 204 and store a hash of the new password', async () => {
     const { statusCode } = await supertest(app.app)
-      .patch(`/users/${existingUser.id}/password`)
-      .set('Authorization', authHeaderFor(existingUser.id))
+      .patch(`/users/${existingUser._id}/password`)
+      .set('Authorization', authHeaderFor(existingUser._id))
       .send({ currentPassword: PASSWORD, newPassword: NEW_PASSWORD });
 
-    const userInDb = await Muser.findOne({ id: existingUser.id }).lean();
+    const userInDb = await Muser.findOne({ _id: existingUser._id }).lean();
 
     expect(statusCode).toBe(204);
     await expect(
@@ -43,11 +43,11 @@ describe('When we change the password with the right current password', () => {
 describe('When we change the password with a wrong current password', () => {
   it('should return 401 and keep the old password', async () => {
     const { body, statusCode } = await supertest(app.app)
-      .patch(`/users/${existingUser.id}/password`)
-      .set('Authorization', authHeaderFor(existingUser.id))
+      .patch(`/users/${existingUser._id}/password`)
+      .set('Authorization', authHeaderFor(existingUser._id))
       .send({ currentPassword: 'wrong123', newPassword: NEW_PASSWORD });
 
-    const userInDb = await Muser.findOne({ id: existingUser.id }).lean();
+    const userInDb = await Muser.findOne({ _id: existingUser._id }).lean();
 
     expect(statusCode).toBe(401);
     expect(body).toEqual({
@@ -62,8 +62,8 @@ describe('When we change the password with a wrong current password', () => {
 describe('When we change the password to a weak one', () => {
   it('should return 400 rejected by the contract validation', async () => {
     const { statusCode } = await supertest(app.app)
-      .patch(`/users/${existingUser.id}/password`)
-      .set('Authorization', authHeaderFor(existingUser.id))
+      .patch(`/users/${existingUser._id}/password`)
+      .set('Authorization', authHeaderFor(existingUser._id))
       .send({ currentPassword: PASSWORD, newPassword: 'onlyletters' });
 
     expect(statusCode).toBe(400);
@@ -72,7 +72,7 @@ describe('When we change the password to a weak one', () => {
 
 describe('When we change the password of a user that does not exist', () => {
   it('should return 404 with the USER_NOT_FOUND code', async () => {
-    const missingUserId = randomUUID();
+    const missingUserId = newObjectId();
     const { body, statusCode } = await supertest(app.app)
       .patch(`/users/${missingUserId}/password`)
       .set('Authorization', authHeaderFor(missingUserId))

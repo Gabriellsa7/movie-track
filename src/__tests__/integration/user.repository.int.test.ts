@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import '../../../jest/setup-integration-tests';
+import { newObjectId } from '../testUtils';
 import { IUser } from '../../domain/user/interfaces/user.interface';
 import { Muser } from '../../infrastructure/db/mongo/models/user.model';
 import { UserRepositoryRead } from '../../infrastructure/repository/user/user.repository.read';
@@ -8,7 +9,7 @@ import { UserRepositoryWrite } from '../../infrastructure/repository/user/user.r
 const SEARCH_PREFIX = `repo${Date.now()}`;
 
 const buildUser = (name: string): IUser => ({
-  id: randomUUID(),
+  _id: newObjectId(),
   name,
   email: `${randomUUID()}@email.com`,
   passwordHash: 'hashed-secret123',
@@ -24,8 +25,8 @@ describe('When we persist a user', () => {
     const user = buildUser(`${SEARCH_PREFIX} José Álvares`);
 
     await userRepositoryWrite.createUser(user);
-    const userInDb = await Muser.findOne({ id: user.id }).lean();
-    const foundUser = await userRepositoryRead.findUserById(user.id);
+    const userInDb = await Muser.findOne({ _id: user._id }).lean();
+    const foundUser = await userRepositoryRead.findUserById(user._id);
 
     expect(userInDb?.normalizedName).toBe(`${SEARCH_PREFIX} jose alvares`);
     expect(foundUser).not.toHaveProperty('normalizedName');
@@ -35,10 +36,10 @@ describe('When we persist a user', () => {
     const user = buildUser(`${SEARCH_PREFIX} Old Name`);
     await userRepositoryWrite.createUser(user);
 
-    const updatedUser = await userRepositoryWrite.updateUserById(user.id, {
+    const updatedUser = await userRepositoryWrite.updateUserById(user._id, {
       name: `${SEARCH_PREFIX} Nova Ação`,
     });
-    const userInDb = await Muser.findOne({ id: user.id }).lean();
+    const userInDb = await Muser.findOne({ _id: user._id }).lean();
 
     expect(userInDb?.normalizedName).toBe(`${SEARCH_PREFIX} nova acao`);
     expect(updatedUser).not.toHaveProperty('normalizedName');
@@ -50,13 +51,13 @@ describe('When we update a user without changing the name', () => {
     const user = buildUser(`${SEARCH_PREFIX} Kept Name`);
     await userRepositoryWrite.createUser(user);
 
-    await userRepositoryWrite.updateUserById(user.id, {
+    await userRepositoryWrite.updateUserById(user._id, {
       email: `${randomUUID()}@email.com`,
     });
-    const userDocument = await Muser.findOne({ id: user.id });
+    const userDocument = await Muser.findOne({ _id: user._id });
     userDocument!.updatedAt = new Date();
     await userDocument!.save();
-    const userInDb = await Muser.findOne({ id: user.id }).lean();
+    const userInDb = await Muser.findOne({ _id: user._id }).lean();
 
     expect(userInDb?.normalizedName).toBe(`${SEARCH_PREFIX} kept name`);
   });
@@ -66,10 +67,10 @@ describe('When we update a user without changing the name', () => {
     await userRepositoryWrite.createUser(user);
 
     await Muser.findOneAndUpdate(
-      { id: user.id },
+      { _id: user._id },
       { $set: { name: `${SEARCH_PREFIX} Depois Já` } },
     );
-    const userInDb = await Muser.findOne({ id: user.id }).lean();
+    const userInDb = await Muser.findOne({ _id: user._id }).lean();
 
     expect(userInDb?.normalizedName).toBe(`${SEARCH_PREFIX} depois ja`);
   });
@@ -126,5 +127,19 @@ describe('When we search users by name', () => {
     await expect(userRepositoryRead.countUsers(undefined)).resolves.toBe(
       allUsers,
     );
+  });
+});
+
+describe('When we look up a user with an id that is not an ObjectId', () => {
+  it('should return null instead of failing the cast', async () => {
+    await expect(
+      userRepositoryRead.findUserById('legacy-uuid-from-an-old-token'),
+    ).resolves.toBeNull();
+    await expect(
+      userRepositoryWrite.updateUserById('not-an-object-id', { name: 'x' }),
+    ).resolves.toBeNull();
+    await expect(
+      userRepositoryWrite.deleteUserById('not-an-object-id'),
+    ).resolves.toBeNull();
   });
 });

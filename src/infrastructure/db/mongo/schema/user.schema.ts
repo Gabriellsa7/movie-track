@@ -2,17 +2,13 @@ import mongoose, { Types, UpdateQuery } from 'mongoose';
 import { IUser } from '../../../../domain/user/interfaces/user.interface';
 import { normalizeText } from '../../../../domain/common/text.normalizer';
 
-export interface IMUser extends IUser {
+export interface IMUser extends Omit<IUser, '_id'> {
   _id: Types.ObjectId;
   normalizedName: string;
 }
 
-export const userSchema = new mongoose.Schema<IMUser>({
-  id: {
-    type: String,
-    required: true,
-    unique: true,
-  },
+export const userSchema = new mongoose.Schema<IMUser>(
+  {
   name: {
     type: String,
     required: true,
@@ -50,9 +46,11 @@ export const userSchema = new mongoose.Schema<IMUser>({
     type: Date,
     required: true,
   },
-});
+  },
+  { versionKey: false },
+);
 
-userSchema.index({ normalizedName: 1, id: 1 });
+userSchema.index({ normalizedName: 1, _id: 1 });
 
 userSchema.pre('validate', function () {
   if (this.isModified('name')) {

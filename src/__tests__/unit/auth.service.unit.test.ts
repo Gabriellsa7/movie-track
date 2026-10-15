@@ -6,7 +6,7 @@ import { ITokenProvider } from '../../domain/common/providers/token.provider';
 import { UnauthorizedError } from '../../domain/errors/unauthorized.error';
 
 const A_USER: IUser = {
-  id: 'user-1',
+  _id: 'user-1',
   name: 'Whitebeard',
   email: 'whitebeard@email.com',
   passwordHash: 'hashed-secret123',
@@ -84,7 +84,7 @@ describe('When we log in', () => {
 
 describe('When we refresh the tokens', () => {
   it('should issue new tokens for an existing user', async () => {
-    tokenProvider.verifyRefreshToken.mockReturnValue({ sub: A_USER.id });
+    tokenProvider.verifyRefreshToken.mockReturnValue({ sub: A_USER._id });
     userRepositoryRead.findUserById.mockResolvedValue(A_USER);
 
     const tokens = await authService.refresh({ refreshToken: 'valid-refresh' });

@@ -86,13 +86,13 @@ export class UserService implements IUserService {
       const userWithEmail = await this.userRepositoryRead.findUserByEmail(
         user.email,
       );
-      if (userWithEmail && userWithEmail.id !== user.id) {
+      if (userWithEmail && userWithEmail._id !== params.id) {
         throw this.emailTakenError();
       }
     }
 
     const updatedUser = await this.userRepositoryWrite.updateUserById(
-      user.id,
+      params.id,
       { name: user.name, email: user.email, updatedAt: user.updatedAt },
     );
     if (!updatedUser) {
@@ -110,7 +110,7 @@ export class UserService implements IUserService {
       await this.passwordHasher.hash(params.newPassword),
       this.clock.now(),
     );
-    await this.userRepositoryWrite.updateUserById(user.id, {
+    await this.userRepositoryWrite.updateUserById(params.id, {
       passwordHash: user.passwordHash,
       updatedAt: user.updatedAt,
     });
@@ -155,7 +155,7 @@ export class UserService implements IUserService {
 
   private async ensurePasswordMatches(
     password: string,
-    user: IUser,
+    user: Pick<IUser, 'passwordHash'>,
   ): Promise<void> {
     const matches = await this.passwordHasher.compare(
       password,
