@@ -177,6 +177,8 @@ paths:
                 $ref: '#/components/schemas/ValidationError'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/UserNotFound'
         '409':
@@ -216,6 +218,8 @@ paths:
                 $ref: '#/components/schemas/ValidationError'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/UserNotFound'
         '500':
@@ -253,6 +257,8 @@ paths:
                 $ref: '#/components/schemas/ValidationError'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/UserNotFound'
         '500':
@@ -372,6 +378,17 @@ components:
             message: 'User not found'
             status: 404
             code: 'USER_NOT_FOUND'
+    Forbidden:
+      description: The authenticated user cannot act on this resource (FORBIDDEN_RESOURCE)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: 'You can only change your own account'
+            status: 403
+            code: 'FORBIDDEN_RESOURCE'
+
     InvalidCredentials:
       description: The password does not match (INVALID_CREDENTIALS)
       content:

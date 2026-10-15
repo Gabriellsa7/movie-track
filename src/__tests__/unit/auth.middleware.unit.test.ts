@@ -1,9 +1,11 @@
 import { NextFunction, Request, Response } from 'express';
 import {
   authenticate,
+  authorizeSelf,
 } from '../../interfaces/http/middlewares/auth.middleware';
 import { ITokenProvider } from '../../domain/common/providers/token.provider';
 import { UnauthorizedError } from '../../domain/errors/unauthorized.error';
+import { ForbiddenError } from '../../domain/errors/forbidden.error';
 
 let tokenProvider: jest.Mocked<ITokenProvider>;
 let next: jest.MockedFunction<NextFunction>;
@@ -64,5 +66,29 @@ describe('When we authenticate a request', () => {
 
     expect(next).toHaveBeenCalledWith(tokenError);
     expect(req.userId).toBeUndefined();
+  });
+});
+
+describe('When we authorize a request to a user resource', () => {
+  function requestFrom(userId: string | undefined, paramId: string): Request {
+    return { userId, params: { id: paramId } } as unknown as Request;
+  }
+
+  it('should continue when the user acts on their own account', () => {
+    authorizeSelf(requestFrom('user-1', 'user-1'), res, next);
+
+    expect(next).toHaveBeenCalledWith();
+  });
+
+  it('should forbid acting on another account', () => {
+    authorizeSelf(requestFrom('user-1', 'user-2'), res, next);
+
+    expect(next).toHaveBeenCalledWith(expect.any(ForbiddenError));
+  });
+
+  it('should forbid when the request was not authenticated', () => {
+    authorizeSelf(requestFrom(undefined, 'user-1'), res, next);
+
+    expect(next).toHaveBeenCalledWith(expect.any(ForbiddenError));
   });
 });

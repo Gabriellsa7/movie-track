@@ -7,6 +7,7 @@ import {
 } from 'express';
 import { IController } from './controller.interface';
 import { IUserService } from '../../../domain/user/interfaces/user.service.interface';
+import { authorizeSelf } from '../middlewares/auth.middleware';
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_PAGE_LIMIT = 20;
@@ -30,16 +31,19 @@ export class UserController implements IController {
     this.router.put(
       '/users/:id',
       this.authenticate,
+      authorizeSelf,
       this.updateUser,
     );
     this.router.patch(
       '/users/:id/password',
       this.authenticate,
+      authorizeSelf,
       this.changePassword,
     );
     this.router.delete(
       '/users/:id',
       this.authenticate,
+      authorizeSelf,
       this.deleteUser,
     );
   }
