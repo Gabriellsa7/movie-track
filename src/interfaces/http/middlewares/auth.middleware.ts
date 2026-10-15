@@ -4,6 +4,7 @@ import {
   ITokenProvider,
 } from '../../../domain/common/providers/token.provider';
 import { UnauthorizedError } from '../../../domain/errors/unauthorized.error';
+import { ForbiddenError } from '../../../domain/errors/forbidden.error';
 
 const BEARER_TOKEN_PATTERN = /^Bearer (\S+)$/i;
 
@@ -33,3 +34,16 @@ export function authenticate(tokenProvider: ITokenProvider): RequestHandler {
     next();
   };
 }
+
+export const authorizeSelf: RequestHandler = (req, _res, next) => {
+  if (!req.userId || req.userId !== req.params.id) {
+    next(
+      new ForbiddenError(
+        'You can only change your own account',
+        'FORBIDDEN_RESOURCE',
+      ),
+    );
+    return;
+  }
+  next();
+};

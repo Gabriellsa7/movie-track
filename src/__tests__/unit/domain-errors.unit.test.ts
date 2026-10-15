@@ -2,6 +2,7 @@ import { DomainError } from '../../domain/errors/domain.error';
 import { NotFoundError } from '../../domain/errors/not-found.error';
 import { ConflictError } from '../../domain/errors/conflict.error';
 import { UnauthorizedError } from '../../domain/errors/unauthorized.error';
+import { ForbiddenError } from '../../domain/errors/forbidden.error';
 
 describe('When we create domain errors without arguments', () => {
   it('should default DomainError to status 500', () => {
@@ -9,6 +10,14 @@ describe('When we create domain errors without arguments', () => {
 
     expect(error.status).toBe(500);
     expect(error.name).toBe('DomainError');
+  });
+
+  it('should default ForbiddenError to a generic 403 message', () => {
+    const error = new ForbiddenError();
+
+    expect(error).toBeInstanceOf(DomainError);
+    expect(error.message).toBe('Forbidden');
+    expect(error.status).toBe(403);
   });
 
   it('should default NotFoundError to a generic 404 message', () => {

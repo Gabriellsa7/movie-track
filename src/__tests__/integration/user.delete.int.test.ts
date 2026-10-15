@@ -74,3 +74,17 @@ describe('When we delete a user that does not exist', () => {
     expect(body).toMatchObject({ message: 'User not found', status: 404 });
   });
 });
+
+describe('When we delete another user', () => {
+  it('should return 403 and keep the user', async () => {
+    const { statusCode } = await supertest(app.app)
+      .delete(`/users/${existingUser.id}`)
+      .set('Authorization', authHeaderFor(randomUUID()))
+      .send({ password: PASSWORD });
+
+    expect(statusCode).toBe(403);
+    await expect(
+      Muser.findOne({ id: existingUser.id }),
+    ).resolves.not.toBeNull();
+  });
+});

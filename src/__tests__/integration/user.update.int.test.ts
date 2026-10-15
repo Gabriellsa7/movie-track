@@ -95,3 +95,18 @@ describe('When we update a user without a valid token', () => {
     expect(body).toMatchObject({ status: 401, code: 'INVALID_TOKEN' });
   });
 });
+
+describe('When we update another user', () => {
+  it('should return 403 and keep the other user unchanged', async () => {
+    const { body, statusCode } = await supertest(app.app)
+      .put(`/users/${existingUser.id}`)
+      .set('Authorization', authHeaderFor(randomUUID()))
+      .send({ name: 'Hacked' });
+
+    const userInDb = await Muser.findOne({ id: existingUser.id }).lean();
+
+    expect(statusCode).toBe(403);
+    expect(body).toMatchObject({ status: 403, code: 'FORBIDDEN_RESOURCE' });
+    expect(userInDb?.name).toBe(existingUser.name);
+  });
+});
