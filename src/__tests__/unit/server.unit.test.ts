@@ -116,7 +116,7 @@ describe('When the request breaks the contract', () => {
   });
 
   it.each([
-    ['get', '/movies', 404, 'ROUTE_NOT_FOUND'],
+    ['get', '/not-a-route', 404, 'ROUTE_NOT_FOUND'],
     ['patch', '/users', 405, 'METHOD_NOT_ALLOWED'],
   ] as const)(
     'should respond %s %s with %i %s',
