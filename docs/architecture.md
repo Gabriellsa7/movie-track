@@ -104,7 +104,7 @@ failsafe timeout).
 ## Domain errors (`src/domain/errors/`)
 
 `DomainError` (base, carries the HTTP `status`) and the specializations
-`NotFoundError` (404) and `ConflictError` (409). The error flow is always:
+`UnauthorizedError` (401), `ForbiddenError` (403), `NotFoundError` (404) and `ConflictError` (409). The error flow is always:
 service throws a typed error → controller passes it on with `next(error)` →
 central error handler responds in the contract shape. No other layer builds
 error responses.
@@ -131,6 +131,43 @@ error responses.
 - The build copies the yaml to `dist/src/contracts` via the `copy-essentials`
   script (tsc does not copy non-TS files). Without it, `yarn start` breaks.
 - Routes not documented in the contract are rejected by the validator.
+
+## Authentication (JWT)
+
+Stateless JWT with two tokens, both HS256 with the algorithm pinned on sign
+**and** verify:
+
+| Token | Secret / lifetime | Used on |
+| --- | --- | --- |
+| Access | `JWT_SECRET` / `JWT_EXPIRES_IN` (default `1h`) | `Authorization: Bearer <token>` on protected routes |
+| Refresh | `REFRESH_TOKEN_SECRET` / `REFRESH_TOKEN_EXPIRES_IN` (default `7d`) | body of `POST /auth/refresh` only |
+
+The payload carries only `sub` (the user id). Separate secrets mean an access
+token is never accepted as a refresh token, and vice versa.
+
+- **Port and adapter:** `ITokenProvider` (`src/domain/common/providers/token.provider.ts`)
+  is the domain contract; `JwtTokenProvider` (`src/infrastructure/providers/token/`)
+  is the only file that imports `jsonwebtoken`. It translates library errors into
+  `UnauthorizedError` with `TOKEN_EXPIRED` or `INVALID_TOKEN`. `TokenProviderFactory`
+  builds it from `env`.
+- **`AuthService`** (`src/domain/auth/`): `login` answers the same
+  `INVALID_CREDENTIALS` for an unknown e-mail and a wrong password (no user
+  enumeration); `refresh` checks that the user still exists and issues both
+  tokens again.
+- **Middlewares** (`src/interfaces/http/middlewares/auth.middleware.ts`):
+  `authenticate(tokenProvider)` verifies the bearer token and sets `req.userId`
+  (401 otherwise); `authorizeSelf` lets the request through only when
+  `req.userId` equals the `:id` route param (403 `FORBIDDEN_RESOURCE` otherwise).
+  The `Request` type augmentation lives in the same file because `ts-node-dev`
+  only sees types from imported files.
+- **Protecting a route** takes three changes: `security: [bearerAuth: []]` plus
+  `401`/`403` responses in the contract, and `this.authenticate, authorizeSelf`
+  before the handler in the controller. The controller receives `authenticate`
+  through its constructor (wired in the controller factory).
+
+Known limitations: tokens cannot be revoked before they expire (no logout), and
+login is faster for an unknown e-mail than for a wrong password (no dummy hash
+compare yet).
 
 ## Entry points
 

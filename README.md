@@ -22,7 +22,9 @@ yarn install
 ```
 
 2. Create a `.env` file from the example (`cp .env.example .env`) and adjust
-   `DATABASE_URI`, `PORT` and the `OTEL_*` variables.
+   `DATABASE_URI`, `PORT` and the `OTEL_*` variables. `JWT_SECRET` and
+   `REFRESH_TOKEN_SECRET` are required and must be different; generate each one with
+   `node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"`.
 3. Start in development mode:
 
 ```bash

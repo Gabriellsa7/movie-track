@@ -35,9 +35,9 @@ yarn prettier && yarn lint && yarn build && yarn test
 | Path | Responsibility |
 | --- | --- |
 | `src/domain/<feature>/` | Pure business logic (no I/O): entity, interfaces, repository contracts, service |
-| `src/domain/errors/` | Domain errors (`DomainError`, `NotFoundError` 404, `ConflictError` 409) — mapped to HTTP by the central error handler in `src/interfaces/http/middlewares/error-handler.middleware.ts` |
+| `src/domain/errors/` | Domain errors (`DomainError`, `UnauthorizedError` 401, `ForbiddenError` 403, `NotFoundError` 404, `ConflictError` 409) — mapped to HTTP by the central error handler in `src/interfaces/http/middlewares/error-handler.middleware.ts` |
 | `src/domain/common/` | Cross-feature domain types (e.g. `IPagination`) |
-| `src/interfaces/http/` | `server.ts` (Express + middlewares), `middlewares/` (central error handler) and `controllers/` (thin HTTP adapters) |
+| `src/interfaces/http/` | `server.ts` (Express + middlewares), `middlewares/` (central error handler, `authenticate` and `authorizeSelf`) and `controllers/` (thin HTTP adapters) |
 | `src/infrastructure/repository/<feature>/` | Repository contract implementations (Mongoose) |
 | `src/infrastructure/db/mongo/{schema,models}/` | Mongoose schemas and models |
 | `src/infrastructure/config/` | `env.ts` (fail-fast env validation) and `factories/` (composition root — manual DI via static factories) |
@@ -94,6 +94,7 @@ Details in [docs/architecture.md](docs/architecture.md).
 - Routes not described in the contract are rejected by the validator (`/health` works because it is registered before the middlewares).
 - The build needs `copy-essentials` (yaml is not compiled by tsc) — already part of `yarn build`.
 - Integration tests only see controllers registered in `src/__tests__/configApp.ts`.
+- A protected route needs `security: [bearerAuth: []]` and `401`/`403` responses in the contract **and** `this.authenticate, authorizeSelf` in the controller; its integration tests must send `.set('Authorization', authHeaderFor(userId))` (`src/__tests__/testUtils.ts`). The token's user must be the `:id` in the URL, or the test gets 403 instead of the status it checks. Auth details in [docs/architecture.md](docs/architecture.md#authentication-jwt).
 - Commits go through commitlint (husky `commit-msg` hook): type required, lowercase subject, header ≤ 72 chars.
 - `release.config.js` calls `./setup/set-version.sh`, which does not exist in the repo (only runs in CI with `GITHUB_REF_NAME`).
 - Required environment variables are validated in `src/infrastructure/config/env.ts` (fail-fast at boot) — read env through it, not via scattered `process.env`.

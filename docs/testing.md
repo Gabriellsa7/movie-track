@@ -74,6 +74,9 @@ Watch out for:
 - The OpenApiValidator is active in tests: payloads outside the contract return 400,
   responses outside the contract return 500 — update `src/contracts/service.yaml` together.
 - Assert that Mongo internals do not leak: `expect(body._id).toBeUndefined()`.
+- Protected routes need a token: `.set('Authorization', authHeaderFor(userId))` from
+  `src/__tests__/testUtils.ts`. Use the same id as the `:id` in the URL (also for
+  "not found" cases), or `authorizeSelf` answers 403 first.
 
 ## Unit tests
 
