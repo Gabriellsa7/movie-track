@@ -15,6 +15,7 @@ import {
   IParamsUserService,
   IUserService,
 } from '../interfaces/user.service.interface';
+import { ErrorHandler } from '../../common/decorators/error-handler.decorator';
 import { ConflictError } from '../../errors/conflict.error';
 import { NotFoundError } from '../../errors/not-found.error';
 import { UnauthorizedError } from '../../errors/unauthorized.error';
@@ -41,6 +42,7 @@ export class UserService implements IUserService {
     this.clock = clock;
   }
 
+  @ErrorHandler()
   async createUser(params: IParamsCreateUser): Promise<IUserPrivate> {
     const existingUser = await this.userRepositoryRead.findUserByEmail(
       User.normalizeEmail(params.email),
@@ -59,10 +61,12 @@ export class UserService implements IUserService {
     return User.toUserPrivate(createdUser);
   }
 
+  @ErrorHandler()
   async getUserById(id: string): Promise<IUserPrivate> {
     return User.toUserPrivate(await this.findExistingUser(id));
   }
 
+  @ErrorHandler()
   async getUserByEmail(email: string): Promise<IUserPrivate> {
     const user = await this.userRepositoryRead.findUserByEmail(
       User.normalizeEmail(email),
@@ -73,6 +77,7 @@ export class UserService implements IUserService {
     return User.toUserPrivate(user);
   }
 
+  @ErrorHandler()
   async updateUserById(params: IParamsUpdateUser): Promise<IUserPrivate> {
     const user = new User(await this.findExistingUser(params.id));
     user.updateProfile(params.userData, this.clock.now());
@@ -96,6 +101,7 @@ export class UserService implements IUserService {
     return User.toUserPrivate(updatedUser);
   }
 
+  @ErrorHandler()
   async changePassword(params: IParamsChangePassword): Promise<void> {
     const user = new User(await this.findExistingUser(params.id));
     await this.ensurePasswordMatches(params.currentPassword, user);
@@ -110,12 +116,14 @@ export class UserService implements IUserService {
     });
   }
 
+  @ErrorHandler()
   async deleteUser(params: IParamsDeleteUser): Promise<void> {
     const user = await this.findExistingUser(params.id);
     await this.ensurePasswordMatches(params.password, user);
     await this.userRepositoryWrite.deleteUserById(params.id);
   }
 
+  @ErrorHandler()
   async listPublicUsers(
     params: IParamsListUsers,
   ): Promise<IPaginatedResult<IUserPublicSummary>> {
@@ -132,6 +140,7 @@ export class UserService implements IUserService {
     };
   }
 
+  @ErrorHandler()
   async getPublicProfile(id: string): Promise<IUserPublicProfile> {
     return User.toUserPublicProfile(await this.findExistingUser(id));
   }

@@ -1,3 +1,4 @@
+import { Logger } from 'traceability';
 import { UserService } from '../../domain/user/service/user.service';
 import { IUserRepositoryRead } from '../../domain/user/repository/user.repository.read';
 import { IUserRepositoryWrite } from '../../domain/user/repository/user.repository.write';
@@ -345,5 +346,42 @@ describe('When we get a public profile', () => {
     await expect(userService.getPublicProfile('missing-id')).rejects.toThrow(
       NotFoundError,
     );
+  });
+});
+
+describe('When a user repository fails unexpectedly', () => {
+  it('should log the failure with the service context and rethrow it', async () => {
+    const loggerErrorSpy = jest
+      .spyOn(Logger, 'error')
+      .mockImplementation(() => Logger);
+    userRepositoryRead.findUserById.mockRejectedValue(
+      new Error('database down'),
+    );
+
+    await expect(userService.getUserById(A_USER.id)).rejects.toThrow(
+      'database down',
+    );
+    expect(loggerErrorSpy).toHaveBeenCalledWith(
+      'Unexpected error in UserService.getUserById',
+      expect.objectContaining({
+        eventName: 'service.unexpected_error',
+        service: 'UserService',
+        method: 'getUserById',
+      }),
+    );
+    loggerErrorSpy.mockRestore();
+  });
+
+  it('should not log domain errors', async () => {
+    const loggerErrorSpy = jest
+      .spyOn(Logger, 'error')
+      .mockImplementation(() => Logger);
+    userRepositoryRead.findUserById.mockResolvedValue(null);
+
+    await expect(userService.getUserById('missing-id')).rejects.toThrow(
+      NotFoundError,
+    );
+    expect(loggerErrorSpy).not.toHaveBeenCalled();
+    loggerErrorSpy.mockRestore();
   });
 });
