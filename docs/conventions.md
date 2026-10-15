@@ -55,7 +55,8 @@ Methods have intent-revealing names: `findUserByEmail`, `updateUserById`,
 - **Controllers are thin**: extract data from `req`, call the service and map the
   success response. No business rules and no error mapping — errors go to `next(error)`.
 - **Domain errors** in `src/domain/errors/`: `DomainError` (base, carries `status`),
-  `NotFoundError` (404), `ConflictError` (409). Services throw these
+  `UnauthorizedError` (401), `ForbiddenError` (403), `NotFoundError` (404),
+  `ConflictError` (409). Services throw these
   (`throw new NotFoundError('User not found')`) and **never** decide HTTP status;
   the central error handler (`src/interfaces/http/middlewares/error-handler.middleware.ts`) does the mapping.
 - **`@ErrorHandler()`** on every public service method: logs unexpected
@@ -88,6 +89,9 @@ All error responses follow the contract's `Error`/`ValidationError` schemas
 | Deleted / no content | 204 | empty | controller |
 | Invalid payload (contract) | 400 | `{ message, status, errors[] }` | OpenApiValidator → handler |
 | Wrong password | 401 | `{ message, status: 401, code: 'INVALID_CREDENTIALS' }` | `UnauthorizedError` → handler |
+| Missing bearer header | 401 | `{ message, status: 401, errors }` | OpenApiValidator (`security`) → handler |
+| Invalid or expired token | 401 | `{ message, status: 401, code: 'INVALID_TOKEN' \| 'TOKEN_EXPIRED' }` | `UnauthorizedError` (`authenticate` / `JwtTokenProvider`) → handler |
+| Acting on another user's account | 403 | `{ message, status: 403, code: 'FORBIDDEN_RESOURCE' }` | `ForbiddenError` (`authorizeSelf`) → handler |
 | Not found | 404 | `{ message: 'User not found', status: 404, code: 'USER_NOT_FOUND' }` | `NotFoundError` → handler |
 | Conflict (e.g. duplicated email) | 409 | `{ message, status: 409, code: 'EMAIL_TAKEN' }` | `ConflictError` → handler |
 | Unexpected error | 500 | `{ message: 'Internal Server Error', status: 500 }` | handler (with structured log) |
