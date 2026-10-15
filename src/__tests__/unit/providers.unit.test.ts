@@ -1,3 +1,4 @@
+import jwt from 'jsonwebtoken';
 import { BcryptPasswordHasher } from '../../infrastructure/providers/password-hasher/bcrypt.password-hasher';
 import { SystemClock } from '../../infrastructure/providers/clock/system.clock';
 import { JwtTokenProvider } from '../../infrastructure/providers/token/jwt.token-provider';
@@ -80,6 +81,14 @@ describe('When we sign and verify tokens with JWT', () => {
         `${header}.${forgedPayload}.${signature}`,
       ),
     ).toThrow('Invalid token');
+  });
+
+  it('should reject a correctly signed token without a subject', () => {
+    const tokenWithoutSubject = jwt.sign({ role: 'admin' }, 'access-secret');
+
+    expect(() => tokenProvider.verifyAccessToken(tokenWithoutSubject)).toThrow(
+      'Invalid token',
+    );
   });
 
   it('should reject an expired access token', () => {
