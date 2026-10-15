@@ -56,7 +56,7 @@ Methods have intent-revealing names: `findUserByEmail`, `updateUserById`,
   success response. No business rules and no error mapping — errors go to `next(error)`.
 - **Domain errors** in `src/domain/errors/`: `DomainError` (base, carries `status`),
   `UnauthorizedError` (401), `ForbiddenError` (403), `NotFoundError` (404),
-  `ConflictError` (409). Services throw these
+  `ConflictError` (409), `UnprocessableEntityError` (422). Services throw these
   (`throw new NotFoundError('User not found')`) and **never** decide HTTP status;
   the central error handler (`src/interfaces/http/middlewares/error-handler.middleware.ts`) does the mapping.
 - **`@ErrorHandler()`** on every public service method: logs unexpected

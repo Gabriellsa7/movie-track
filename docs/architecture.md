@@ -108,7 +108,7 @@ failsafe timeout).
 ## Domain errors (`src/domain/errors/`)
 
 `DomainError` (base, carries the HTTP `status`) and the specializations
-`UnauthorizedError` (401), `ForbiddenError` (403), `NotFoundError` (404) and `ConflictError` (409). The error flow is always:
+`UnauthorizedError` (401), `ForbiddenError` (403), `NotFoundError` (404), `ConflictError` (409) and `UnprocessableEntityError` (422). The error flow is always:
 service throws a typed error → controller passes it on with `next(error)` →
 central error handler responds in the contract shape. No other layer builds
 error responses.

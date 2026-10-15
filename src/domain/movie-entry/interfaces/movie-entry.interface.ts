@@ -19,7 +19,51 @@ export interface IMovieEntry {
   updatedAt: Date;
 }
 
+export interface IParamsMovieEntry {
+  _id?: string;
+  userId: string;
+  tmdbId?: number;
+  title: string;
+  synopsis: string;
+  posterUrl?: string;
+  posterPublicId?: string;
+  releaseYear: number;
+  genreIds: string[];
+  director?: string;
+  durationMinutes?: number;
+  rating: number;
+  review?: string;
+  watchedAt?: Date;
+  isFavorite?: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+export type IMovieEntryDetailsData = Partial<
+  Pick<
+    IMovieEntry,
+    | 'tmdbId'
+    | 'title'
+    | 'synopsis'
+    | 'releaseYear'
+    | 'genreIds'
+    | 'director'
+    | 'durationMinutes'
+    | 'rating'
+    | 'review'
+    | 'watchedAt'
+    | 'isFavorite'
+  >
+>;
+
 export type IMovieEntryData = Omit<IMovieEntry, '_id'>;
+
+export type IMovieEntryResponse = Omit<
+  IMovieEntry,
+  '_id' | 'normalizedTitle' | 'posterPublicId'
+> & {
+  id: string;
+};
 
 export enum EMovieEntrySortField {
   WATCHED_AT = 'watchedAt',
