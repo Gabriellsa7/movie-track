@@ -27,7 +27,7 @@ contract from implementation. Do not mix them up when editing.
 
 Each feature has two repository contracts:
 
-- `I<Feature>RepositoryRead` — `findUserById`, `findUserByEmail`, `listUsers`
+- `I<Feature>RepositoryRead` — `findUserById`, `findUserByEmail`, `searchUsers`, `countUsers`
 - `I<Feature>RepositoryWrite` — `createUser`, `updateUserById`, `deleteUserById`
 
 The service receives both via a parameter object:
@@ -107,15 +107,16 @@ error responses.
 
 1. `express.json` parses the body; `ContextAsyncHooks` creates the tracking context (cid); OTel auto-instrumentation opens the HTTP span.
 2. `OpenApiValidator` validates the request against `src/contracts/service.yaml` — an invalid body → 400 `ValidationError` before reaching the controller.
-3. `UserController.createUser` (arrow function property) extracts `{ id, name, email, createdAt }` from the body and calls `userService.createUser(...)`.
-4. `UserService.createUser` applies the business rule: email already in use → throws `ConflictError` (becomes 409 in the handler); otherwise builds the `User` entity and delegates to `userRepositoryWrite.createUser`.
+3. `UserController.createUser` (arrow function property) extracts `{ name, email, password }` from the body and calls `userService.createUser(...)`.
+4. `UserService.createUser` applies the business rule: email already in use → throws `ConflictError` with code `EMAIL_TAKEN` (becomes 409 in the handler); otherwise hashes the password, generates `id`/`createdAt`/`updatedAt`, builds the `User` entity and delegates to `userRepositoryWrite.createUser`.
 5. `UserRepositoryWrite` persists via the `Muser` model and returns a plain `IUser` (projection hides `_id`/`__v` — see `mongo.projection.ts`).
 6. The controller responds `201` with the user; any error goes to `next(error)`.
 7. `OpenApiValidator` validates the **response** against the contract before sending it.
 
-`GET /users` is paginated: `limit`/`offset` query params (validated and coerced
-by the contract), forwarded by the controller to the service, which applies
-defaults (20/0) and passes an `IPagination` to the repository (`skip`/`limit`).
+`GET /users` is public and paginated: `search`, `page` and `limit` query params
+(validated and coerced by the contract). The controller converts `page` into an
+`IPagination` offset; the service runs `searchUsers` + `countUsers` and answers
+`{ items, total, page, limit }` with public summaries only (no e-mail).
 
 ## OpenAPI contract (`src/contracts/service.yaml`)
 
