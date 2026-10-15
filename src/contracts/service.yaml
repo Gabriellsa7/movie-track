@@ -23,6 +23,8 @@ tags:
     description: User management operations
   - name: Auth
     description: Authentication with JWT access and refresh tokens
+  - name: Movies
+    description: The authenticated user's watched movies
 
 paths:
   /users:
@@ -356,6 +358,287 @@ paths:
         default:
           $ref: '#/components/responses/UnexpectedError'
 
+  /movies:
+    post:
+      tags:
+        - Movies
+      summary: Log a watched movie
+      operationId: createMovie
+      description: >
+        Adds a movie to the authenticated user's list. Sending watchlistItemId moves that
+        watchlist item to the list (the item is removed).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewMovie'
+      responses:
+        '201':
+          description: Movie logged
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Movie'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: The watchlist item does not exist or is not yours (WATCHLIST_ITEM_NOT_FOUND)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          $ref: '#/components/responses/MovieAlreadyLogged'
+        '422':
+          $ref: '#/components/responses/InvalidMovie'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+    get:
+      tags:
+        - Movies
+      summary: List my movies
+      operationId: getMovies
+      description: Paginated list of the authenticated user's movies, with search, filters and sorting.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 100
+          description: Part of the title, ignoring case and accents
+        - name: genreId
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Only movies with this genre (must exist, else INVALID_GENRE)
+        - name: minRating
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/RatingFilter'
+        - name: maxRating
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/RatingFilter'
+        - name: favorite
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: true returns only favorites
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [watchedAt, rating, title, releaseYear]
+            default: watchedAt
+        - name: order
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        '200':
+          description: A page of movies
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MoviePage'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          description: Unknown genre (INVALID_GENRE) or minRating greater than maxRating (INVALID_RATING_RANGE)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+
+  /movies/{id}:
+    parameters:
+      - $ref: '#/components/parameters/MovieId'
+    get:
+      tags:
+        - Movies
+      summary: Get one of my movies
+      operationId: getMovie
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The movie
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Movie'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/MovieNotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+    put:
+      tags:
+        - Movies
+      summary: Update one of my movies
+      operationId: updateMovie
+      description: >
+        Replaces the movie data. Optional fields that are not sent keep their value; send an
+        empty string to clear review or director. posterUrl sets an external poster
+        (deleting an uploaded one) and null removes the poster.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateMovie'
+      responses:
+        '200':
+          description: Movie updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Movie'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/MovieNotFound'
+        '409':
+          $ref: '#/components/responses/MovieAlreadyLogged'
+        '422':
+          $ref: '#/components/responses/InvalidMovie'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+    delete:
+      tags:
+        - Movies
+      summary: Delete one of my movies
+      operationId: deleteMovie
+      description: Hard delete; also deletes its uploaded poster.
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Movie deleted
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/MovieNotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+
+  /movies/{id}/favorite:
+    parameters:
+      - $ref: '#/components/parameters/MovieId'
+    patch:
+      tags:
+        - Movies
+      summary: Mark or unmark one of my movies as favorite
+      operationId: setMovieFavorite
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MovieFavorite'
+      responses:
+        '200':
+          description: Favorite flag updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Movie'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/MovieNotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+
+  /movies/{id}/poster:
+    parameters:
+      - $ref: '#/components/parameters/MovieId'
+    delete:
+      tags:
+        - Movies
+      summary: Remove the poster of one of my movies
+      operationId: removeMoviePoster
+      description: Clears the poster and deletes the uploaded file. A no-op when there is no poster.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Poster removed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Movie'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/MovieNotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+
 components:
   parameters:
     UserId:
@@ -366,6 +649,14 @@ components:
         type: string
         pattern: '^[0-9a-fA-F]{24}$'
       description: The ID of the user
+    MovieId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[0-9a-fA-F]{24}$'
+      description: The ID of the movie entry
   securitySchemes:
     bearerAuth:
       type: http
@@ -374,6 +665,51 @@ components:
       description: 'Access token from POST /auth/login, sent as `Authorization: Bearer <token>`'
 
   responses:
+    ValidationFailed:
+      description: Invalid request (VALIDATION_ERROR, INVALID_JSON)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
+    ServerError:
+      description: Server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    MovieNotFound:
+      description: The movie does not exist or is not yours (MOVIE_NOT_FOUND)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: 'Movie not found'
+            status: 404
+            code: 'MOVIE_NOT_FOUND'
+    MovieAlreadyLogged:
+      description: The same movie (same tmdbId, or same title and release year) is already in your list (MOVIE_ALREADY_LOGGED)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: 'This movie is already in your list'
+            status: 409
+            code: 'MOVIE_ALREADY_LOGGED'
+    InvalidMovie:
+      description: >
+        A business rule failed: INVALID_RATING (1 to 10 in steps of 0.5), INVALID_GENRE
+        (1 to 5 genres from the list), INVALID_RELEASE_YEAR (after next year) or
+        INVALID_WATCHED_AT (in the future)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: 'rating must be between 1 and 10 in steps of 0.5'
+            status: 422
+            code: 'INVALID_RATING'
     UnexpectedError:
       description: >
         Any other error, in the same shape: 405 METHOD_NOT_ALLOWED, 413 PAYLOAD_TOO_LARGE,
@@ -440,6 +776,217 @@ components:
             code: 'TOKEN_EXPIRED'
 
   schemas:
+    NewMovie:
+      type: object
+      additionalProperties: false
+      required:
+        - title
+        - synopsis
+        - releaseYear
+        - genreIds
+        - rating
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          pattern: '\S'
+          example: 'Cidade de Deus'
+        synopsis:
+          type: string
+          maxLength: 2000
+        releaseYear:
+          type: integer
+          minimum: 1888
+          description: Up to next year (else INVALID_RELEASE_YEAR)
+          example: 2002
+        genreIds:
+          type: array
+          description: 1 to 5 ids from GET /genres (else INVALID_GENRE)
+          items:
+            type: string
+        rating:
+          type: number
+          description: 1 to 10 in steps of 0.5 (else INVALID_RATING)
+          example: 9.5
+        review:
+          type: string
+          maxLength: 5000
+        director:
+          type: string
+          maxLength: 200
+        durationMinutes:
+          type: integer
+          minimum: 1
+          maximum: 1000
+        watchedAt:
+          type: string
+          format: date
+          description: Defaults to today; cannot be in the future (else INVALID_WATCHED_AT)
+        isFavorite:
+          type: boolean
+          default: false
+        tmdbId:
+          type: integer
+          minimum: 1
+        posterUrl:
+          type: string
+          maxLength: 2048
+          pattern: '^https?://'
+          description: An external poster URL
+        watchlistItemId:
+          type: string
+          pattern: '^[0-9a-fA-F]{24}$'
+          description: The watchlist item being moved to the list (it is removed)
+    UpdateMovie:
+      type: object
+      additionalProperties: false
+      required:
+        - title
+        - synopsis
+        - releaseYear
+        - genreIds
+        - rating
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          pattern: '\S'
+          example: 'Cidade de Deus'
+        synopsis:
+          type: string
+          maxLength: 2000
+        releaseYear:
+          type: integer
+          minimum: 1888
+          description: Up to next year (else INVALID_RELEASE_YEAR)
+          example: 2002
+        genreIds:
+          type: array
+          description: 1 to 5 ids from GET /genres (else INVALID_GENRE)
+          items:
+            type: string
+        rating:
+          type: number
+          description: 1 to 10 in steps of 0.5 (else INVALID_RATING)
+          example: 9.5
+        review:
+          type: string
+          maxLength: 5000
+        director:
+          type: string
+          maxLength: 200
+        durationMinutes:
+          type: integer
+          minimum: 1
+          maximum: 1000
+        watchedAt:
+          type: string
+          format: date
+          description: Defaults to today; cannot be in the future (else INVALID_WATCHED_AT)
+        isFavorite:
+          type: boolean
+          default: false
+        tmdbId:
+          type: integer
+          minimum: 1
+        posterUrl:
+          type: string
+          nullable: true
+          maxLength: 2048
+          pattern: '^https?://'
+          description: An external poster URL; null removes the poster
+    MovieFavorite:
+      type: object
+      additionalProperties: false
+      required:
+        - isFavorite
+      properties:
+        isFavorite:
+          type: boolean
+    RatingFilter:
+      type: number
+      minimum: 1
+      maximum: 10
+      multipleOf: 0.5
+    Movie:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - userId
+        - title
+        - synopsis
+        - releaseYear
+        - genreIds
+        - rating
+        - watchedAt
+        - isFavorite
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          pattern: '^[0-9a-fA-F]{24}$'
+        userId:
+          type: string
+          pattern: '^[0-9a-fA-F]{24}$'
+        tmdbId:
+          type: integer
+        title:
+          type: string
+        synopsis:
+          type: string
+        posterUrl:
+          type: string
+        releaseYear:
+          type: integer
+        genreIds:
+          type: array
+          items:
+            type: string
+        director:
+          type: string
+        durationMinutes:
+          type: integer
+        rating:
+          type: number
+        review:
+          type: string
+        watchedAt:
+          type: string
+          format: date-time
+        isFavorite:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    MoviePage:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+        - total
+        - page
+        - limit
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Movie'
+        total:
+          type: integer
+          minimum: 0
+        page:
+          type: integer
+          minimum: 1
+        limit:
+          type: integer
+          minimum: 1
     UserSummary:
       type: object
       additionalProperties: false
@@ -628,7 +1175,9 @@ components:
           type: string
           description: >
             Machine-readable error code. Domain codes (USER_NOT_FOUND, EMAIL_TAKEN,
-            INVALID_CREDENTIALS, INVALID_TOKEN, TOKEN_EXPIRED, FORBIDDEN_RESOURCE) or
+            INVALID_CREDENTIALS, INVALID_TOKEN, TOKEN_EXPIRED, FORBIDDEN_RESOURCE,
+            MOVIE_NOT_FOUND, MOVIE_ALREADY_LOGGED, WATCHLIST_ITEM_NOT_FOUND, INVALID_RATING,
+            INVALID_RATING_RANGE, INVALID_GENRE, INVALID_RELEASE_YEAR, INVALID_WATCHED_AT) or
             generic ones: VALIDATION_ERROR, INVALID_JSON, BAD_REQUEST, UNAUTHORIZED,
             FORBIDDEN, NOT_FOUND, ROUTE_NOT_FOUND, METHOD_NOT_ALLOWED, CONFLICT,
             DUPLICATE_KEY, PAYLOAD_TOO_LARGE, UNSUPPORTED_MEDIA_TYPE, REQUEST_ABORTED,
