@@ -146,6 +146,7 @@ describe('When we get a user by email', () => {
 describe('When we update a user', () => {
   it('should update the name and updatedAt and return the user', async () => {
     const updatedUser = { ...A_USER, name: 'Edward Newgate', updatedAt: NOW };
+    userRepositoryRead.findUserById.mockResolvedValue(A_USER);
     userRepositoryWrite.updateUserById.mockResolvedValue(updatedUser);
 
     const result = await userService.updateUserById({
@@ -160,12 +161,14 @@ describe('When we update a user', () => {
     });
     expect(userRepositoryWrite.updateUserById).toHaveBeenCalledWith(A_USER.id, {
       name: 'Edward Newgate',
+      email: A_USER.email,
       updatedAt: NOW,
     });
     expect(userRepositoryRead.findUserByEmail).not.toHaveBeenCalled();
   });
 
   it('should normalize the email and keep it when it belongs to the same user', async () => {
+    userRepositoryRead.findUserById.mockResolvedValue(A_USER);
     userRepositoryRead.findUserByEmail.mockResolvedValue(A_USER);
     userRepositoryWrite.updateUserById.mockResolvedValue(A_USER);
 
@@ -174,13 +177,18 @@ describe('When we update a user', () => {
       userData: { email: 'WHITEBEARD@email.com' },
     });
 
+    expect(userRepositoryRead.findUserByEmail).toHaveBeenCalledWith(
+      A_USER.email,
+    );
     expect(userRepositoryWrite.updateUserById).toHaveBeenCalledWith(A_USER.id, {
+      name: A_USER.name,
       email: A_USER.email,
       updatedAt: NOW,
     });
   });
 
   it('should throw ConflictError when the email belongs to another user', async () => {
+    userRepositoryRead.findUserById.mockResolvedValue(A_USER);
     userRepositoryRead.findUserByEmail.mockResolvedValue({
       ...A_USER,
       id: 'user-2',
@@ -196,10 +204,20 @@ describe('When we update a user', () => {
   });
 
   it('should throw NotFoundError when the user does not exist', async () => {
-    userRepositoryWrite.updateUserById.mockResolvedValue(null);
+    userRepositoryRead.findUserById.mockResolvedValue(null);
 
     await expect(
       userService.updateUserById({ id: 'missing-id', userData: {} }),
+    ).rejects.toThrow(NotFoundError);
+    expect(userRepositoryWrite.updateUserById).not.toHaveBeenCalled();
+  });
+
+  it('should throw NotFoundError when the user is deleted before the write', async () => {
+    userRepositoryRead.findUserById.mockResolvedValue(A_USER);
+    userRepositoryWrite.updateUserById.mockResolvedValue(null);
+
+    await expect(
+      userService.updateUserById({ id: A_USER.id, userData: {} }),
     ).rejects.toThrow(NotFoundError);
   });
 });
