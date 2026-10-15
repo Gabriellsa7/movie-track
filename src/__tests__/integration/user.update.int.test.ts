@@ -3,6 +3,7 @@ import supertest from 'supertest';
 import { app } from '../../../jest/setup-integration-tests';
 import { Muser } from '../../infrastructure/db/mongo/models/user.model';
 import { IUser } from '../../domain/user/interfaces/user.interface';
+import { authHeaderFor } from '../testUtils';
 
 let existingUser: IUser;
 
@@ -22,6 +23,7 @@ describe('When we update an existing user', () => {
   it('should return 200 with the updated user and persist the change', async () => {
     const { body, statusCode } = await supertest(app.app)
       .put(`/users/${existingUser.id}`)
+      .set('Authorization', authHeaderFor(existingUser.id))
       .send({ name: 'Edward Newgate' });
 
     expect(statusCode).toBe(200);
@@ -50,6 +52,7 @@ describe('When we update a user with an email used by another user', () => {
 
     const { body, statusCode } = await supertest(app.app)
       .put(`/users/${existingUser.id}`)
+      .set('Authorization', authHeaderFor(existingUser.id))
       .send({ email: otherUser.email.toUpperCase() });
 
     expect(statusCode).toBe(409);
@@ -62,11 +65,33 @@ describe('When we update a user with an email used by another user', () => {
 
 describe('When we update a user that does not exist', () => {
   it('should return 404 with the contract error shape', async () => {
+    const missingUserId = randomUUID();
     const { body, statusCode } = await supertest(app.app)
-      .put(`/users/${randomUUID()}`)
+      .put(`/users/${missingUserId}`)
+      .set('Authorization', authHeaderFor(missingUserId))
       .send({ name: 'Nobody' });
 
     expect(statusCode).toBe(404);
     expect(body).toMatchObject({ message: 'User not found', status: 404 });
+  });
+});
+
+describe('When we update a user without a valid token', () => {
+  it('should return 401 when the Authorization header is missing', async () => {
+    const { statusCode } = await supertest(app.app)
+      .put(`/users/${existingUser.id}`)
+      .send({ name: 'Edward Newgate' });
+
+    expect(statusCode).toBe(401);
+  });
+
+  it('should return 401 with INVALID_TOKEN for a forged token', async () => {
+    const { body, statusCode } = await supertest(app.app)
+      .put(`/users/${existingUser.id}`)
+      .set('Authorization', 'Bearer not-a-real-token')
+      .send({ name: 'Edward Newgate' });
+
+    expect(statusCode).toBe(401);
+    expect(body).toMatchObject({ status: 401, code: 'INVALID_TOKEN' });
   });
 });
