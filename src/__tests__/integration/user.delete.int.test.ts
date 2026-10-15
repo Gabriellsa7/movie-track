@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import mongoose from 'mongoose';
 import supertest from 'supertest';
 import { app } from '../../../jest/setup-integration-tests';
@@ -8,11 +9,12 @@ let existingUser: IUser;
 
 beforeEach(async () => {
   existingUser = {
-    id: new mongoose.Types.ObjectId().toHexString(),
+    id: randomUUID(),
     email: `delete-${Date.now()}@email.com`,
     name: 'Whitebeard',
-    password: 'secret123',
+    passwordHash: 'hashed-secret123',
     createdAt: new Date(),
+    updatedAt: new Date(),
   };
   await Muser.create(existingUser);
 });

@@ -1,47 +1,71 @@
 import mongoose from 'mongoose';
 import supertest from 'supertest';
+import bcrypt from 'bcryptjs';
 import { app } from '../../../jest/setup-integration-tests';
 import { Muser } from '../../infrastructure/db/mongo/models/user.model';
-import { IUser } from '../../domain/user/interfaces/user.interface';
-let paramsCreate: IUser;
+import { IParamsCreateUser } from '../../domain/user/interfaces/user.service.interface';
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+let paramsCreate: IParamsCreateUser;
 
 beforeEach(async () => {
   paramsCreate = {
-    id: new mongoose.Types.ObjectId().toHexString(),
     email: `create-${new mongoose.Types.ObjectId().toHexString()}@email.com`,
     name: 'Whitebeard',
     password: 'secret123',
-    createdAt: new Date(),
   };
 });
 
 describe('When we try to create a valid user', () => {
-  it('should return success when we try to create a valid user', async () => {
+  it('should return 201 with server-generated fields and no password', async () => {
     const { body, statusCode } = await supertest(app.app)
       .post(`/users`)
       .send(paramsCreate);
 
-    const userInDb = await Muser.findOne({ id: paramsCreate.id });
-
-    expect(body).toMatchObject({
-      ...paramsCreate,
-      createdAt: paramsCreate.createdAt.toISOString(),
-    });
-    expect(body._id).toBeUndefined();
     expect(statusCode).toBe(201);
-    expect(userInDb).toMatchObject({ ...paramsCreate });
+    expect(body).toMatchObject({
+      name: paramsCreate.name,
+      email: paramsCreate.email,
+    });
+    expect(body.id).toMatch(UUID_PATTERN);
+    expect(new Date(body.createdAt).getTime()).not.toBeNaN();
+    expect(body.updatedAt).toBe(body.createdAt);
+    expect(body.password).toBeUndefined();
+    expect(body.passwordHash).toBeUndefined();
+    expect(body._id).toBeUndefined();
+  });
+
+  it('should store only a bcrypt hash of the password', async () => {
+    const { body } = await supertest(app.app).post(`/users`).send(paramsCreate);
+
+    const userInDb = await Muser.findOne({ id: body.id }).lean();
+
+    expect(userInDb?.passwordHash).toBeDefined();
+    expect(userInDb?.passwordHash).not.toBe(paramsCreate.password);
+    await expect(
+      bcrypt.compare(paramsCreate.password, String(userInDb?.passwordHash)),
+    ).resolves.toBe(true);
+  });
+
+  it('should store the email trimmed and lowercase', async () => {
+    const { body, statusCode } = await supertest(app.app)
+      .post(`/users`)
+      .send({ ...paramsCreate, email: paramsCreate.email.toUpperCase() });
+
+    expect(statusCode).toBe(201);
+    expect(body.email).toBe(paramsCreate.email);
   });
 });
 
-describe('When we create a user without providing createdAt', () => {
-  it('should return 201 with a server-generated createdAt', async () => {
-    const { id, name, email, password } = paramsCreate;
-    const { body, statusCode } = await supertest(app.app)
+describe('When we try to create a user sending server-generated fields', () => {
+  it('should return 400 rejected by the contract validation', async () => {
+    const { statusCode } = await supertest(app.app)
       .post(`/users`)
-      .send({ id, name, email, password });
+      .send({ ...paramsCreate, id: 'client-id', createdAt: new Date() });
 
-    expect(statusCode).toBe(201);
-    expect(new Date(body.createdAt).getTime()).not.toBeNaN();
+    expect(statusCode).toBe(400);
   });
 });
 
@@ -55,13 +79,26 @@ describe('When we try to create a user with an invalid email', () => {
   });
 });
 
+describe('When we try to create a user with a weak password', () => {
+  it.each(['short1', 'onlyletters', '12345678'])(
+    'should return 400 for "%s"',
+    async (password) => {
+      const { statusCode } = await supertest(app.app)
+        .post(`/users`)
+        .send({ ...paramsCreate, password });
+
+      expect(statusCode).toBe(400);
+    },
+  );
+});
+
 describe('When we try to create a user with an email already in use', () => {
   it('should return 409 with the contract error shape', async () => {
     await supertest(app.app).post(`/users`).send(paramsCreate);
 
     const { body, statusCode } = await supertest(app.app)
       .post(`/users`)
-      .send({ ...paramsCreate, id: new mongoose.Types.ObjectId().toHexString() });
+      .send({ ...paramsCreate, email: paramsCreate.email.toUpperCase() });
 
     expect(statusCode).toBe(409);
     expect(body).toMatchObject({

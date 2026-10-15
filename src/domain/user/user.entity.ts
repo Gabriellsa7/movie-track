@@ -5,7 +5,10 @@ export class User implements IUser {
     public readonly id: string,
     public readonly name: string,
     public readonly email: string,
-    public readonly password: string,
+    public readonly passwordHash: string,
     public readonly createdAt: Date,
+    public readonly updatedAt: Date,
+    public readonly avatarUrl?: string,
+    public readonly avatarPublicId?: string,
   ) {}
 }

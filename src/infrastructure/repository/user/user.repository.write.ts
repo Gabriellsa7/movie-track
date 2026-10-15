@@ -10,8 +10,11 @@ export class UserRepositoryWrite implements IUserRepositoryWrite {
       id: createdUser.id,
       name: createdUser.name,
       email: createdUser.email,
-      password: createdUser.password,
+      passwordHash: createdUser.passwordHash,
+      avatarUrl: createdUser.avatarUrl,
+      avatarPublicId: createdUser.avatarPublicId,
       createdAt: createdUser.createdAt,
+      updatedAt: createdUser.updatedAt,
     };
   }
 

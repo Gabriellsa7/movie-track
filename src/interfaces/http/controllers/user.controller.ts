@@ -55,14 +55,12 @@ export class UserController implements IController {
     res: Response,
     next: NextFunction,
   ): Promise<void> => {
-    const { id, name, email, createdAt, password } = req.body;
+    const { name, email, password } = req.body;
     try {
       const newUser = await this.userService.createUser({
-        id,
         name,
         email,
         password,
-        createdAt: createdAt ? new Date(createdAt) : new Date(),
       });
       res.status(201).json(newUser);
     } catch (error) {
