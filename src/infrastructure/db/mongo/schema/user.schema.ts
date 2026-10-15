@@ -1,8 +1,10 @@
-import mongoose, { Types } from 'mongoose';
+import mongoose, { Types, UpdateQuery } from 'mongoose';
 import { IUser } from '../../../../domain/user/interfaces/user.interface';
+import { normalizeText } from '../../../../domain/common/text.normalizer';
 
 export interface IMUser extends IUser {
   _id: Types.ObjectId;
+  normalizedName: string;
 }
 
 export const userSchema = new mongoose.Schema<IMUser>({
@@ -12,6 +14,10 @@ export const userSchema = new mongoose.Schema<IMUser>({
     unique: true,
   },
   name: {
+    type: String,
+    required: true,
+  },
+  normalizedName: {
     type: String,
     required: true,
   },
@@ -44,4 +50,20 @@ export const userSchema = new mongoose.Schema<IMUser>({
     type: Date,
     required: true,
   },
+});
+
+userSchema.index({ normalizedName: 1, id: 1 });
+
+userSchema.pre('validate', function () {
+  if (this.isModified('name')) {
+    this.normalizedName = normalizeText(this.name);
+  }
+});
+
+userSchema.pre('findOneAndUpdate', function () {
+  const update = this.getUpdate() as UpdateQuery<IMUser>;
+  const name = update.$set?.name ?? update.name;
+  if (typeof name === 'string') {
+    this.set('normalizedName', normalizeText(name));
+  }
 });

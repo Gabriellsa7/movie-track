@@ -5,4 +5,9 @@ export interface IUserRepositoryRead {
   findUserByEmail(email: string): Promise<IUser | null>;
   findUserById(id: string): Promise<IUser | null>;
   listUsers(filter: Partial<IUser>, pagination: IPagination): Promise<IUser[]>;
+  searchUsers(
+    search: string | undefined,
+    pagination: IPagination,
+  ): Promise<IUser[]>;
+  countUsers(search: string | undefined): Promise<number>;
 }

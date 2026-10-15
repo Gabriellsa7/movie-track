@@ -40,6 +40,8 @@ beforeEach(() => {
     findUserById: jest.fn(),
     findUserByEmail: jest.fn(),
     listUsers: jest.fn(),
+    searchUsers: jest.fn(),
+    countUsers: jest.fn(),
   };
   userRepositoryWrite = {
     createUser: jest.fn(),
