@@ -1,15 +1,14 @@
-import { randomUUID } from 'crypto';
 import supertest from 'supertest';
 import { app } from '../../../jest/setup-integration-tests';
 import { Muser } from '../../infrastructure/db/mongo/models/user.model';
 import { IUser } from '../../domain/user/interfaces/user.interface';
-import { authHeaderFor } from '../testUtils';
+import { authHeaderFor, newObjectId } from '../testUtils';
 
 let existingUser: IUser;
 
 beforeEach(async () => {
   existingUser = {
-    id: randomUUID(),
+    _id: newObjectId(),
     email: `update-${Date.now()}@email.com`,
     name: 'Whitebeard',
     passwordHash: 'hashed-secret123',
@@ -22,8 +21,8 @@ beforeEach(async () => {
 describe('When we update an existing user', () => {
   it('should return 200 with the updated user and persist the change', async () => {
     const { body, statusCode } = await supertest(app.app)
-      .put(`/users/${existingUser.id}`)
-      .set('Authorization', authHeaderFor(existingUser.id))
+      .put(`/users/${existingUser._id}`)
+      .set('Authorization', authHeaderFor(existingUser._id))
       .send({ name: 'Edward Newgate' });
 
     expect(statusCode).toBe(200);
@@ -36,7 +35,7 @@ describe('When we update an existing user', () => {
       existingUser.updatedAt.getTime(),
     );
 
-    const userInDb = await Muser.findOne({ id: existingUser.id });
+    const userInDb = await Muser.findOne({ _id: existingUser._id });
     expect(userInDb?.name).toBe('Edward Newgate');
   });
 });
@@ -45,14 +44,14 @@ describe('When we update a user with an email used by another user', () => {
   it('should return 409 with the contract error shape', async () => {
     const otherUser = {
       ...existingUser,
-      id: randomUUID(),
+      _id: newObjectId(),
       email: `other-${Date.now()}@email.com`,
     };
     await Muser.create(otherUser);
 
     const { body, statusCode } = await supertest(app.app)
-      .put(`/users/${existingUser.id}`)
-      .set('Authorization', authHeaderFor(existingUser.id))
+      .put(`/users/${existingUser._id}`)
+      .set('Authorization', authHeaderFor(existingUser._id))
       .send({ email: otherUser.email.toUpperCase() });
 
     expect(statusCode).toBe(409);
@@ -65,7 +64,7 @@ describe('When we update a user with an email used by another user', () => {
 
 describe('When we update a user that does not exist', () => {
   it('should return 404 with the contract error shape', async () => {
-    const missingUserId = randomUUID();
+    const missingUserId = newObjectId();
     const { body, statusCode } = await supertest(app.app)
       .put(`/users/${missingUserId}`)
       .set('Authorization', authHeaderFor(missingUserId))
@@ -79,7 +78,7 @@ describe('When we update a user that does not exist', () => {
 describe('When we update a user without a valid token', () => {
   it('should return 401 when the Authorization header is missing', async () => {
     const { statusCode } = await supertest(app.app)
-      .put(`/users/${existingUser.id}`)
+      .put(`/users/${existingUser._id}`)
       .send({ name: 'Edward Newgate' });
 
     expect(statusCode).toBe(401);
@@ -87,7 +86,7 @@ describe('When we update a user without a valid token', () => {
 
   it('should return 401 with INVALID_TOKEN for a forged token', async () => {
     const { body, statusCode } = await supertest(app.app)
-      .put(`/users/${existingUser.id}`)
+      .put(`/users/${existingUser._id}`)
       .set('Authorization', 'Bearer not-a-real-token')
       .send({ name: 'Edward Newgate' });
 
@@ -99,11 +98,11 @@ describe('When we update a user without a valid token', () => {
 describe('When we update another user', () => {
   it('should return 403 and keep the other user unchanged', async () => {
     const { body, statusCode } = await supertest(app.app)
-      .put(`/users/${existingUser.id}`)
-      .set('Authorization', authHeaderFor(randomUUID()))
+      .put(`/users/${existingUser._id}`)
+      .set('Authorization', authHeaderFor(newObjectId()))
       .send({ name: 'Hacked' });
 
-    const userInDb = await Muser.findOne({ id: existingUser.id }).lean();
+    const userInDb = await Muser.findOne({ _id: existingUser._id }).lean();
 
     expect(statusCode).toBe(403);
     expect(body).toMatchObject({ status: 403, code: 'FORBIDDEN_RESOURCE' });

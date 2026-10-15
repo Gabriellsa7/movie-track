@@ -1,5 +1,5 @@
 export interface IUser {
-  id: string;
+  _id: string;
   name: string;
   email: string;
   passwordHash: string;
@@ -10,7 +10,7 @@ export interface IUser {
 }
 
 export interface IParamsUser {
-  id?: string;
+  _id?: string;
   name: string;
   email: string;
   passwordHash: string;
@@ -22,7 +22,14 @@ export interface IParamsUser {
 
 export type IUserProfileData = Partial<Pick<IUser, 'name' | 'email'>>;
 
-export type IUserPrivate = Omit<IUser, 'passwordHash' | 'avatarPublicId'>;
+export type IUserData = Omit<IUser, '_id'>;
+
+export type IUserPrivate = Omit<
+  IUser,
+  '_id' | 'passwordHash' | 'avatarPublicId'
+> & {
+  id: string;
+};
 
 export interface IUserPublicSummary {
   id: string;

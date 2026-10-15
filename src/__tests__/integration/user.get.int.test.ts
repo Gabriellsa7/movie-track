@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto';
+import { newObjectId } from '../testUtils';
 import supertest from 'supertest';
 import { app } from '../../../jest/setup-integration-tests';
 import { Muser } from '../../infrastructure/db/mongo/models/user.model';
@@ -10,7 +11,7 @@ let existingUser: IUser;
 
 beforeEach(async () => {
   existingUser = {
-    id: randomUUID(),
+    _id: newObjectId(),
     email: `get-${randomUUID()}@email.com`,
     name: `${NAME_PREFIX} Whitebeard`,
     passwordHash: 'hashed-secret123',
@@ -24,12 +25,12 @@ beforeEach(async () => {
 describe('When we get a user profile', () => {
   it('should return 200 with only public fields', async () => {
     const { body, statusCode } = await supertest(app.app).get(
-      `/users/${existingUser.id}`,
+      `/users/${existingUser._id}`,
     );
 
     expect(statusCode).toBe(200);
     expect(body).toEqual({
-      id: existingUser.id,
+      id: existingUser._id,
       name: existingUser.name,
       avatarUrl: existingUser.avatarUrl,
       memberSince: existingUser.createdAt.toISOString(),
@@ -40,7 +41,7 @@ describe('When we get a user profile', () => {
 describe('When we get a user that does not exist', () => {
   it('should return 404 with the USER_NOT_FOUND code', async () => {
     const { body, statusCode } = await supertest(app.app).get(
-      `/users/${randomUUID()}`,
+      `/users/${newObjectId()}`,
     );
 
     expect(statusCode).toBe(404);
@@ -51,8 +52,8 @@ describe('When we get a user that does not exist', () => {
     });
   });
 
-  it('should return 400 when the id is not a UUID', async () => {
-    const { statusCode } = await supertest(app.app).get('/users/not-a-uuid');
+  it('should return 400 when the id is not an ObjectId', async () => {
+    const { statusCode } = await supertest(app.app).get('/users/not-an-object-id');
 
     expect(statusCode).toBe(400);
   });
@@ -72,7 +73,7 @@ describe('When we list users', () => {
   it('should search by name ignoring case and accents', async () => {
     await Muser.create({
       ...existingUser,
-      id: randomUUID(),
+      _id: newObjectId(),
       email: `get-${randomUUID()}@email.com`,
       name: `${NAME_PREFIX} Édouard`,
     });

@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import bcrypt from 'bcryptjs';
+import { newObjectId } from '../testUtils';
 import supertest from 'supertest';
 import { app } from '../../../jest/setup-integration-tests';
 import { Muser } from '../../infrastructure/db/mongo/models/user.model';
@@ -13,7 +14,7 @@ let existingUser: IUser;
 
 beforeEach(async () => {
   existingUser = {
-    id: randomUUID(),
+    _id: newObjectId(),
     email: `refresh-${randomUUID()}@email.com`,
     name: 'Whitebeard',
     passwordHash: await bcrypt.hash(PASSWORD, LOW_COST_ROUNDS),
@@ -42,7 +43,7 @@ describe('When we refresh with a valid refresh token', () => {
     expect(Object.keys(body).sort()).toEqual(['accessToken', 'refreshToken']);
 
     const { statusCode: updateStatus } = await supertest(app.app)
-      .put(`/users/${existingUser.id}`)
+      .put(`/users/${existingUser._id}`)
       .set('Authorization', `Bearer ${body.accessToken}`)
       .send({ name: 'Edward Newgate' });
 

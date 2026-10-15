@@ -1,15 +1,15 @@
-import { randomUUID } from 'crypto';
 import {
   IParamsUser,
   IUser,
+  IUserData,
   IUserPrivate,
   IUserProfileData,
   IUserPublicProfile,
   IUserPublicSummary,
 } from './interfaces/user.interface';
 
-export class User implements IUser {
-  id: string;
+export class User implements IUserData {
+  _id?: string;
 
   name: string;
 
@@ -26,12 +26,15 @@ export class User implements IUser {
   updatedAt: Date;
 
   constructor(params: IParamsUser) {
-    this.id = params.id || randomUUID();
     this.name = params.name.trim();
     this.email = User.normalizeEmail(params.email);
     this.passwordHash = params.passwordHash;
     this.createdAt = params.createdAt ?? new Date();
     this.updatedAt = params.updatedAt ?? this.createdAt;
+
+    if (params._id) {
+      this._id = params._id;
+    }
 
     if (params.avatarUrl) {
       this.avatarUrl = params.avatarUrl;
@@ -65,7 +68,7 @@ export class User implements IUser {
 
   public static toUserPrivate(data: IUser): IUserPrivate {
     const user: IUserPrivate = {
-      id: data.id,
+      id: data._id,
       name: data.name,
       email: data.email,
       createdAt: data.createdAt,
@@ -81,7 +84,7 @@ export class User implements IUser {
 
   public static toUserPublicSummary(data: IUser): IUserPublicSummary {
     const user: IUserPublicSummary = {
-      id: data.id,
+      id: data._id,
       name: data.name,
     };
 

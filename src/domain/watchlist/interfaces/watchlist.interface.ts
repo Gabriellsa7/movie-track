@@ -1,5 +1,5 @@
 export interface IWatchlistItem {
-  id: string;
+  _id: string;
   userId: string;
   tmdbId?: number;
   title: string;
@@ -8,3 +8,5 @@ export interface IWatchlistItem {
   releaseYear?: number;
   addedAt: Date;
 }
+
+export type IWatchlistItemData = Omit<IWatchlistItem, '_id'>;

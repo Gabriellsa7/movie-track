@@ -12,7 +12,7 @@ import { UnauthorizedError } from '../../domain/errors/unauthorized.error';
 const NOW = new Date('2026-02-01T00:00:00.000Z');
 
 const A_USER: IUser = {
-  id: 'user-1',
+  _id: 'user-1',
   name: 'Whitebeard',
   email: 'whitebeard@email.com',
   passwordHash: 'hashed-secret123',
@@ -23,7 +23,7 @@ const A_USER: IUser = {
 };
 
 const A_USER_PRIVATE = {
-  id: A_USER.id,
+  id: A_USER._id,
   name: A_USER.name,
   email: A_USER.email,
   avatarUrl: A_USER.avatarUrl,
@@ -63,9 +63,12 @@ beforeEach(() => {
 });
 
 describe('When we create a user', () => {
-  it('should persist a hashed password with server-generated id and dates', async () => {
+  it('should persist a hashed password and let the database generate the id', async () => {
     userRepositoryRead.findUserByEmail.mockResolvedValue(null);
-    userRepositoryWrite.createUser.mockImplementation(async (user) => user);
+    userRepositoryWrite.createUser.mockImplementation(async (user) => ({
+      ...user,
+      _id: 'user-1',
+    }));
 
     const createdUser = await userService.createUser({
       name: '  Whitebeard  ',
@@ -81,7 +84,8 @@ describe('When we create a user', () => {
       createdAt: NOW,
       updatedAt: NOW,
     });
-    expect(persistedUser.id).toMatch(/^[0-9a-f-]{36}$/);
+    expect(persistedUser).not.toHaveProperty('_id');
+    expect(createdUser.id).toBe('user-1');
     expect(passwordHasher.hash).toHaveBeenCalledWith('secret123');
     expect(createdUser).not.toHaveProperty('passwordHash');
     expect(createdUser).not.toHaveProperty('avatarPublicId');
@@ -108,10 +112,10 @@ describe('When we get a user by ID', () => {
   it('should return the user without private fields when it exists', async () => {
     userRepositoryRead.findUserById.mockResolvedValue(A_USER);
 
-    const user = await userService.getUserById(A_USER.id);
+    const user = await userService.getUserById(A_USER._id);
 
     expect(user).toEqual(A_USER_PRIVATE);
-    expect(userRepositoryRead.findUserById).toHaveBeenCalledWith(A_USER.id);
+    expect(userRepositoryRead.findUserById).toHaveBeenCalledWith(A_USER._id);
   });
 
   it('should throw NotFoundError when the user does not exist', async () => {
@@ -151,7 +155,7 @@ describe('When we update a user', () => {
     userRepositoryWrite.updateUserById.mockResolvedValue(updatedUser);
 
     const result = await userService.updateUserById({
-      id: A_USER.id,
+      id: A_USER._id,
       userData: { name: ' Edward Newgate ' },
     });
 
@@ -160,7 +164,7 @@ describe('When we update a user', () => {
       name: 'Edward Newgate',
       updatedAt: NOW,
     });
-    expect(userRepositoryWrite.updateUserById).toHaveBeenCalledWith(A_USER.id, {
+    expect(userRepositoryWrite.updateUserById).toHaveBeenCalledWith(A_USER._id, {
       name: 'Edward Newgate',
       email: A_USER.email,
       updatedAt: NOW,
@@ -174,14 +178,14 @@ describe('When we update a user', () => {
     userRepositoryWrite.updateUserById.mockResolvedValue(A_USER);
 
     await userService.updateUserById({
-      id: A_USER.id,
+      id: A_USER._id,
       userData: { email: 'WHITEBEARD@email.com' },
     });
 
     expect(userRepositoryRead.findUserByEmail).toHaveBeenCalledWith(
       A_USER.email,
     );
-    expect(userRepositoryWrite.updateUserById).toHaveBeenCalledWith(A_USER.id, {
+    expect(userRepositoryWrite.updateUserById).toHaveBeenCalledWith(A_USER._id, {
       name: A_USER.name,
       email: A_USER.email,
       updatedAt: NOW,
@@ -192,12 +196,12 @@ describe('When we update a user', () => {
     userRepositoryRead.findUserById.mockResolvedValue(A_USER);
     userRepositoryRead.findUserByEmail.mockResolvedValue({
       ...A_USER,
-      id: 'user-2',
+      _id: 'user-2',
     });
 
     await expect(
       userService.updateUserById({
-        id: A_USER.id,
+        id: A_USER._id,
         userData: { email: A_USER.email },
       }),
     ).rejects.toThrow(ConflictError);
@@ -218,7 +222,7 @@ describe('When we update a user', () => {
     userRepositoryWrite.updateUserById.mockResolvedValue(null);
 
     await expect(
-      userService.updateUserById({ id: A_USER.id, userData: {} }),
+      userService.updateUserById({ id: A_USER._id, userData: {} }),
     ).rejects.toThrow(NotFoundError);
   });
 });
@@ -229,7 +233,7 @@ describe('When we change a user password', () => {
     passwordHasher.compare.mockResolvedValue(true);
 
     await userService.changePassword({
-      id: A_USER.id,
+      id: A_USER._id,
       currentPassword: 'secret123',
       newPassword: 'newSecret456',
     });
@@ -238,7 +242,7 @@ describe('When we change a user password', () => {
       'secret123',
       A_USER.passwordHash,
     );
-    expect(userRepositoryWrite.updateUserById).toHaveBeenCalledWith(A_USER.id, {
+    expect(userRepositoryWrite.updateUserById).toHaveBeenCalledWith(A_USER._id, {
       passwordHash: 'hashed-newSecret456',
       updatedAt: NOW,
     });
@@ -250,7 +254,7 @@ describe('When we change a user password', () => {
 
     await expect(
       userService.changePassword({
-        id: A_USER.id,
+        id: A_USER._id,
         currentPassword: 'wrong123',
         newPassword: 'newSecret456',
       }),
@@ -276,9 +280,9 @@ describe('When we delete a user confirming the password', () => {
     userRepositoryRead.findUserById.mockResolvedValue(A_USER);
     passwordHasher.compare.mockResolvedValue(true);
 
-    await userService.deleteUser({ id: A_USER.id, password: 'secret123' });
+    await userService.deleteUser({ id: A_USER._id, password: 'secret123' });
 
-    expect(userRepositoryWrite.deleteUserById).toHaveBeenCalledWith(A_USER.id);
+    expect(userRepositoryWrite.deleteUserById).toHaveBeenCalledWith(A_USER._id);
   });
 
   it('should throw UnauthorizedError and keep the user when the password is wrong', async () => {
@@ -286,7 +290,7 @@ describe('When we delete a user confirming the password', () => {
     passwordHasher.compare.mockResolvedValue(false);
 
     await expect(
-      userService.deleteUser({ id: A_USER.id, password: 'wrong123' }),
+      userService.deleteUser({ id: A_USER._id, password: 'wrong123' }),
     ).rejects.toThrow(UnauthorizedError);
     expect(userRepositoryWrite.deleteUserById).not.toHaveBeenCalled();
   });
@@ -312,7 +316,7 @@ describe('When we list public users', () => {
 
     expect(result).toEqual({
       items: [
-        { id: A_USER.id, name: A_USER.name, avatarUrl: A_USER.avatarUrl },
+        { id: A_USER._id, name: A_USER.name, avatarUrl: A_USER.avatarUrl },
       ],
       total: 41,
       page: 3,
@@ -330,10 +334,10 @@ describe('When we get a public profile', () => {
   it('should return public fields and the member since date', async () => {
     userRepositoryRead.findUserById.mockResolvedValue(A_USER);
 
-    const profile = await userService.getPublicProfile(A_USER.id);
+    const profile = await userService.getPublicProfile(A_USER._id);
 
     expect(profile).toEqual({
-      id: A_USER.id,
+      id: A_USER._id,
       name: A_USER.name,
       avatarUrl: A_USER.avatarUrl,
       memberSince: A_USER.createdAt,
@@ -358,7 +362,7 @@ describe('When a user repository fails unexpectedly', () => {
       new Error('database down'),
     );
 
-    await expect(userService.getUserById(A_USER.id)).rejects.toThrow(
+    await expect(userService.getUserById(A_USER._id)).rejects.toThrow(
       'database down',
     );
     expect(loggerErrorSpy).toHaveBeenCalledWith(

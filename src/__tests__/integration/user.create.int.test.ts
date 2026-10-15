@@ -5,8 +5,7 @@ import { app } from '../../../jest/setup-integration-tests';
 import { Muser } from '../../infrastructure/db/mongo/models/user.model';
 import { IParamsCreateUser } from '../../domain/user/interfaces/user.service.interface';
 
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const OBJECT_ID_PATTERN = /^[0-9a-f]{24}$/;
 
 let paramsCreate: IParamsCreateUser;
 
@@ -29,7 +28,7 @@ describe('When we try to create a valid user', () => {
       name: paramsCreate.name,
       email: paramsCreate.email,
     });
-    expect(body.id).toMatch(UUID_PATTERN);
+    expect(body.id).toMatch(OBJECT_ID_PATTERN);
     expect(new Date(body.createdAt).getTime()).not.toBeNaN();
     expect(body.updatedAt).toBe(body.createdAt);
     expect(body.password).toBeUndefined();
@@ -40,7 +39,7 @@ describe('When we try to create a valid user', () => {
   it('should store only a bcrypt hash of the password', async () => {
     const { body } = await supertest(app.app).post(`/users`).send(paramsCreate);
 
-    const userInDb = await Muser.findOne({ id: body.id }).lean();
+    const userInDb = await Muser.findOne({ _id: body.id }).lean();
 
     expect(userInDb?.passwordHash).toBeDefined();
     expect(userInDb?.passwordHash).not.toBe(paramsCreate.password);

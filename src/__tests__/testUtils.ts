@@ -1,3 +1,4 @@
+import { Types } from 'mongoose';
 import { MongooseDatabase } from '../../jest/setup-db';
 import { TokenProviderFactory } from '../infrastructure/config/factories/token.provider.factory';
 import { app } from './configApp';
@@ -20,4 +21,8 @@ export function authHeaderFor(userId: string): string {
     sub: userId,
   });
   return `Bearer ${accessToken}`;
+}
+
+export function newObjectId(): string {
+  return new Types.ObjectId().toString();
 }

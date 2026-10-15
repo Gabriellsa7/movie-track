@@ -1,7 +1,10 @@
-import { IWatchlistItem } from '../interfaces/watchlist.interface';
+import {
+  IWatchlistItem,
+  IWatchlistItemData,
+} from '../interfaces/watchlist.interface';
 
 export interface IWatchlistRepositoryWrite {
-  createWatchlistItem(itemData: IWatchlistItem): Promise<IWatchlistItem>;
+  createWatchlistItem(itemData: IWatchlistItemData): Promise<IWatchlistItem>;
   deleteWatchlistItemById(
     id: string,
     userId: string,

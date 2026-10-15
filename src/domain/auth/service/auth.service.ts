@@ -44,7 +44,7 @@ export class AuthService implements IAuthService {
       throw this.invalidCredentialsError();
     }
 
-    return this.issueTokens(user.id);
+    return this.issueTokens(user._id);
   }
 
   @ErrorHandler()
@@ -56,7 +56,7 @@ export class AuthService implements IAuthService {
       throw new UnauthorizedError('Invalid token', 'INVALID_TOKEN');
     }
 
-    return this.issueTokens(user.id);
+    return this.issueTokens(user._id);
   }
 
   private issueTokens(userId: string): IAuthTokens {

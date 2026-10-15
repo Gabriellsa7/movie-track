@@ -1,5 +1,5 @@
 export interface IMovieEntry {
-  id: string;
+  _id: string;
   userId: string;
   tmdbId?: number;
   title: string;
@@ -18,6 +18,8 @@ export interface IMovieEntry {
   createdAt: Date;
   updatedAt: Date;
 }
+
+export type IMovieEntryData = Omit<IMovieEntry, '_id'>;
 
 export enum EMovieEntrySortField {
   WATCHED_AT = 'watchedAt',

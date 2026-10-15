@@ -1,5 +1,5 @@
 export interface IGenre {
-  id: string;
+  _id: string;
   name: string;
   tmdbGenreId: number;
 }
