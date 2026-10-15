@@ -19,18 +19,29 @@ export const userSchema = new mongoose.Schema<IMUser>({
     type: String,
     required: true,
     unique: true,
+    lowercase: true,
+    trim: true,
     match: [
       /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
       'Please provide a valid email address',
     ],
   },
-  password: {
+  passwordHash: {
     type: String,
     required: true,
+  },
+  avatarUrl: {
+    type: String,
+  },
+  avatarPublicId: {
+    type: String,
   },
   createdAt: {
     type: Date,
     required: true,
-    default: Date.now,
+  },
+  updatedAt: {
+    type: Date,
+    required: true,
   },
 });

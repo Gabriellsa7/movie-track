@@ -2,19 +2,37 @@ import { UserService } from '../../domain/user/service/user.service';
 import { IUserRepositoryRead } from '../../domain/user/repository/user.repository.read';
 import { IUserRepositoryWrite } from '../../domain/user/repository/user.repository.write';
 import { IUser } from '../../domain/user/interfaces/user.interface';
+import { IPasswordHasher } from '../../domain/common/providers/password-hasher.provider';
+import { IClock } from '../../domain/common/providers/clock.provider';
 import { ConflictError } from '../../domain/errors/conflict.error';
 import { NotFoundError } from '../../domain/errors/not-found.error';
+
+const NOW = new Date('2026-02-01T00:00:00.000Z');
 
 const A_USER: IUser = {
   id: 'user-1',
   name: 'Whitebeard',
   email: 'whitebeard@email.com',
-  password: 'secret123',
+  passwordHash: 'hashed-secret123',
+  avatarUrl: 'https://cdn.example.com/avatar.png',
+  avatarPublicId: 'avatars/user-1',
   createdAt: new Date('2026-01-01T00:00:00.000Z'),
+  updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+};
+
+const A_USER_PRIVATE = {
+  id: A_USER.id,
+  name: A_USER.name,
+  email: A_USER.email,
+  avatarUrl: A_USER.avatarUrl,
+  createdAt: A_USER.createdAt,
+  updatedAt: A_USER.updatedAt,
 };
 
 let userRepositoryRead: jest.Mocked<IUserRepositoryRead>;
 let userRepositoryWrite: jest.Mocked<IUserRepositoryWrite>;
+let passwordHasher: jest.Mocked<IPasswordHasher>;
+let clock: jest.Mocked<IClock>;
 let userService: UserService;
 
 beforeEach(() => {
@@ -28,35 +46,68 @@ beforeEach(() => {
     updateUserById: jest.fn(),
     deleteUserById: jest.fn(),
   };
-  userService = new UserService({ userRepositoryRead, userRepositoryWrite });
+  passwordHasher = {
+    hash: jest.fn(async (plainPassword: string) => `hashed-${plainPassword}`),
+    compare: jest.fn(),
+  };
+  clock = { now: jest.fn(() => NOW) };
+  userService = new UserService({
+    userRepositoryRead,
+    userRepositoryWrite,
+    passwordHasher,
+    clock,
+  });
 });
 
 describe('When we create a user', () => {
-  it('should create the user when the email is not in use', async () => {
+  it('should persist a hashed password with server-generated id and dates', async () => {
     userRepositoryRead.findUserByEmail.mockResolvedValue(null);
-    userRepositoryWrite.createUser.mockResolvedValue(A_USER);
+    userRepositoryWrite.createUser.mockImplementation(async (user) => user);
 
-    const createdUser = await userService.createUser(A_USER);
+    const createdUser = await userService.createUser({
+      name: '  Whitebeard  ',
+      email: ' WhiteBeard@Email.com ',
+      password: 'secret123',
+    });
 
-    expect(createdUser).toEqual(A_USER);
-    expect(userRepositoryWrite.createUser).toHaveBeenCalledWith(A_USER);
+    const persistedUser = userRepositoryWrite.createUser.mock.calls[0][0];
+    expect(persistedUser).toMatchObject({
+      name: 'Whitebeard',
+      email: 'whitebeard@email.com',
+      passwordHash: 'hashed-secret123',
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    expect(persistedUser.id).toMatch(/^[0-9a-f-]{36}$/);
+    expect(passwordHasher.hash).toHaveBeenCalledWith('secret123');
+    expect(createdUser).not.toHaveProperty('passwordHash');
+    expect(createdUser).not.toHaveProperty('avatarPublicId');
   });
 
   it('should throw ConflictError when the email is already in use', async () => {
     userRepositoryRead.findUserByEmail.mockResolvedValue(A_USER);
 
-    await expect(userService.createUser(A_USER)).rejects.toThrow(ConflictError);
+    await expect(
+      userService.createUser({
+        name: 'Whitebeard',
+        email: 'WHITEBEARD@email.com',
+        password: 'secret123',
+      }),
+    ).rejects.toThrow(ConflictError);
+    expect(userRepositoryRead.findUserByEmail).toHaveBeenCalledWith(
+      'whitebeard@email.com',
+    );
     expect(userRepositoryWrite.createUser).not.toHaveBeenCalled();
   });
 });
 
 describe('When we get a user by ID', () => {
-  it('should return the user when it exists', async () => {
+  it('should return the user without private fields when it exists', async () => {
     userRepositoryRead.findUserById.mockResolvedValue(A_USER);
 
     const user = await userService.getUserById(A_USER.id);
 
-    expect(user).toEqual(A_USER);
+    expect(user).toEqual(A_USER_PRIVATE);
     expect(userRepositoryRead.findUserById).toHaveBeenCalledWith(A_USER.id);
   });
 
@@ -70,12 +121,12 @@ describe('When we get a user by ID', () => {
 });
 
 describe('When we get a user by email', () => {
-  it('should return the user when it exists', async () => {
+  it('should look up the normalized email and return the user', async () => {
     userRepositoryRead.findUserByEmail.mockResolvedValue(A_USER);
 
-    const user = await userService.getUserByEmail(A_USER.email);
+    const user = await userService.getUserByEmail(' WhiteBeard@Email.com ');
 
-    expect(user).toEqual(A_USER);
+    expect(user).toEqual(A_USER_PRIVATE);
     expect(userRepositoryRead.findUserByEmail).toHaveBeenCalledWith(
       A_USER.email,
     );
@@ -91,19 +142,55 @@ describe('When we get a user by email', () => {
 });
 
 describe('When we update a user', () => {
-  it('should update and return the user when it exists', async () => {
-    const updatedUser = { ...A_USER, name: 'Edward Newgate' };
+  it('should update the name and updatedAt and return the user', async () => {
+    const updatedUser = { ...A_USER, name: 'Edward Newgate', updatedAt: NOW };
     userRepositoryWrite.updateUserById.mockResolvedValue(updatedUser);
 
     const result = await userService.updateUserById({
       id: A_USER.id,
-      userData: { name: 'Edward Newgate' },
+      userData: { name: ' Edward Newgate ' },
     });
 
-    expect(result).toEqual(updatedUser);
+    expect(result).toEqual({
+      ...A_USER_PRIVATE,
+      name: 'Edward Newgate',
+      updatedAt: NOW,
+    });
     expect(userRepositoryWrite.updateUserById).toHaveBeenCalledWith(A_USER.id, {
       name: 'Edward Newgate',
+      updatedAt: NOW,
     });
+    expect(userRepositoryRead.findUserByEmail).not.toHaveBeenCalled();
+  });
+
+  it('should normalize the email and keep it when it belongs to the same user', async () => {
+    userRepositoryRead.findUserByEmail.mockResolvedValue(A_USER);
+    userRepositoryWrite.updateUserById.mockResolvedValue(A_USER);
+
+    await userService.updateUserById({
+      id: A_USER.id,
+      userData: { email: 'WHITEBEARD@email.com' },
+    });
+
+    expect(userRepositoryWrite.updateUserById).toHaveBeenCalledWith(A_USER.id, {
+      email: A_USER.email,
+      updatedAt: NOW,
+    });
+  });
+
+  it('should throw ConflictError when the email belongs to another user', async () => {
+    userRepositoryRead.findUserByEmail.mockResolvedValue({
+      ...A_USER,
+      id: 'user-2',
+    });
+
+    await expect(
+      userService.updateUserById({
+        id: A_USER.id,
+        userData: { email: A_USER.email },
+      }),
+    ).rejects.toThrow(ConflictError);
+    expect(userRepositoryWrite.updateUserById).not.toHaveBeenCalled();
   });
 
   it('should throw NotFoundError when the user does not exist', async () => {
@@ -116,12 +203,12 @@ describe('When we update a user', () => {
 });
 
 describe('When we delete a user', () => {
-  it('should delete and return the user when it exists', async () => {
+  it('should delete and return the user without private fields', async () => {
     userRepositoryWrite.deleteUserById.mockResolvedValue(A_USER);
 
     const result = await userService.deleteUserById(A_USER.id);
 
-    expect(result).toEqual(A_USER);
+    expect(result).toEqual(A_USER_PRIVATE);
     expect(userRepositoryWrite.deleteUserById).toHaveBeenCalledWith(A_USER.id);
   });
 
@@ -135,12 +222,12 @@ describe('When we delete a user', () => {
 });
 
 describe('When we list users', () => {
-  it('should apply default pagination when none is provided', async () => {
+  it('should apply default pagination and hide private fields', async () => {
     userRepositoryRead.listUsers.mockResolvedValue([A_USER]);
 
     const users = await userService.listUsers({ name: A_USER.name });
 
-    expect(users).toEqual([A_USER]);
+    expect(users).toEqual([A_USER_PRIVATE]);
     expect(userRepositoryRead.listUsers).toHaveBeenCalledWith(
       { name: A_USER.name },
       { limit: 20, offset: 0 },
