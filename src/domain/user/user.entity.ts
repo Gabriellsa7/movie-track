@@ -1,14 +1,101 @@
-import { IUser } from './interfaces/user.interface';
+import { randomUUID } from 'crypto';
+import {
+  IParamsUser,
+  IUser,
+  IUserPrivate,
+  IUserProfileData,
+  IUserPublicProfile,
+  IUserPublicSummary,
+} from './interfaces/user.interface';
 
 export class User implements IUser {
-  constructor(
-    public readonly id: string,
-    public readonly name: string,
-    public readonly email: string,
-    public readonly passwordHash: string,
-    public readonly createdAt: Date,
-    public readonly updatedAt: Date,
-    public readonly avatarUrl?: string,
-    public readonly avatarPublicId?: string,
-  ) {}
+  id: string;
+
+  name: string;
+
+  email: string;
+
+  passwordHash: string;
+
+  avatarUrl?: string;
+
+  avatarPublicId?: string;
+
+  createdAt: Date;
+
+  updatedAt: Date;
+
+  constructor(params: IParamsUser) {
+    this.id = params.id || randomUUID();
+    this.name = params.name.trim();
+    this.email = User.normalizeEmail(params.email);
+    this.passwordHash = params.passwordHash;
+    this.createdAt = params.createdAt ?? new Date();
+    this.updatedAt = params.updatedAt ?? this.createdAt;
+
+    if (params.avatarUrl) {
+      this.avatarUrl = params.avatarUrl;
+    }
+
+    if (params.avatarPublicId) {
+      this.avatarPublicId = params.avatarPublicId;
+    }
+  }
+
+  updateProfile(profileData: IUserProfileData, updatedAt: Date): void {
+    if (profileData.name !== undefined) {
+      this.name = profileData.name.trim();
+    }
+
+    if (profileData.email !== undefined) {
+      this.email = User.normalizeEmail(profileData.email);
+    }
+
+    this.updatedAt = updatedAt;
+  }
+
+  changePasswordHash(passwordHash: string, updatedAt: Date): void {
+    this.passwordHash = passwordHash;
+    this.updatedAt = updatedAt;
+  }
+
+  public static normalizeEmail(email: string): string {
+    return email.trim().toLowerCase();
+  }
+
+  public static toUserPrivate(data: IUser): IUserPrivate {
+    const user: IUserPrivate = {
+      id: data.id,
+      name: data.name,
+      email: data.email,
+      createdAt: data.createdAt,
+      updatedAt: data.updatedAt,
+    };
+
+    if (data.avatarUrl) {
+      user.avatarUrl = data.avatarUrl;
+    }
+
+    return user;
+  }
+
+  public static toUserPublicSummary(data: IUser): IUserPublicSummary {
+    const user: IUserPublicSummary = {
+      id: data.id,
+      name: data.name,
+    };
+
+    if (data.avatarUrl) {
+      user.avatarUrl = data.avatarUrl;
+    }
+
+    return user;
+  }
+
+  public static toUserPublicProfile(data: IUser): IUserPublicProfile {
+    return {
+      ...User.toUserPublicSummary(data),
+      memberSince: data.createdAt,
+    };
+  }
 }

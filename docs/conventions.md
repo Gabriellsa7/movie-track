@@ -57,10 +57,21 @@ Methods have intent-revealing names: `findUserByEmail`, `updateUserById`,
 - **Domain errors** in `src/domain/errors/`: `DomainError` (base, carries `status`),
   `NotFoundError` (404), `ConflictError` (409). Services throw these
   (`throw new NotFoundError('User not found')`) and **never** decide HTTP status;
-  the central error handler in `server.ts` does the mapping. Do not re-wrap
+  the central error handler (`src/interfaces/http/middlewares/error-handler.middleware.ts`) does the mapping.
+- **`@ErrorHandler()`** on every public service method: logs unexpected
+  (non-domain) errors with the service/method context and rethrows them. It
+  never swallows or converts errors and never builds HTTP responses. Do not re-wrap
   errors in `new Error(string)` — that loses the type and the stack.
-- **Entities** implement their domain interface with `readonly` properties
-  (immutability) and are instantiated by services.
+- **Entities** (`user.entity.ts` is the reference) implement their domain interface with:
+  - declared properties and a `constructor(params: IParams<Feature>)` that owns the
+    invariants (generates `id` with `randomUUID()` when missing, trims/normalizes fields,
+    defaults dates, only sets optional fields that have a value);
+  - instance methods for state changes (`updateProfile(data, updatedAt)`,
+    `changePasswordHash(hash, updatedAt)`), so services never assign fields directly;
+  - static mappers to response shapes (`User.toUserPrivate`, `User.toUserPublicSummary`,
+    `User.toUserPublicProfile`) and static helpers shared with lookups (`User.normalizeEmail`).
+  Services load the stored data, wrap it with `new <Feature>(data)`, call the methods and
+  persist the result.
 - **JSDoc** on public methods of services, repositories and controllers
   (`@param`, `@returns`, `@throws`) — the pattern used across the `user` slice.
 - **Type imports**: relative paths, no path aliases.

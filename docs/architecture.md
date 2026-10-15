@@ -84,10 +84,16 @@ Initialization order in the `Server` constructor:
    extra middlewares passed via `middlewaresToStart` in the constructor.
 3. `OpenApiValidator.middleware` with `validateApiSpec: true` and `validateResponses: true`.
 4. Controller routes (`controller.getRoutes()` mounted at `/`).
-5. **Central error handler** (`errorHandler()`): the only place that translates
-   errors into HTTP responses — `DomainError` → `err.status` + `{ message, status }`;
+5. **Central error handler** (`errorHandlerMiddleware` in `src/interfaces/http/middlewares/error-handler.middleware.ts`,
+   mounted by `errorHandler()`): the only place that translates
+   errors into HTTP responses — `DomainError` → `err.status` + `{ message, status, code? }`;
    validator `HttpError` → `{ message, status, errors }`; generic `Error` →
    structured log + 500 `{ message: 'Internal Server Error', status: 500 }`.
+
+Service methods are decorated with `@ErrorHandler()`
+(`src/domain/common/decorators/error-handler.decorator.ts`): domain errors pass
+through untouched; anything else is logged with the service and method names
+(`eventName: 'service.unexpected_error'`) and rethrown to the central handler.
 
 In `main.ts`, the boot order is: telemetry (first-line import) → env validation
 (`infrastructure/config/env.ts`, fail-fast) → `new Server(...)` →
