@@ -19,7 +19,7 @@ implementation** of this standard — every stub below mirrors its real code.
 | ├─ Entity | `src/domain/<feature>/<feature>.entity.ts` | `<Feature> implements I<Feature>`, params-object constructor, state-change methods and static mappers |
 | **Domain errors** | `src/domain/errors/` | `DomainError` (base with `status`), `NotFoundError` (404), `ConflictError` (409) |
 | **Shared domain types** | `src/domain/common/` | Cross-feature types (e.g. `IPagination`) |
-| **HTTP layer** | `src/interfaces/http/` | `server.ts` (Express + middlewares + central error handler) |
+| **HTTP layer** | `src/interfaces/http/` | `server.ts` (Express + middlewares) and `middlewares/error-handler.middleware.ts` (central error handler) |
 | ├─ Controllers | `src/interfaces/http/controllers/` | Thin adapters implementing `IController` (`controller.interface.ts`) |
 | **Infrastructure** | `src/infrastructure/` | External concerns |
 | ├─ Repository implementations | `src/infrastructure/repository/<feature>/` | Same file names as the domain contracts |
@@ -147,7 +147,7 @@ export class DomainError extends Error {
 ```
 
 `NotFoundError` (404) and `ConflictError` (409) extend it. Services throw these
-typed errors; **only** the central error handler in `server.ts` maps them to
+typed errors; **only** the central error handler (`src/interfaces/http/middlewares/error-handler.middleware.ts`) maps them to
 HTTP responses in the contract shape (`{ message, status }`).
 
 ### 3.3 Service (business rules)

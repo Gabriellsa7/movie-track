@@ -35,9 +35,9 @@ yarn prettier && yarn lint && yarn build && yarn test
 | Path | Responsibility |
 | --- | --- |
 | `src/domain/<feature>/` | Pure business logic (no I/O): entity, interfaces, repository contracts, service |
-| `src/domain/errors/` | Domain errors (`DomainError`, `NotFoundError` 404, `ConflictError` 409) — mapped to HTTP by the central error handler in `server.ts` |
+| `src/domain/errors/` | Domain errors (`DomainError`, `NotFoundError` 404, `ConflictError` 409) — mapped to HTTP by the central error handler in `src/interfaces/http/middlewares/error-handler.middleware.ts` |
 | `src/domain/common/` | Cross-feature domain types (e.g. `IPagination`) |
-| `src/interfaces/http/` | `server.ts` (Express + middlewares) and `controllers/` (thin HTTP adapters) |
+| `src/interfaces/http/` | `server.ts` (Express + middlewares), `middlewares/` (central error handler) and `controllers/` (thin HTTP adapters) |
 | `src/infrastructure/repository/<feature>/` | Repository contract implementations (Mongoose) |
 | `src/infrastructure/db/mongo/{schema,models}/` | Mongoose schemas and models |
 | `src/infrastructure/config/` | `env.ts` (fail-fast env validation) and `factories/` (composition root — manual DI via static factories) |
@@ -56,7 +56,7 @@ constructor (an `IParams*` object); composition happens **only** in factories.
 2. `src/domain/<feature>/interfaces/<feature>.service.interface.ts` — `I<Feature>Service`, `IParamsCreate<Feature>`, `IParams<Feature>Service`…
 3. `src/domain/<feature>/repository/<feature>.repository.read.ts` and `.write.ts` — contracts `I<Feature>RepositoryRead/Write`
 4. `src/domain/<feature>/<feature>.entity.ts` — class `<Feature> implements I<Feature>`: declared properties, `constructor(params: IParams<Feature>)` that generates the `id` and normalizes fields, instance methods for state changes (`updateProfile`, `changePasswordHash`) and static mappers to response shapes (`toUserPrivate`, `toUserPublicSummary`)
-5. `src/domain/<feature>/service/<feature>.service.ts` — `<Feature>Service implements I<Feature>Service`; business rules throw errors from `src/domain/errors/` (`NotFoundError`, `ConflictError`) — never decide HTTP status in the service
+5. `src/domain/<feature>/service/<feature>.service.ts` — `<Feature>Service implements I<Feature>Service`; business rules throw errors from `src/domain/errors/` (`NotFoundError`, `ConflictError`) — never decide HTTP status in the service; decorate every public method with `@ErrorHandler()` (`src/domain/common/decorators/error-handler.decorator.ts`) so unexpected errors are logged with the service context
 6. `src/infrastructure/db/mongo/schema/<feature>.schema.ts` — `IM<Feature> extends I<Feature>` (adds `_id: Types.ObjectId`) and `export const <feature>Schema = new Schema<IM<Feature>>(...)`
 7. `src/infrastructure/db/mongo/models/<feature>.model.ts` — `export const M<feature> = mongoose.model<IM<Feature>>(...)` (e.g. `Muser`)
 8. `src/infrastructure/repository/<feature>/<feature>.repository.read.ts` and `.write.ts` — implementations (same file names as the contracts, different directories); use `.lean()` with `HIDE_MONGO_INTERNAL_FIELDS` so `_id`/`__v` never leak
