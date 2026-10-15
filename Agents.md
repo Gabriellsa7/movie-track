@@ -16,7 +16,7 @@ implementation** of this standard — every stub below mirrors its real code.
 | ├─ Interfaces | `src/domain/<feature>/interfaces/` | `I<Feature>`, `I<Feature>Service`, `IParams*` |
 | ├─ Repository contracts | `src/domain/<feature>/repository/` | `I<Feature>RepositoryRead`, `I<Feature>RepositoryWrite` |
 | ├─ Service | `src/domain/<feature>/service/` | `<Feature>Service implements I<Feature>Service` |
-| ├─ Entity | `src/domain/<feature>/<feature>.entity.ts` | `<Feature> implements I<Feature>` with `readonly` props |
+| ├─ Entity | `src/domain/<feature>/<feature>.entity.ts` | `<Feature> implements I<Feature>`, params-object constructor, state-change methods and static mappers |
 | **Domain errors** | `src/domain/errors/` | `DomainError` (base with `status`), `NotFoundError` (404), `ConflictError` (409) |
 | **Shared domain types** | `src/domain/common/` | Cross-feature types (e.g. `IPagination`) |
 | **HTTP layer** | `src/interfaces/http/` | `server.ts` (Express + middlewares + central error handler) |

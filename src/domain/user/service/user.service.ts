@@ -1,4 +1,3 @@
-import { randomUUID } from 'crypto';
 import { IUserRepositoryRead } from '../repository/user.repository.read';
 import { IUserRepositoryWrite } from '../repository/user.repository.write';
 import {
@@ -43,75 +42,71 @@ export class UserService implements IUserService {
   }
 
   async createUser(params: IParamsCreateUser): Promise<IUserPrivate> {
-    const email = this.normalizeEmail(params.email);
-    const existingUser = await this.userRepositoryRead.findUserByEmail(email);
+    const existingUser = await this.userRepositoryRead.findUserByEmail(
+      User.normalizeEmail(params.email),
+    );
     if (existingUser) {
       throw this.emailTakenError();
     }
 
-    const passwordHash = await this.passwordHasher.hash(params.password);
-    const now = this.clock.now();
-    const user = new User(
-      randomUUID(),
-      params.name.trim(),
-      email,
-      passwordHash,
-      now,
-      now,
-    );
+    const user = new User({
+      name: params.name,
+      email: params.email,
+      passwordHash: await this.passwordHasher.hash(params.password),
+      createdAt: this.clock.now(),
+    });
     const createdUser = await this.userRepositoryWrite.createUser(user);
-    return this.toUserPrivate(createdUser);
+    return User.toUserPrivate(createdUser);
   }
 
   async getUserById(id: string): Promise<IUserPrivate> {
-    return this.toUserPrivate(await this.findExistingUser(id));
+    return User.toUserPrivate(await this.findExistingUser(id));
   }
 
   async getUserByEmail(email: string): Promise<IUserPrivate> {
     const user = await this.userRepositoryRead.findUserByEmail(
-      this.normalizeEmail(email),
+      User.normalizeEmail(email),
     );
     if (!user) {
       throw this.userNotFoundError();
     }
-    return this.toUserPrivate(user);
+    return User.toUserPrivate(user);
   }
 
   async updateUserById(params: IParamsUpdateUser): Promise<IUserPrivate> {
-    const { name, email } = params.userData;
-    const userData: Partial<IUser> = { updatedAt: this.clock.now() };
+    const user = new User(await this.findExistingUser(params.id));
+    user.updateProfile(params.userData, this.clock.now());
 
-    if (name !== undefined) {
-      userData.name = name.trim();
-    }
-    if (email !== undefined) {
-      userData.email = this.normalizeEmail(email);
+    if (params.userData.email !== undefined) {
       const userWithEmail = await this.userRepositoryRead.findUserByEmail(
-        userData.email,
+        user.email,
       );
-      if (userWithEmail && userWithEmail.id !== params.id) {
+      if (userWithEmail && userWithEmail.id !== user.id) {
         throw this.emailTakenError();
       }
     }
 
     const updatedUser = await this.userRepositoryWrite.updateUserById(
-      params.id,
-      userData,
+      user.id,
+      { name: user.name, email: user.email, updatedAt: user.updatedAt },
     );
     if (!updatedUser) {
       throw this.userNotFoundError();
     }
-    return this.toUserPrivate(updatedUser);
+    return User.toUserPrivate(updatedUser);
   }
 
   async changePassword(params: IParamsChangePassword): Promise<void> {
-    const user = await this.findExistingUser(params.id);
+    const user = new User(await this.findExistingUser(params.id));
     await this.ensurePasswordMatches(params.currentPassword, user);
 
-    const passwordHash = await this.passwordHasher.hash(params.newPassword);
-    await this.userRepositoryWrite.updateUserById(params.id, {
-      passwordHash,
-      updatedAt: this.clock.now(),
+    user.changePasswordHash(
+      await this.passwordHasher.hash(params.newPassword),
+      this.clock.now(),
+    );
+    await this.userRepositoryWrite.updateUserById(user.id, {
+      passwordHash: user.passwordHash,
+      updatedAt: user.updatedAt,
     });
   }
 
@@ -130,7 +125,7 @@ export class UserService implements IUserService {
       this.userRepositoryRead.countUsers(search),
     ]);
     return {
-      items: users.map((user) => this.toUserPublicSummary(user)),
+      items: users.map((user) => User.toUserPublicSummary(user)),
       total,
       page: Math.floor(pagination.offset / pagination.limit) + 1,
       limit: pagination.limit,
@@ -138,11 +133,7 @@ export class UserService implements IUserService {
   }
 
   async getPublicProfile(id: string): Promise<IUserPublicProfile> {
-    const user = await this.findExistingUser(id);
-    return {
-      ...this.toUserPublicSummary(user),
-      memberSince: user.createdAt,
-    };
+    return User.toUserPublicProfile(await this.findExistingUser(id));
   }
 
   private async findExistingUser(id: string): Promise<IUser> {
@@ -166,10 +157,6 @@ export class UserService implements IUserService {
     }
   }
 
-  private normalizeEmail(email: string): string {
-    return email.trim().toLowerCase();
-  }
-
   private emailTakenError(): ConflictError {
     return new ConflictError(
       'A user with this email already exists',
@@ -179,14 +166,5 @@ export class UserService implements IUserService {
 
   private userNotFoundError(): NotFoundError {
     return new NotFoundError('User not found', 'USER_NOT_FOUND');
-  }
-
-  private toUserPrivate(user: IUser): IUserPrivate {
-    const { passwordHash, avatarPublicId, ...userPrivate } = user;
-    return userPrivate;
-  }
-
-  private toUserPublicSummary(user: IUser): IUserPublicSummary {
-    return { id: user.id, name: user.name, avatarUrl: user.avatarUrl };
   }
 }
