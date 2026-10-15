@@ -4,6 +4,7 @@ import supertest from 'supertest';
 import { app } from '../../../jest/setup-integration-tests';
 import { Muser } from '../../infrastructure/db/mongo/models/user.model';
 import { IUser } from '../../domain/user/interfaces/user.interface';
+import { authHeaderFor } from '../testUtils';
 
 const PASSWORD = 'secret123';
 const NEW_PASSWORD = 'newSecret456';
@@ -27,6 +28,7 @@ describe('When we change the password with the right current password', () => {
   it('should return 204 and store a hash of the new password', async () => {
     const { statusCode } = await supertest(app.app)
       .patch(`/users/${existingUser.id}/password`)
+      .set('Authorization', authHeaderFor(existingUser.id))
       .send({ currentPassword: PASSWORD, newPassword: NEW_PASSWORD });
 
     const userInDb = await Muser.findOne({ id: existingUser.id }).lean();
@@ -42,6 +44,7 @@ describe('When we change the password with a wrong current password', () => {
   it('should return 401 and keep the old password', async () => {
     const { body, statusCode } = await supertest(app.app)
       .patch(`/users/${existingUser.id}/password`)
+      .set('Authorization', authHeaderFor(existingUser.id))
       .send({ currentPassword: 'wrong123', newPassword: NEW_PASSWORD });
 
     const userInDb = await Muser.findOne({ id: existingUser.id }).lean();
@@ -60,6 +63,7 @@ describe('When we change the password to a weak one', () => {
   it('should return 400 rejected by the contract validation', async () => {
     const { statusCode } = await supertest(app.app)
       .patch(`/users/${existingUser.id}/password`)
+      .set('Authorization', authHeaderFor(existingUser.id))
       .send({ currentPassword: PASSWORD, newPassword: 'onlyletters' });
 
     expect(statusCode).toBe(400);
@@ -68,8 +72,10 @@ describe('When we change the password to a weak one', () => {
 
 describe('When we change the password of a user that does not exist', () => {
   it('should return 404 with the USER_NOT_FOUND code', async () => {
+    const missingUserId = randomUUID();
     const { body, statusCode } = await supertest(app.app)
-      .patch(`/users/${randomUUID()}/password`)
+      .patch(`/users/${missingUserId}/password`)
+      .set('Authorization', authHeaderFor(missingUserId))
       .send({ currentPassword: PASSWORD, newPassword: NEW_PASSWORD });
 
     expect(statusCode).toBe(404);

@@ -1,4 +1,10 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import {
+  Router,
+  Request,
+  Response,
+  NextFunction,
+  RequestHandler,
+} from 'express';
 import { IController } from './controller.interface';
 import { IUserService } from '../../../domain/user/interfaces/user.service.interface';
 
@@ -8,9 +14,11 @@ const DEFAULT_PAGE_LIMIT = 20;
 export class UserController implements IController {
   router: Router;
   private readonly userService: IUserService;
+  private readonly authenticate: RequestHandler;
 
-  constructor(userService: IUserService) {
+  constructor(userService: IUserService, authenticate: RequestHandler) {
     this.userService = userService;
+    this.authenticate = authenticate;
     this.router = Router();
     this.initRoutes();
   }
@@ -19,9 +27,21 @@ export class UserController implements IController {
     this.router.get('/users', this.getUsers);
     this.router.get('/users/:id', this.getUserProfile);
     this.router.post('/users', this.createUser);
-    this.router.put('/users/:id', this.updateUser);
-    this.router.patch('/users/:id/password', this.changePassword);
-    this.router.delete('/users/:id', this.deleteUser);
+    this.router.put(
+      '/users/:id',
+      this.authenticate,
+      this.updateUser,
+    );
+    this.router.patch(
+      '/users/:id/password',
+      this.authenticate,
+      this.changePassword,
+    );
+    this.router.delete(
+      '/users/:id',
+      this.authenticate,
+      this.deleteUser,
+    );
   }
 
   getUsers = async (

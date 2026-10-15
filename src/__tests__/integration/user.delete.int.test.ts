@@ -4,6 +4,7 @@ import supertest from 'supertest';
 import { app } from '../../../jest/setup-integration-tests';
 import { Muser } from '../../infrastructure/db/mongo/models/user.model';
 import { IUser } from '../../domain/user/interfaces/user.interface';
+import { authHeaderFor } from '../testUtils';
 
 const PASSWORD = 'secret123';
 const LOW_COST_ROUNDS = 4;
@@ -26,6 +27,7 @@ describe('When we delete a user with the right password', () => {
   it('should return 204 and remove the user from the database', async () => {
     const { body, statusCode } = await supertest(app.app)
       .delete(`/users/${existingUser.id}`)
+      .set('Authorization', authHeaderFor(existingUser.id))
       .send({ password: PASSWORD });
 
     expect(statusCode).toBe(204);
@@ -38,6 +40,7 @@ describe('When we delete a user with a wrong password', () => {
   it('should return 401 and keep the user', async () => {
     const { body, statusCode } = await supertest(app.app)
       .delete(`/users/${existingUser.id}`)
+      .set('Authorization', authHeaderFor(existingUser.id))
       .send({ password: 'wrong123' });
 
     expect(statusCode).toBe(401);
@@ -52,6 +55,7 @@ describe('When we delete a user without the password', () => {
   it('should return 400 rejected by the contract validation', async () => {
     const { statusCode } = await supertest(app.app)
       .delete(`/users/${existingUser.id}`)
+      .set('Authorization', authHeaderFor(existingUser.id))
       .send({});
 
     expect(statusCode).toBe(400);
@@ -60,8 +64,10 @@ describe('When we delete a user without the password', () => {
 
 describe('When we delete a user that does not exist', () => {
   it('should return 404 with the contract error shape', async () => {
+    const missingUserId = randomUUID();
     const { body, statusCode } = await supertest(app.app)
-      .delete(`/users/${randomUUID()}`)
+      .delete(`/users/${missingUserId}`)
+      .set('Authorization', authHeaderFor(missingUserId))
       .send({ password: PASSWORD });
 
     expect(statusCode).toBe(404);
