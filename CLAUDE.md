@@ -55,7 +55,7 @@ constructor (an `IParams*` object); composition happens **only** in factories.
 1. `src/domain/<feature>/interfaces/<feature>.interface.ts` — `I<Feature>`
 2. `src/domain/<feature>/interfaces/<feature>.service.interface.ts` — `I<Feature>Service`, `IParamsCreate<Feature>`, `IParams<Feature>Service`…
 3. `src/domain/<feature>/repository/<feature>.repository.read.ts` and `.write.ts` — contracts `I<Feature>RepositoryRead/Write`
-4. `src/domain/<feature>/<feature>.entity.ts` — class `<Feature> implements I<Feature>` with `readonly` properties
+4. `src/domain/<feature>/<feature>.entity.ts` — class `<Feature> implements I<Feature>`: declared properties, `constructor(params: IParams<Feature>)` that generates the `id` and normalizes fields, instance methods for state changes (`updateProfile`, `changePasswordHash`) and static mappers to response shapes (`toUserPrivate`, `toUserPublicSummary`)
 5. `src/domain/<feature>/service/<feature>.service.ts` — `<Feature>Service implements I<Feature>Service`; business rules throw errors from `src/domain/errors/` (`NotFoundError`, `ConflictError`) — never decide HTTP status in the service
 6. `src/infrastructure/db/mongo/schema/<feature>.schema.ts` — `IM<Feature> extends I<Feature>` (adds `_id: Types.ObjectId`) and `export const <feature>Schema = new Schema<IM<Feature>>(...)`
 7. `src/infrastructure/db/mongo/models/<feature>.model.ts` — `export const M<feature> = mongoose.model<IM<Feature>>(...)` (e.g. `Muser`)
