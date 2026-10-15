@@ -79,22 +79,39 @@ Methods have intent-revealing names: `findUserByEmail`, `updateUserById`,
 
 ## HTTP responses (the `user` slice pattern)
 
-All error responses follow the contract's `Error`/`ValidationError` schemas
-(`{ message, status, code?, ... }`) and are produced **only** by the central error handler:
+Every error response has the same shape, `{ message, status, code, errors? }`
+(contract schemas `Error`/`ValidationError`, `code` always present), and is
+produced **only** by the central error handler. `toErrorResponse`
+(`src/interfaces/http/middlewares/error-response.mapper.ts`) classifies the
+error; the middleware logs 5xx and answers. **500 is only for the unexpected**:
+every known failure has its own status.
 
 | Situation | Status | Body | Origin |
 | --- | --- | --- | --- |
 | Created | 201 | created entity | controller |
 | Read/updated | 200 | entity | controller |
 | Deleted / no content | 204 | empty | controller |
-| Invalid payload (contract) | 400 | `{ message, status, errors[] }` | OpenApiValidator → handler |
+| Invalid payload, query or params | 400 | `{ message: 'Validation failed', status, code: 'VALIDATION_ERROR', errors: [{ field, message }] }` | OpenApiValidator → handler |
+| Malformed JSON body | 400 | `{ message: 'Malformed JSON body', status: 400, code: 'INVALID_JSON' }` | `express.json` (body-parser) → handler |
+| Invalid value or schema rule in Mongo | 400 | `{ ..., code: 'VALIDATION_ERROR', errors }` | Mongoose `CastError` / `ValidationError` → handler |
 | Wrong password | 401 | `{ message, status: 401, code: 'INVALID_CREDENTIALS' }` | `UnauthorizedError` → handler |
-| Missing bearer header | 401 | `{ message, status: 401, errors }` | OpenApiValidator (`security`) → handler |
+| Missing bearer header | 401 | `{ message, status: 401, code: 'INVALID_TOKEN' }` | OpenApiValidator (`security`) → handler |
 | Invalid or expired token | 401 | `{ message, status: 401, code: 'INVALID_TOKEN' \| 'TOKEN_EXPIRED' }` | `UnauthorizedError` (`authenticate` / `JwtTokenProvider`) → handler |
 | Acting on another user's account | 403 | `{ message, status: 403, code: 'FORBIDDEN_RESOURCE' }` | `ForbiddenError` (`authorizeSelf`) → handler |
 | Not found | 404 | `{ message: 'User not found', status: 404, code: 'USER_NOT_FOUND' }` | `NotFoundError` → handler |
+| Route not in the contract | 404 | `{ message: 'Route not found', status: 404, code: 'ROUTE_NOT_FOUND' }` | OpenApiValidator → handler |
+| Method not in the contract | 405 | `{ ..., code: 'METHOD_NOT_ALLOWED' }` | OpenApiValidator → handler |
 | Conflict (e.g. duplicated email) | 409 | `{ message, status: 409, code: 'EMAIL_TAKEN' }` | `ConflictError` → handler |
-| Unexpected error | 500 | `{ message: 'Internal Server Error', status: 500 }` | handler (with structured log) |
+| Unique index race (duplicate key) | 409 | `{ message: 'Resource already exists', code: 'DUPLICATE_KEY', errors: [{ field }] }` | Mongo `E11000` → handler (never echoes the value) |
+| Body over the 3mb limit | 413 | `{ ..., code: 'PAYLOAD_TOO_LARGE' }` | `express.json` → handler |
+| Body that is not JSON | 415 | `{ ..., code: 'UNSUPPORTED_MEDIA_TYPE' }` | OpenApiValidator → handler |
+| Database unreachable | 503 | `{ message: 'Service temporarily unavailable', status: 503, code: 'SERVICE_UNAVAILABLE' }` | Mongo network / server-selection / buffering timeout → handler (logged as `server.dependency_unavailable`) |
+| Unexpected error or response outside the contract | 500 | `{ message: 'Internal Server Error', status: 500, code: 'INTERNAL_ERROR' }` | handler (structured log with stack, method and path) |
+
+A `DomainError` without a `code` gets one from its status (`NotFoundError()` →
+`NOT_FOUND`). Every operation in the contract has a `default` response
+(`UnexpectedError`) so a status not listed for a route (405, 413, 415, 503) keeps
+its own status instead of being turned into a 500 by the response validator.
 
 ## OpenAPI contract (`src/contracts/service.yaml`)
 

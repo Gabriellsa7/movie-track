@@ -35,7 +35,7 @@ yarn prettier && yarn lint && yarn build && yarn test
 | Path | Responsibility |
 | --- | --- |
 | `src/domain/<feature>/` | Pure business logic (no I/O): entity, interfaces, repository contracts, service |
-| `src/domain/errors/` | Domain errors (`DomainError`, `UnauthorizedError` 401, `ForbiddenError` 403, `NotFoundError` 404, `ConflictError` 409) — mapped to HTTP by the central error handler in `src/interfaces/http/middlewares/error-handler.middleware.ts` |
+| `src/domain/errors/` | Domain errors (`DomainError`, `UnauthorizedError` 401, `ForbiddenError` 403, `NotFoundError` 404, `ConflictError` 409) — mapped to HTTP by the central error handler in `src/interfaces/http/middlewares/error-handler.middleware.ts` (classification in `error-response.mapper.ts`; 500 only for unexpected errors) |
 | `src/domain/common/` | Cross-feature domain types (e.g. `IPagination`) |
 | `src/interfaces/http/` | `server.ts` (Express + middlewares), `middlewares/` (central error handler, `authenticate` and `authorizeSelf`) and `controllers/` (thin HTTP adapters) |
 | `src/infrastructure/repository/<feature>/` | Repository contract implementations (Mongoose) |
@@ -90,7 +90,8 @@ Details in [docs/architecture.md](docs/architecture.md).
 
 ## Pitfalls
 
-- `service.yaml` validates **request and response** (`validateResponses: true`): a new endpoint or field without a contract update fails at runtime (400/500).
+- `service.yaml` validates **request and response** (`validateResponses: true`): a new endpoint or field without a contract update fails at runtime (400/500). Every operation needs `default: $ref: '#/components/responses/UnexpectedError'`, or a status not listed for it becomes a 500.
+- `yarn build` is `tsc -p .;yarn copy-essentials`: the `;` ignores type errors, so check types with `npx tsc -p . --noEmit` (tests also fail on them through ts-jest).
 - Routes not described in the contract are rejected by the validator (`/health` works because it is registered before the middlewares).
 - The build needs `copy-essentials` (yaml is not compiled by tsc) — already part of `yarn build`.
 - Integration tests only see controllers registered in `src/__tests__/configApp.ts`.

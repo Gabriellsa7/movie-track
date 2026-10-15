@@ -19,7 +19,7 @@ implementation** of this standard — every stub below mirrors its real code.
 | ├─ Entity | `src/domain/<feature>/<feature>.entity.ts` | `<Feature> implements I<Feature>`, params-object constructor, state-change methods and static mappers |
 | **Domain errors** | `src/domain/errors/` | `DomainError` (base with `status`), `UnauthorizedError` (401), `ForbiddenError` (403), `NotFoundError` (404), `ConflictError` (409) |
 | **Shared domain types** | `src/domain/common/` | Cross-feature types (e.g. `IPagination`) |
-| **HTTP layer** | `src/interfaces/http/` | `server.ts` (Express + middlewares) and `middlewares/error-handler.middleware.ts` (central error handler) and `middlewares/auth.middleware.ts` (`authenticate`, `authorizeSelf`) |
+| **HTTP layer** | `src/interfaces/http/` | `server.ts` (Express + middlewares) and `middlewares/error-handler.middleware.ts` (central error handler, classification in `error-response.mapper.ts`) and `middlewares/auth.middleware.ts` (`authenticate`, `authorizeSelf`) |
 | ├─ Controllers | `src/interfaces/http/controllers/` | Thin adapters implementing `IController` (`controller.interface.ts`) |
 | **Infrastructure** | `src/infrastructure/` | External concerns |
 | ├─ Repository implementations | `src/infrastructure/repository/<feature>/` | Same file names as the domain contracts |

@@ -86,9 +86,13 @@ Initialization order in the `Server` constructor:
 4. Controller routes (`controller.getRoutes()` mounted at `/`).
 5. **Central error handler** (`errorHandlerMiddleware` in `src/interfaces/http/middlewares/error-handler.middleware.ts`,
    mounted by `errorHandler()`): the only place that translates
-   errors into HTTP responses — `DomainError` → `err.status` + `{ message, status, code? }`;
-   validator `HttpError` → `{ message, status, errors }`; generic `Error` →
-   structured log + 500 `{ message: 'Internal Server Error', status: 500 }`.
+   errors into HTTP responses. `toErrorResponse` (`error-response.mapper.ts`)
+   classifies the error into `{ message, status, code, errors? }`: `DomainError`,
+   validator `HttpError` (400 with `errors: [{ field, message }]`, 401, 404, 405, 415),
+   body-parser errors (400 `INVALID_JSON`, 413), Mongo errors (409 duplicate key,
+   400 cast/validation, 503 database unavailable) and, only for anything else,
+   500 `INTERNAL_ERROR`. The middleware logs 5xx (with method, path and stack) and
+   answers; the full table is in [conventions.md](conventions.md#http-responses-the-user-slice-pattern).
 
 Service methods are decorated with `@ErrorHandler()`
 (`src/domain/common/decorators/error-handler.decorator.ts`): domain errors pass
