@@ -172,6 +172,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '409':
+          description: A user with this email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '500':
           description: Server error
           content:
@@ -215,58 +221,79 @@ components:
   schemas:
     User:
       type: object
-      properties:
-        id:
-          type: string
-          description: The unique identifier of the user
-        name:
-          type: string
-          description: The user's name
-        email:
-          type: string
-          format: email
-          description: The user's email address
-        password:
-          type: string
-          description: The user's password (hashed)
-        createdAt:
-          type: string
-          format: date-time
-          description: The date and time the user was created
-    NewUser:
-      type: object
+      additionalProperties: false
       required:
         - id
         - name
         - email
-        - password
+        - createdAt
+        - updatedAt
       properties:
         id:
           type: string
-          description: The unique identifier for the user
+          format: uuid
+          description: The unique identifier of the user
         name:
           type: string
-          description: The user's name
+          description: The user's name or nickname
         email:
           type: string
           format: email
-          description: The user's email address
-        password:
+          description: The user's email address (lowercase)
+        avatarUrl:
           type: string
-          description: The user's password (plain text, will be hashed)
+          format: uri
+          description: The URL of the user's avatar
         createdAt:
           type: string
           format: date-time
-          description: The creation timestamp (optional)
-    UpdateUser:
+          description: The date and time the user was created
+        updatedAt:
+          type: string
+          format: date-time
+          description: The date and time the user was last updated
+    NewUser:
       type: object
+      additionalProperties: false
+      required:
+        - name
+        - email
+        - password
       properties:
         name:
           type: string
-          description: The user's name
+          minLength: 2
+          maxLength: 80
+          pattern: '\S'
+          description: The user's name or nickname (not unique)
+          example: 'Whitebeard'
         email:
           type: string
           format: email
+          maxLength: 254
+          description: The user's email address
+          example: 'whitebeard@email.com'
+        password:
+          type: string
+          minLength: 8
+          maxLength: 72
+          pattern: '^(?=.*[A-Za-z])(?=.*\d).+$'
+          description: Plain-text password with at least one letter and one number; stored only as a hash
+          example: 'secret123'
+    UpdateUser:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 80
+          pattern: '\S'
+          description: The user's name or nickname
+        email:
+          type: string
+          format: email
+          maxLength: 254
           description: The user's email address
     Error:
       type: object
