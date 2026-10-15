@@ -118,8 +118,25 @@ error responses.
 1. `express.json` parses the body; `ContextAsyncHooks` creates the tracking context (cid); OTel auto-instrumentation opens the HTTP span.
 2. `OpenApiValidator` validates the request against `src/contracts/service.yaml` — an invalid body → 400 `ValidationError` before reaching the controller.
 3. `UserController.createUser` (arrow function property) extracts `{ name, email, password }` from the body and calls `userService.createUser(...)`.
-4. `UserService.createUser` applies the business rule: email already in use → throws `ConflictError` with code `EMAIL_TAKEN` (becomes 409 in the handler); otherwise hashes the password, generates `id`/`createdAt`/`updatedAt`, builds the `User` entity and delegates to `userRepositoryWrite.createUser`.
-5. `UserRepositoryWrite` persists via the `Muser` model and returns a plain `IUser` (projection hides `_id`/`__v` — see `mongo.projection.ts`).
+4. `UserService.createUser` applies the business rule: email already in use → throws `ConflictError` with code `EMAIL_TAKEN` (becomes 409 in the handler); otherwise hashes the password, sets `createdAt`/`updatedAt`, builds the `User` entity (without `_id`) and delegates to `userRepositoryWrite.createUser`.
+5. `UserRepositoryWrite` persists via the `Muser` model and returns a plain `IUser` with the generated `_id` as a `string`.
+
+### Identity
+
+MongoDB generates the identity: every document is identified by its `_id`
+(`ObjectId`). There is no separate `id` field.
+
+- **Domain** (`IUser`): `_id: string`. Entities never generate it; they keep it
+  only when rehydrating an existing record, so `new User({...})` for a new user
+  has no `_id` until the repository inserts it.
+- **Persistence** (`IMUser extends Omit<IUser, '_id'>`): `_id: Types.ObjectId`.
+  Repositories convert at the boundary — `toObjectId(id)` in queries (behind an
+  `isObjectId(id)` guard that returns `null` for malformed ids, e.g. a token
+  issued before the migration) and `_id.toString()` in the `<feature>.mapper.ts`.
+- **HTTP**: responses expose the identity as `id` (mapped in
+  `User.toUserPrivate`/`toUserPublicSummary`), and the contract types every id
+  with `pattern: '^[0-9a-fA-F]{24}$'`, so a malformed path id is a 400 before
+  it reaches the service.
 6. The controller responds `201` with the user; any error goes to `next(error)`.
 7. `OpenApiValidator` validates the **response** against the contract before sending it.
 

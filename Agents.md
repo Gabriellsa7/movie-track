@@ -76,16 +76,18 @@ keep the schema → model import direction free of cycles:
 import mongoose, { Types } from 'mongoose';
 import { IUser } from '../../../../domain/user/interfaces/user.interface';
 
-export interface IMUser extends IUser {
+export interface IMUser extends Omit<IUser, '_id'> {
   _id: Types.ObjectId;
 }
 
-export const userSchema = new mongoose.Schema<IMUser>({
-  id: { type: String, required: true, unique: true },
-  name: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
-  createdAt: { type: Date, required: true, default: Date.now },
-});
+export const userSchema = new mongoose.Schema<IMUser>(
+  {
+    name: { type: String, required: true },
+    email: { type: String, required: true, unique: true },
+    createdAt: { type: Date, required: true },
+  },
+  { versionKey: false },
+);
 ```
 
 ```ts
@@ -96,8 +98,11 @@ import { IMUser, userSchema } from '../schema/user.schema';
 export const Muser = mongoose.model<IMUser>('user', userSchema);
 ```
 
-Models are prefixed with `M` (`Muser`). Repositories return plain domain
-objects: reads use `.lean<IUser>()` with a projection that hides `_id`/`__v`.
+Models are prefixed with `M` (`Muser`). MongoDB generates the `_id`; the
+domain carries it as a `string` (`IUser._id`). Repositories query with
+`{ _id: toObjectId(id) }` behind an `isObjectId(id)` guard and convert the
+`.lean()` result back with a mapper (`_id.toString()`). The HTTP layer exposes
+it as `id`.
 
 ---
 
@@ -327,7 +332,7 @@ When generating or editing code, **always**:
 
 ### 8.3 Repository layer
 * Thin CRUD wrappers; no domain logic, no try/catch re-wrapping.
-* Return plain domain objects (`.lean<IUser>()` + projection hiding `_id`/`__v`).
+* Return plain domain objects (`.lean()` + a mapper that turns `_id` into a `string`).
 
 ### 8.4 Route naming
 * Resources in **kebab-case**, plural, no `/api` prefix: `/users`,
