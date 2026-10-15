@@ -120,7 +120,11 @@ export interface IUser {
 export interface IUserRepositoryRead {
   findUserByEmail(email: string): Promise<IUser | null>;
   findUserById(id: string): Promise<IUser | null>;
-  listUsers(filter: Partial<IUser>, pagination: IPagination): Promise<IUser[]>;
+  searchUsers(
+    search: string | undefined,
+    pagination: IPagination,
+  ): Promise<IUser[]>;
+  countUsers(search: string | undefined): Promise<number>;
 }
 ```
 
@@ -326,7 +330,8 @@ When generating or editing code, **always**:
 
 ### 8.4 Route naming
 * Resources in **kebab-case**, plural, no `/api` prefix: `/users`,
-  `/user-profiles`. List endpoints take `limit`/`offset` query params.
+  `/user-profiles`. List endpoints take `page`/`limit` query params and answer
+  `{ items, total, page, limit }`.
 
 ### 8.5 Descriptive naming
 * Prefer intent-revealing identifiers (`findUserByEmail`), never generic ones.

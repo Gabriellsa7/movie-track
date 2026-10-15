@@ -19,16 +19,10 @@ import {
 import { ConflictError } from '../../errors/conflict.error';
 import { NotFoundError } from '../../errors/not-found.error';
 import { UnauthorizedError } from '../../errors/unauthorized.error';
-import {
-  IPaginatedResult,
-  IPagination,
-} from '../../common/pagination.interface';
+import { IPaginatedResult } from '../../common/pagination.interface';
 import { IClock } from '../../common/providers/clock.provider';
 import { IPasswordHasher } from '../../common/providers/password-hasher.provider';
 import { User } from '../user.entity';
-
-const DEFAULT_LIST_LIMIT = 20;
-const DEFAULT_LIST_OFFSET = 0;
 
 export class UserService implements IUserService {
   private userRepositoryRead: IUserRepositoryRead;
@@ -125,27 +119,6 @@ export class UserService implements IUserService {
     const user = await this.findExistingUser(params.id);
     await this.ensurePasswordMatches(params.password, user);
     await this.userRepositoryWrite.deleteUserById(params.id);
-  }
-
-  async deleteUserById(id: string): Promise<IUserPrivate> {
-    const deletedUser = await this.userRepositoryWrite.deleteUserById(id);
-    if (!deletedUser) {
-      throw this.userNotFoundError();
-    }
-    return this.toUserPrivate(deletedUser);
-  }
-
-  async listUsers(
-    filter: Partial<IUser> = {},
-    pagination: Partial<IPagination> = {},
-  ): Promise<IUserPrivate[]> {
-    const { limit = DEFAULT_LIST_LIMIT, offset = DEFAULT_LIST_OFFSET } =
-      pagination;
-    const users = await this.userRepositoryRead.listUsers(filter, {
-      limit,
-      offset,
-    });
-    return users.map((user) => this.toUserPrivate(user));
   }
 
   async listPublicUsers(

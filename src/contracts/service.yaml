@@ -27,36 +27,47 @@ paths:
     get:
       tags:
         - Users
-      summary: Get all users
+      summary: List users
       operationId: getUsers
-      description: Retrieve a paginated list of users.
+      description: Public, paginated list of users sorted by name. The search matches the name ignoring case and accents. Never returns e-mails.
       parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 80
+          description: Part of the user's name or nickname
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Page number, starting at 1
         - name: limit
           in: query
           required: false
           schema:
             type: integer
             minimum: 1
-            maximum: 100
+            maximum: 50
             default: 20
-          description: Maximum number of users to return
-        - name: offset
-          in: query
-          required: false
-          schema:
-            type: integer
-            minimum: 0
-            default: 0
-          description: Number of users to skip
+          description: Maximum number of users per page
       responses:
         '200':
-          description: A list of users
+          description: A page of users
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/User'
+                $ref: '#/components/schemas/UserPage'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
         '500':
           description: Server error
           content:
@@ -68,7 +79,7 @@ paths:
         - Users
       summary: Create a new user
       operationId: createUser
-      description: Add a new user to the database.
+      description: Create an account. Moves to POST /auth/signup when authentication is added.
       requestBody:
         required: true
         content:
@@ -89,11 +100,15 @@ paths:
               schema:
                 $ref: '#/components/schemas/ValidationError'
         '409':
-          description: A user with this email already exists
+          description: A user with this email already exists (EMAIL_TAKEN)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              example:
+                message: 'A user with this email already exists'
+                status: 409
+                code: 'EMAIL_TAKEN'
         '500':
           description: Server error
           content:
@@ -102,32 +117,29 @@ paths:
                 $ref: '#/components/schemas/Error'
 
   /users/{id}:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
     get:
       tags:
         - Users
-      summary: Get a user by ID
-      operationId: getUserById
-      description: Retrieve a user by their unique ID.
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-          description: The ID of the user
+      summary: Get a public user profile
+      operationId: getUserProfile
+      description: Public profile of a user. Never returns the e-mail.
       responses:
         '200':
           description: User found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/User'
-        '404':
-          description: User not found
+                $ref: '#/components/schemas/UserProfile'
+        '400':
+          description: Bad request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationError'
+        '404':
+          $ref: '#/components/responses/UserNotFound'
         '500':
           description: Server error
           content:
@@ -139,14 +151,7 @@ paths:
         - Users
       summary: Update a user
       operationId: updateUser
-      description: Update the information of an existing user by ID.
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-          description: The ID of the user
+      description: Update the name or e-mail of an existing user.
       requestBody:
         required: true
         content:
@@ -167,13 +172,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/ValidationError'
         '404':
-          description: User not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/UserNotFound'
         '409':
-          description: A user with this email already exists
+          description: A user with this email already exists (EMAIL_TAKEN)
           content:
             application/json:
               schema:
@@ -189,27 +190,61 @@ paths:
         - Users
       summary: Delete a user
       operationId: deleteUser
-      description: Delete an existing user by ID.
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-          description: The ID of the user
+      description: Delete an account. The current password is required.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteUser'
       responses:
-        '200':
+        '204':
           description: User deleted successfully
+        '400':
+          description: Bad request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessMessage'
+                $ref: '#/components/schemas/ValidationError'
+        '401':
+          $ref: '#/components/responses/InvalidCredentials'
         '404':
-          description: User not found
+          $ref: '#/components/responses/UserNotFound'
+        '500':
+          description: Server error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+
+  /users/{id}/password:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+    patch:
+      tags:
+        - Users
+      summary: Change a user's password
+      operationId: changePassword
+      description: Replace the password after checking the current one.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePassword'
+      responses:
+        '204':
+          description: Password changed successfully
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '401':
+          $ref: '#/components/responses/InvalidCredentials'
+        '404':
+          $ref: '#/components/responses/UserNotFound'
         '500':
           description: Server error
           content:
@@ -218,7 +253,103 @@ paths:
                 $ref: '#/components/schemas/Error'
 
 components:
+  parameters:
+    UserId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: The ID of the user
+
+  responses:
+    UserNotFound:
+      description: User not found (USER_NOT_FOUND)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: 'User not found'
+            status: 404
+            code: 'USER_NOT_FOUND'
+    InvalidCredentials:
+      description: The password does not match (INVALID_CREDENTIALS)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: 'Invalid credentials'
+            status: 401
+            code: 'INVALID_CREDENTIALS'
+
   schemas:
+    UserSummary:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: The unique identifier of the user
+        name:
+          type: string
+          description: The user's name or nickname
+        avatarUrl:
+          type: string
+          format: uri
+          description: The URL of the user's avatar
+    UserProfile:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - memberSince
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: The unique identifier of the user
+        name:
+          type: string
+          description: The user's name or nickname
+        avatarUrl:
+          type: string
+          format: uri
+          description: The URL of the user's avatar
+        memberSince:
+          type: string
+          format: date-time
+          description: When the user signed up
+    UserPage:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+        - total
+        - page
+        - limit
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserSummary'
+        total:
+          type: integer
+          minimum: 0
+          description: Number of users matching the search
+        page:
+          type: integer
+          minimum: 1
+        limit:
+          type: integer
+          minimum: 1
     User:
       type: object
       additionalProperties: false
@@ -280,6 +411,35 @@ components:
           pattern: '^(?=.*[A-Za-z])(?=.*\d).+$'
           description: Plain-text password with at least one letter and one number; stored only as a hash
           example: 'secret123'
+    ChangePassword:
+      type: object
+      additionalProperties: false
+      required:
+        - currentPassword
+        - newPassword
+      properties:
+        currentPassword:
+          type: string
+          minLength: 1
+          maxLength: 72
+          description: The current password
+        newPassword:
+          type: string
+          minLength: 8
+          maxLength: 72
+          pattern: '^(?=.*[A-Za-z])(?=.*\d).+$'
+          description: New password with at least one letter and one number
+    DeleteUser:
+      type: object
+      additionalProperties: false
+      required:
+        - password
+      properties:
+        password:
+          type: string
+          minLength: 1
+          maxLength: 72
+          description: The current password, to confirm the deletion
     UpdateUser:
       type: object
       additionalProperties: false
@@ -309,6 +469,10 @@ components:
           type: integer
           description: HTTP status code
           example: 404
+        code:
+          type: string
+          description: Machine-readable error code
+          example: 'USER_NOT_FOUND'
         timestamp:
           type: string
           format: date-time
@@ -360,17 +524,3 @@ components:
                 type: string
                 description: The invalid value provided
                 example: ''
-    SuccessMessage:
-      type: object
-      required:
-        - message
-      properties:
-        message:
-          type: string
-          description: Success message
-          example: 'User deleted successfully'
-        timestamp:
-          type: string
-          format: date-time
-          description: When the operation was completed
-          example: '2025-07-15T17:30:00.000Z'

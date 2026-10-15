@@ -40,7 +40,6 @@ beforeEach(() => {
   userRepositoryRead = {
     findUserById: jest.fn(),
     findUserByEmail: jest.fn(),
-    listUsers: jest.fn(),
     searchUsers: jest.fn(),
     countUsers: jest.fn(),
   };
@@ -202,61 +201,6 @@ describe('When we update a user', () => {
     await expect(
       userService.updateUserById({ id: 'missing-id', userData: {} }),
     ).rejects.toThrow(NotFoundError);
-  });
-});
-
-describe('When we delete a user', () => {
-  it('should delete and return the user without private fields', async () => {
-    userRepositoryWrite.deleteUserById.mockResolvedValue(A_USER);
-
-    const result = await userService.deleteUserById(A_USER.id);
-
-    expect(result).toEqual(A_USER_PRIVATE);
-    expect(userRepositoryWrite.deleteUserById).toHaveBeenCalledWith(A_USER.id);
-  });
-
-  it('should throw NotFoundError when the user does not exist', async () => {
-    userRepositoryWrite.deleteUserById.mockResolvedValue(null);
-
-    await expect(userService.deleteUserById('missing-id')).rejects.toThrow(
-      NotFoundError,
-    );
-  });
-});
-
-describe('When we list users', () => {
-  it('should apply default pagination and hide private fields', async () => {
-    userRepositoryRead.listUsers.mockResolvedValue([A_USER]);
-
-    const users = await userService.listUsers({ name: A_USER.name });
-
-    expect(users).toEqual([A_USER_PRIVATE]);
-    expect(userRepositoryRead.listUsers).toHaveBeenCalledWith(
-      { name: A_USER.name },
-      { limit: 20, offset: 0 },
-    );
-  });
-
-  it('should list without filter when no arguments are provided', async () => {
-    userRepositoryRead.listUsers.mockResolvedValue([]);
-
-    await userService.listUsers();
-
-    expect(userRepositoryRead.listUsers).toHaveBeenCalledWith(
-      {},
-      { limit: 20, offset: 0 },
-    );
-  });
-
-  it('should forward the pagination provided by the caller', async () => {
-    userRepositoryRead.listUsers.mockResolvedValue([]);
-
-    await userService.listUsers({}, { limit: 5, offset: 10 });
-
-    expect(userRepositoryRead.listUsers).toHaveBeenCalledWith(
-      {},
-      { limit: 5, offset: 10 },
-    );
   });
 });
 

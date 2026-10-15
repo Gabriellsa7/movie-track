@@ -2,6 +2,9 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { IController } from './controller.interface';
 import { IUserService } from '../../../domain/user/interfaces/user.service.interface';
 
+const DEFAULT_PAGE = 1;
+const DEFAULT_PAGE_LIMIT = 20;
+
 export class UserController implements IController {
   router: Router;
   private readonly userService: IUserService;
@@ -14,9 +17,10 @@ export class UserController implements IController {
 
   initRoutes() {
     this.router.get('/users', this.getUsers);
-    this.router.get('/users/:id', this.getUserById);
+    this.router.get('/users/:id', this.getUserProfile);
     this.router.post('/users', this.createUser);
     this.router.put('/users/:id', this.updateUser);
+    this.router.patch('/users/:id/password', this.changePassword);
     this.router.delete('/users/:id', this.deleteUser);
   }
 
@@ -25,26 +29,30 @@ export class UserController implements IController {
     res: Response,
     next: NextFunction,
   ): Promise<void> => {
-    const { limit, offset } = req.query as {
-      limit?: number;
-      offset?: number;
-    };
+    const {
+      search,
+      page = DEFAULT_PAGE,
+      limit = DEFAULT_PAGE_LIMIT,
+    } = req.query as { search?: string; page?: number; limit?: number };
     try {
-      const users = await this.userService.listUsers({}, { limit, offset });
+      const users = await this.userService.listPublicUsers({
+        search,
+        pagination: { limit, offset: (page - 1) * limit },
+      });
       res.status(200).json(users);
     } catch (error) {
       next(error);
     }
   };
 
-  getUserById = async (
+  getUserProfile = async (
     req: Request<{ id: string }>,
     res: Response,
     next: NextFunction,
   ): Promise<void> => {
     try {
-      const user = await this.userService.getUserById(req.params.id);
-      res.status(200).json(user);
+      const profile = await this.userService.getPublicProfile(req.params.id);
+      res.status(200).json(profile);
     } catch (error) {
       next(error);
     }
@@ -85,14 +93,35 @@ export class UserController implements IController {
     }
   };
 
+  changePassword = async (
+    req: Request<{ id: string }>,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    const { currentPassword, newPassword } = req.body;
+    try {
+      await this.userService.changePassword({
+        id: req.params.id,
+        currentPassword,
+        newPassword,
+      });
+      res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  };
+
   deleteUser = async (
     req: Request<{ id: string }>,
     res: Response,
     next: NextFunction,
   ): Promise<void> => {
     try {
-      await this.userService.deleteUserById(req.params.id);
-      res.status(200).json({ message: 'User deleted successfully' });
+      await this.userService.deleteUser({
+        id: req.params.id,
+        password: req.body.password,
+      });
+      res.status(204).send();
     } catch (error) {
       next(error);
     }
