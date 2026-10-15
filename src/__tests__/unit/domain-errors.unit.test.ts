@@ -3,6 +3,7 @@ import { NotFoundError } from '../../domain/errors/not-found.error';
 import { ConflictError } from '../../domain/errors/conflict.error';
 import { UnauthorizedError } from '../../domain/errors/unauthorized.error';
 import { ForbiddenError } from '../../domain/errors/forbidden.error';
+import { UnprocessableEntityError } from '../../domain/errors/unprocessable-entity.error';
 
 describe('When we create domain errors without arguments', () => {
   it('should default DomainError to status 500', () => {
@@ -18,6 +19,14 @@ describe('When we create domain errors without arguments', () => {
     expect(error).toBeInstanceOf(DomainError);
     expect(error.message).toBe('Forbidden');
     expect(error.status).toBe(403);
+  });
+
+  it('should default UnprocessableEntityError to a generic 422 message', () => {
+    const error = new UnprocessableEntityError();
+
+    expect(error).toBeInstanceOf(DomainError);
+    expect(error.message).toBe('Unprocessable entity');
+    expect(error.status).toBe(422);
   });
 
   it('should default NotFoundError to a generic 404 message', () => {
