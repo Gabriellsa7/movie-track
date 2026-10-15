@@ -1,5 +1,6 @@
 import { BcryptPasswordHasher } from '../../infrastructure/providers/password-hasher/bcrypt.password-hasher';
 import { SystemClock } from '../../infrastructure/providers/clock/system.clock';
+import { JwtTokenProvider } from '../../infrastructure/providers/token/jwt.token-provider';
 
 const LOW_COST_ROUNDS = 4;
 
@@ -16,12 +17,12 @@ describe('When we hash a password with bcrypt', () => {
   it('should match only the original password', async () => {
     const passwordHash = await passwordHasher.hash('secret123');
 
-    await expect(passwordHasher.compare('secret123', passwordHash)).resolves.toBe(
-      true,
-    );
-    await expect(passwordHasher.compare('wrong123', passwordHash)).resolves.toBe(
-      false,
-    );
+    await expect(
+      passwordHasher.compare('secret123', passwordHash),
+    ).resolves.toBe(true);
+    await expect(
+      passwordHasher.compare('wrong123', passwordHash),
+    ).resolves.toBe(false);
   });
 });
 
@@ -32,5 +33,63 @@ describe('When we read the system clock', () => {
 
     expect(now).toBeGreaterThanOrEqual(before);
     expect(now).toBeLessThanOrEqual(Date.now());
+  });
+});
+
+describe('When we sign and verify tokens with JWT', () => {
+  const tokenProvider = new JwtTokenProvider({
+    accessTokenSecret: 'access-secret',
+    accessTokenExpiresIn: '1h',
+    refreshTokenSecret: 'refresh-secret',
+    refreshTokenExpiresIn: '7d',
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('should return the subject of a valid access token', () => {
+    const token = tokenProvider.generateAccessToken({ sub: 'user-id' });
+
+    expect(tokenProvider.verifyAccessToken(token)).toEqual({ sub: 'user-id' });
+  });
+
+  it('should return the subject of a valid refresh token', () => {
+    const token = tokenProvider.generateRefreshToken({ sub: 'user-id' });
+
+    expect(tokenProvider.verifyRefreshToken(token)).toEqual({ sub: 'user-id' });
+  });
+
+  it('should reject a refresh token used as an access token', () => {
+    const refreshToken = tokenProvider.generateRefreshToken({ sub: 'user-id' });
+
+    expect(() => tokenProvider.verifyAccessToken(refreshToken)).toThrow(
+      'Invalid token',
+    );
+  });
+
+  it('should reject a tampered token', () => {
+    const token = tokenProvider.generateAccessToken({ sub: 'user-id' });
+    const [header, , signature] = token.split('.');
+    const forgedPayload = Buffer.from(
+      JSON.stringify({ sub: 'another-user' }),
+    ).toString('base64url');
+
+    expect(() =>
+      tokenProvider.verifyAccessToken(
+        `${header}.${forgedPayload}.${signature}`,
+      ),
+    ).toThrow('Invalid token');
+  });
+
+  it('should reject an expired access token', () => {
+    jest.useFakeTimers({ now: new Date('2026-01-01T00:00:00Z') });
+    const token = tokenProvider.generateAccessToken({ sub: 'user-id' });
+
+    jest.setSystemTime(new Date('2026-01-01T02:00:00Z'));
+
+    expect(() => tokenProvider.verifyAccessToken(token)).toThrow(
+      'Token expired',
+    );
   });
 });
