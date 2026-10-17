@@ -25,6 +25,8 @@ tags:
     description: Authentication with JWT access and refresh tokens
   - name: Movies
     description: The authenticated user's watched movies
+  - name: Genres
+    description: The fixed list of movie genres
 
 paths:
   /users:
@@ -639,6 +641,27 @@ paths:
         default:
           $ref: '#/components/responses/UnexpectedError'
 
+  /genres:
+    get:
+      tags:
+        - Genres
+      summary: List the genres
+      operationId: listGenres
+      description: Public. The fixed pt-BR list seeded from TMDB, sorted by name. Movies reference these ids in genreIds.
+      responses:
+        '200':
+          description: Every genre
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Genre'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+
 components:
   parameters:
     UserId:
@@ -776,6 +799,20 @@ components:
             code: 'TOKEN_EXPIRED'
 
   schemas:
+    Genre:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+          pattern: '^[0-9a-fA-F]{24}$'
+          description: The id to send in genreIds
+        name:
+          type: string
+          example: 'Drama'
     NewMovie:
       type: object
       additionalProperties: false

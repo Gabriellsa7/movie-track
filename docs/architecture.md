@@ -101,9 +101,15 @@ through untouched; anything else is logged with the service and method names
 
 In `main.ts`, the boot order is: telemetry (first-line import) → env validation
 (`infrastructure/config/env.ts`, fail-fast) → `new Server(...)` →
-`await databaseSetup()` → `listen()` → graceful-shutdown registration
-(SIGTERM/SIGINT close the HTTP server and Mongoose, exit 0 on success, with a
-failsafe timeout).
+`await databaseSetup()` → genre seed (`GenreSeedFactory.create().run()`) →
+`listen()` → graceful-shutdown registration (SIGTERM/SIGINT close the HTTP
+server and Mongoose, exit 0 on success, with a failsafe timeout).
+
+The genre seed (`src/infrastructure/db/mongo/seed/genre.seed.ts`) upserts
+TMDB's pt-BR movie genres by `tmdbGenreId`, so it is idempotent and keeps each
+genre's `_id` across boots (movies store those ids in `genreIds`). It is the
+only caller of `IGenreRepositoryWrite`; no route writes genres. Integration
+tests run it themselves when they need the real list (`configApp.ts` does not).
 
 ## Domain errors (`src/domain/errors/`)
 
