@@ -15,10 +15,6 @@ import { authenticate } from '../interfaces/http/middlewares/auth.middleware';
 import { Server } from '../interfaces/http/server';
 import { authHeaderFor, newObjectId } from './testUtils';
 
-// Genre (phase 3) and storage (phase 4) have no implementation yet, so this app
-// wires the real movie-entry stack with in-memory fakes for them. Once those
-// exist, register MovieEntryControllerFactory in configApp.ts and drop this file.
-
 export const KNOWN_GENRES: IGenre[] = [
   { _id: newObjectId(), name: 'Drama', tmdbGenreId: 18 },
   { _id: newObjectId(), name: 'Comédia', tmdbGenreId: 35 },

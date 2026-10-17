@@ -219,10 +219,14 @@ describe('When we delete movie entries', () => {
 describe('When we compute the stats of a user', () => {
   it('should aggregate totals, distributions and top genres', async () => {
     const userId = newObjectId();
-    const genreId = new mongoose.Types.ObjectId();
-    await mongoose.connection
+    const genre = await mongoose.connection
       .collection('genres')
-      .insertOne({ _id: genreId, name: 'Drama', tmdbGenreId: 18 });
+      .findOneAndUpdate(
+        { tmdbGenreId: 18 },
+        { $setOnInsert: { name: 'Drama' } },
+        { upsert: true, returnDocument: 'after' },
+      );
+    const genreId = genre!._id;
     await movieEntryRepositoryWrite.createMovieEntry(
       buildMovieEntry(userId, {
         rating: 5,

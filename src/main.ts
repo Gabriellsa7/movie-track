@@ -6,6 +6,8 @@ import { env } from './infrastructure/config/env';
 
 import { UserControllerFactory } from './infrastructure/config/factories/user.controller.factory';
 import { AuthControllerFactory } from './infrastructure/config/factories/auth.controller.factory';
+import { GenreControllerFactory } from './infrastructure/config/factories/genre.controller.factory';
+import { GenreSeedFactory } from './infrastructure/config/factories/genre.seed.factory';
 
 const OPEN_API_SPEC_FILE_LOCATION = path.resolve(
   __dirname,
@@ -16,13 +18,18 @@ const SHUTDOWN_TIMEOUT_MILLISECONDS = 10000;
 
 const app = new Server({
   port: env.port,
-  controllers: [UserControllerFactory.create(), AuthControllerFactory.create()],
+  controllers: [
+    UserControllerFactory.create(),
+    AuthControllerFactory.create(),
+    GenreControllerFactory.create(),
+  ],
   databaseURI: env.databaseUri,
   apiSpecLocation: OPEN_API_SPEC_FILE_LOCATION,
 });
 
 async function start() {
   await app.databaseSetup();
+  await GenreSeedFactory.create().run();
   const httpServer = app.listen();
 
   const shutdown = (signal: string) => {
