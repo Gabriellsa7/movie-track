@@ -5,7 +5,7 @@ import { MovieEntryRepositoryWrite } from '../../repository/movie-entry/movie-en
 import { WatchlistRepositoryRead } from '../../repository/watchlist/watchlist.repository.read';
 import { WatchlistRepositoryWrite } from '../../repository/watchlist/watchlist.repository.write';
 import { SystemClock } from '../../providers/clock/system.clock';
-import { UnavailableStorageProvider } from '../../providers/storage/unavailable.storage-provider';
+import { StorageProviderFactory } from './storage.provider.factory';
 
 export class MovieEntryServiceFactory {
   static create() {
@@ -15,7 +15,7 @@ export class MovieEntryServiceFactory {
       genreRepositoryRead: new GenreRepositoryRead(),
       watchlistRepositoryRead: new WatchlistRepositoryRead(),
       watchlistRepositoryWrite: new WatchlistRepositoryWrite(),
-      storageProvider: new UnavailableStorageProvider(),
+      storageProvider: StorageProviderFactory.create(),
       clock: new SystemClock(),
     });
   }

@@ -500,6 +500,13 @@ describe('When we upload a poster', () => {
     );
     expect(storageProvider.upload).not.toHaveBeenCalled();
   });
+
+  it('should reject a file that is not a JPEG, PNG or WebP image', async () => {
+    await expect(
+      movieEntryService.uploadPoster({ ...uploadParams, mimeType: 'image/gif' }),
+    ).rejects.toMatchObject({ status: 422, code: 'INVALID_POSTER_TYPE' });
+    expect(storageProvider.upload).not.toHaveBeenCalled();
+  });
 });
 
 describe('When we remove a poster', () => {

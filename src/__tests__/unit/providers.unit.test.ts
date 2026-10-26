@@ -2,7 +2,10 @@ import jwt from 'jsonwebtoken';
 import { BcryptPasswordHasher } from '../../infrastructure/providers/password-hasher/bcrypt.password-hasher';
 import { SystemClock } from '../../infrastructure/providers/clock/system.clock';
 import { JwtTokenProvider } from '../../infrastructure/providers/token/jwt.token-provider';
-import { UnavailableStorageProvider } from '../../infrastructure/providers/storage/unavailable.storage-provider';
+import {
+  CloudinaryStorageProvider,
+  ICloudinaryUploader,
+} from '../../infrastructure/providers/storage/cloudinary.storage-provider';
 
 const LOW_COST_ROUNDS = 4;
 
@@ -104,16 +107,61 @@ describe('When we sign and verify tokens with JWT', () => {
   });
 });
 
-describe('When we use the storage before one is configured', () => {
-  const storageProvider = new UnavailableStorageProvider();
+describe('When we store files in Cloudinary', () => {
+  const upload = jest.fn();
+  const destroy = jest.fn();
+  const storageProvider = new CloudinaryStorageProvider({
+    upload,
+    destroy,
+  } as unknown as ICloudinaryUploader);
 
-  it('should reject uploads', async () => {
-    await expect(storageProvider.upload()).rejects.toThrow(
-      'File storage is not configured',
-    );
+  beforeEach(() => {
+    upload.mockReset();
+    destroy.mockReset();
   });
 
-  it('should treat deletes as a no-op', async () => {
-    await expect(storageProvider.delete()).resolves.toBeUndefined();
+  it('should upload the image to the folder and return its url and public id', async () => {
+    upload.mockResolvedValue({
+      secure_url: 'https://res.cloudinary.com/demo/image/upload/posters/abc.png',
+      public_id: 'posters/abc',
+    });
+
+    const storedFile = await storageProvider.upload({
+      buffer: Buffer.from('image'),
+      mimeType: 'image/png',
+      folder: 'posters',
+    });
+
+    expect(upload).toHaveBeenCalledWith(
+      `data:image/png;base64,${Buffer.from('image').toString('base64')}`,
+      { folder: 'posters', resource_type: 'image' },
+    );
+    expect(storedFile).toEqual({
+      url: 'https://res.cloudinary.com/demo/image/upload/posters/abc.png',
+      publicId: 'posters/abc',
+    });
+  });
+
+  it('should delete the image by its public id and purge the cdn cache', async () => {
+    destroy.mockResolvedValue({ result: 'ok' });
+
+    await storageProvider.delete('posters/old');
+
+    expect(destroy).toHaveBeenCalledWith('posters/old', {
+      resource_type: 'image',
+      invalidate: true,
+    });
+  });
+
+  it('should propagate storage failures', async () => {
+    upload.mockRejectedValue(new Error('Cloudinary down'));
+
+    await expect(
+      storageProvider.upload({
+        buffer: Buffer.from('image'),
+        mimeType: 'image/webp',
+        folder: 'posters',
+      }),
+    ).rejects.toThrow('Cloudinary down');
   });
 });

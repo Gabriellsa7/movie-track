@@ -13,7 +13,9 @@ runtime.
   refresh tokens, bcrypt password hashing). Every movie route is scoped to the
   authenticated user.
 - **Movie log** — log a watched movie with rating (1–10, half steps), review,
-  genres, release year, director, duration, poster URL and watch date.
+  genres, release year, director, duration, poster and watch date.
+- **Posters** — upload a JPEG, PNG or WebP poster (up to 5 MB) stored in
+  Cloudinary, or point to an external poster URL.
 - **Search and filters** — search by title (case- and accent-insensitive),
   filter by genre, rating range and favorites, sort by watch date, rating,
   title or release year, with pagination.
@@ -29,6 +31,7 @@ runtime.
 | HTTP | Express, Helmet, express-openapi-validator |
 | Data | MongoDB, Mongoose |
 | Auth | jsonwebtoken, bcryptjs |
+| File storage | Cloudinary |
 | Observability | OpenTelemetry (traces), structured JSON logs with `trace_id` |
 | Quality | Jest (unit + integration with mongodb-memory-server), ESLint, Prettier |
 | Delivery | GitHub Actions CI (lint, build, tests with an 80% coverage gate), Docker, Conventional Commits + semantic-release |
@@ -50,7 +53,7 @@ graph TD
 - **`src/interfaces/http`** — thin controllers, authentication and a central
   error handler that maps domain errors to HTTP responses.
 - **`src/infrastructure`** — Mongoose repositories, providers (JWT, bcrypt,
-  clock, storage), env validation, factories and telemetry.
+  clock, Cloudinary storage), env validation, factories and telemetry.
 - **`src/contracts/service.yaml`** — the OpenAPI spec, the source of truth for
   the API.
 
@@ -72,6 +75,7 @@ All `/movies` routes require `Authorization: Bearer <access token>`.
 | `GET` | `/movies` | List my movies (search, filters, sorting, pagination) |
 | `GET` / `PUT` / `DELETE` | `/movies/{id}` | Get, update or delete one of my movies |
 | `PATCH` | `/movies/{id}/favorite` | Mark or unmark a movie as favorite |
+| `PUT` | `/movies/{id}/poster` | Upload a movie's poster (`multipart/form-data`, field `poster`) |
 | `DELETE` | `/movies/{id}/poster` | Remove a movie's poster |
 | `GET` | `/genres` | List the genres |
 | `GET` | `/health` | Health check |
@@ -81,7 +85,7 @@ The full request and response shapes are in
 
 ## Running locally
 
-Requirements: Node.js 20+, Yarn and a MongoDB instance.
+Requirements: Node.js 20+, Yarn, a MongoDB instance and a Cloudinary account.
 
 ```bash
 yarn install
@@ -94,6 +98,11 @@ Edit `.env`: set `DATABASE_URI` and generate two **different** secrets for
 ```bash
 node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
 ```
+
+For poster uploads, copy the cloud name, API key and API secret from
+**Settings > API Keys** in the Cloudinary console into `CLOUDINARY_CLOUD_NAME`,
+`CLOUDINARY_API_KEY` and `CLOUDINARY_API_SECRET`. The app does not boot without
+them.
 
 Then:
 
@@ -129,8 +138,6 @@ Integration tests run against an in-memory MongoDB (`mongodb-memory-server`).
 
 ## Roadmap
 
-- [ ] Poster upload to a file storage (the domain already supports it; the API
-      currently accepts only external poster URLs)
 - [ ] Watchlist routes (the persistence layer is already in place)
 - [ ] Movie search through the TMDB API
 - [ ] `docker-compose` for a one-command local setup
