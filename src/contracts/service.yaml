@@ -248,7 +248,10 @@ paths:
         - Users
       summary: Change a user's password
       operationId: changePassword
-      description: Replace the password after checking the current one.
+      description: >
+        Replace the password after checking the current one. Every refresh token issued before
+        is revoked (TOKEN_REVOKED), on every device, including this one: log in again to get new
+        tokens. Access tokens already issued stay valid until they expire (JWT_EXPIRES_IN, 1h by default).
       security:
         - bearerAuth: []
       requestBody:
@@ -1014,7 +1017,7 @@ components:
             status: 503
             code: 'SERVICE_UNAVAILABLE'
     Unauthorized:
-      description: Missing, invalid or expired token (INVALID_TOKEN, TOKEN_EXPIRED), or wrong current password (INVALID_CREDENTIALS)
+      description: Missing, invalid or expired token (INVALID_TOKEN, TOKEN_EXPIRED), a refresh token revoked by a password change (TOKEN_REVOKED), or wrong current password (INVALID_CREDENTIALS)
       content:
         application/json:
           schema:
@@ -1055,7 +1058,7 @@ components:
             status: 401
             code: 'INVALID_CREDENTIALS'
     InvalidToken:
-      description: The token is missing, invalid or expired (INVALID_TOKEN, TOKEN_EXPIRED)
+      description: The token is missing, invalid or expired (INVALID_TOKEN, TOKEN_EXPIRED), or a refresh token was revoked by a password change (TOKEN_REVOKED)
       content:
         application/json:
           schema:

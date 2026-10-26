@@ -178,8 +178,16 @@ Stateless JWT with two tokens, both HS256 with the algorithm pinned on sign
 | Access | `JWT_SECRET` / `JWT_EXPIRES_IN` (default `1h`) | `Authorization: Bearer <token>` on protected routes |
 | Refresh | `REFRESH_TOKEN_SECRET` / `REFRESH_TOKEN_EXPIRES_IN` (default `7d`) | body of `POST /auth/refresh` only |
 
-The payload carries only `sub` (the user id). Separate secrets mean an access
+The access token carries only `sub` (the user id); the refresh token also
+carries `ver`, the user's `sessionVersion`. Separate secrets mean an access
 token is never accepted as a refresh token, and vice versa.
+
+**Revocation:** changing the password bumps `sessionVersion`
+(`User.changePasswordHash`), so `refresh` rejects every refresh token issued
+before with 401 `TOKEN_REVOKED`, on every device. A missing version (users and
+tokens from before it existed) reads as 0. Access tokens are not checked against
+the database, so one issued before the change stays valid until it expires
+(`JWT_EXPIRES_IN`); keep that lifetime short.
 
 - **Port and adapter:** `ITokenProvider` (`src/domain/common/providers/token.provider.ts`)
   is the domain contract; `JwtTokenProvider` (`src/infrastructure/providers/token/`)
@@ -188,8 +196,8 @@ token is never accepted as a refresh token, and vice versa.
   builds it from `env`.
 - **`AuthService`** (`src/domain/auth/`): `login` answers the same
   `INVALID_CREDENTIALS` for an unknown e-mail and a wrong password (no user
-  enumeration); `refresh` checks that the user still exists and issues both
-  tokens again.
+  enumeration); `refresh` checks that the user still exists and that the
+  token's session version is current, then issues both tokens again.
 - **Middlewares** (`src/interfaces/http/middlewares/auth.middleware.ts`):
   `authenticate(tokenProvider)` verifies the bearer token and sets `req.userId`
   (401 otherwise); `authorizeSelf` lets the request through only when

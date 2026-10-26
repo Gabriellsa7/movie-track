@@ -38,6 +38,9 @@ export const userSchema = new mongoose.Schema<IMUser>(
   avatarPublicId: {
     type: String,
   },
+  sessionVersion: {
+    type: Number,
+  },
   createdAt: {
     type: Date,
     required: true,

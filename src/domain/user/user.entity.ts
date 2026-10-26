@@ -22,6 +22,8 @@ export class User implements IUserData {
 
   avatarPublicId?: string;
 
+  sessionVersion?: number;
+
   createdAt: Date;
 
   updatedAt: Date;
@@ -44,6 +46,10 @@ export class User implements IUserData {
     if (params.avatarPublicId) {
       this.avatarPublicId = params.avatarPublicId;
     }
+
+    if (params.sessionVersion !== undefined) {
+      this.sessionVersion = params.sessionVersion;
+    }
   }
 
   updateProfile(profileData: IUserProfileData, updatedAt: Date): void {
@@ -58,8 +64,10 @@ export class User implements IUserData {
     this.updatedAt = updatedAt;
   }
 
+  // A new version revokes every refresh token issued with the old password.
   changePasswordHash(passwordHash: string, updatedAt: Date): void {
     this.passwordHash = passwordHash;
+    this.sessionVersion = (this.sessionVersion ?? 0) + 1;
     this.updatedAt = updatedAt;
   }
 

@@ -2,6 +2,7 @@ import { ErrorHandler } from '../../common/decorators/error-handler.decorator';
 import { IPasswordHasher } from '../../common/providers/password-hasher.provider';
 import { ITokenProvider } from '../../common/providers/token.provider';
 import { UnauthorizedError } from '../../errors/unauthorized.error';
+import { IUser } from '../../user/interfaces/user.interface';
 import { IUserRepositoryRead } from '../../user/repository/user.repository.read';
 import { User } from '../../user/user.entity';
 import {
@@ -44,25 +45,36 @@ export class AuthService implements IAuthService {
       throw this.invalidCredentialsError();
     }
 
-    return this.issueTokens(user._id);
+    return this.issueTokens(user);
   }
 
   @ErrorHandler()
   async refresh(params: IParamsRefreshToken): Promise<IAuthTokens> {
-    const { sub } = this.tokenProvider.verifyRefreshToken(params.refreshToken);
+    const { sub, sessionVersion = 0 } = this.tokenProvider.verifyRefreshToken(
+      params.refreshToken,
+    );
 
     const user = await this.userRepositoryRead.findUserById(sub);
     if (!user) {
       throw new UnauthorizedError('Invalid token', 'INVALID_TOKEN');
     }
+    if (sessionVersion !== (user.sessionVersion ?? 0)) {
+      throw new UnauthorizedError(
+        'Token revoked by a password change',
+        'TOKEN_REVOKED',
+      );
+    }
 
-    return this.issueTokens(user._id);
+    return this.issueTokens(user);
   }
 
-  private issueTokens(userId: string): IAuthTokens {
+  private issueTokens(user: IUser): IAuthTokens {
     return {
-      accessToken: this.tokenProvider.generateAccessToken({ sub: userId }),
-      refreshToken: this.tokenProvider.generateRefreshToken({ sub: userId }),
+      accessToken: this.tokenProvider.generateAccessToken({ sub: user._id }),
+      refreshToken: this.tokenProvider.generateRefreshToken({
+        sub: user._id,
+        sessionVersion: user.sessionVersion ?? 0,
+      }),
     };
   }
 

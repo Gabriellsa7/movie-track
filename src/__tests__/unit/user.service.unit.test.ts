@@ -275,8 +275,28 @@ describe('When we change a user password', () => {
     );
     expect(userRepositoryWrite.updateUserById).toHaveBeenCalledWith(A_USER._id, {
       passwordHash: 'hashed-newSecret456',
+      sessionVersion: 1,
       updatedAt: NOW,
     });
+  });
+
+  it('should bump the session version to revoke the older refresh tokens', async () => {
+    userRepositoryRead.findUserById.mockResolvedValue({
+      ...A_USER,
+      sessionVersion: 3,
+    });
+    passwordHasher.compare.mockResolvedValue(true);
+
+    await userService.changePassword({
+      id: A_USER._id,
+      currentPassword: 'secret123',
+      newPassword: 'newSecret456',
+    });
+
+    expect(userRepositoryWrite.updateUserById).toHaveBeenCalledWith(
+      A_USER._id,
+      expect.objectContaining({ sessionVersion: 4 }),
+    );
   });
 
   it('should throw UnauthorizedError when the current password is wrong', async () => {

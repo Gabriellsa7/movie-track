@@ -83,11 +83,26 @@ describe('When we change a user password hash', () => {
     expect(user.passwordHash).toBe('hashed-newSecret456');
     expect(user.updatedAt).toBe(LATER);
   });
+
+  it('should bump the session version, starting from 0 when the user has none', () => {
+    const user = new User(A_USER);
+
+    user.changePasswordHash('hashed-1', LATER);
+    expect(user.sessionVersion).toBe(1);
+
+    user.changePasswordHash('hashed-2', LATER);
+    expect(user.sessionVersion).toBe(2);
+  });
+
+  it('should keep the session version it was built with', () => {
+    expect(new User({ ...A_USER, sessionVersion: 5 }).sessionVersion).toBe(5);
+    expect(new User(A_USER)).not.toHaveProperty('sessionVersion');
+  });
 });
 
 describe('When we map a user to its responses', () => {
-  it('should hide the password hash and avatar public id from the private view', () => {
-    expect(User.toUserPrivate(A_USER)).toEqual({
+  it('should hide the password hash, avatar public id and session version from the private view', () => {
+    expect(User.toUserPrivate({ ...A_USER, sessionVersion: 1 })).toEqual({
       id: A_USER._id,
       name: A_USER.name,
       email: A_USER.email,

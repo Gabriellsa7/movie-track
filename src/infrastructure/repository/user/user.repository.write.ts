@@ -18,6 +18,7 @@ export class UserRepositoryWrite implements IUserRepositoryWrite {
       passwordHash: createdUser.passwordHash,
       avatarUrl: createdUser.avatarUrl,
       avatarPublicId: createdUser.avatarPublicId,
+      sessionVersion: createdUser.sessionVersion,
       createdAt: createdUser.createdAt,
       updatedAt: createdUser.updatedAt,
     };
