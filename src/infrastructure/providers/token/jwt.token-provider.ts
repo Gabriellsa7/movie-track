@@ -46,7 +46,11 @@ export class JwtTokenProvider implements ITokenProvider {
     secret: string,
     expiresIn: string,
   ): string {
-    return jwt.sign({ sub: payload.sub }, secret, {
+    const claims =
+      payload.sessionVersion === undefined
+        ? { sub: payload.sub }
+        : { sub: payload.sub, ver: payload.sessionVersion };
+    return jwt.sign(claims, secret, {
       algorithm: ALGORITHM,
       // jsonwebtoken types only accept ms-format literals ('1h', '7d'); an invalid env value fails at sign time
       expiresIn: expiresIn as SignOptions['expiresIn'],
@@ -67,6 +71,8 @@ export class JwtTokenProvider implements ITokenProvider {
     if (typeof decoded === 'string' || typeof decoded.sub !== 'string') {
       throw new UnauthorizedError('Invalid token', 'INVALID_TOKEN');
     }
-    return { sub: decoded.sub };
+    return typeof decoded.ver === 'number'
+      ? { sub: decoded.sub, sessionVersion: decoded.ver }
+      : { sub: decoded.sub };
   }
 }

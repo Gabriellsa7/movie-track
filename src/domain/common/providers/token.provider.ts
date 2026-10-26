@@ -1,5 +1,7 @@
 export interface ITokenPayload {
   sub: string;
+  // Only in refresh tokens: changing the password bumps the user's version and revokes older tokens.
+  sessionVersion?: number;
 }
 
 export interface ITokenProvider {

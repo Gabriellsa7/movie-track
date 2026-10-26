@@ -30,7 +30,9 @@ beforeEach(() => {
   tokenProvider = {
     generateAccessToken: jest.fn(({ sub }) => `access-${sub}`),
     verifyAccessToken: jest.fn(),
-    generateRefreshToken: jest.fn(({ sub }) => `refresh-${sub}`),
+    generateRefreshToken: jest.fn(
+      ({ sub, sessionVersion }) => `refresh-${sub}-v${sessionVersion}`,
+    ),
     verifyRefreshToken: jest.fn(),
   };
   authService = new AuthService({
@@ -59,8 +61,23 @@ describe('When we log in', () => {
     );
     expect(tokens).toEqual({
       accessToken: 'access-user-1',
-      refreshToken: 'refresh-user-1',
+      refreshToken: 'refresh-user-1-v0',
     });
+  });
+
+  it("should put the user's session version in the refresh token", async () => {
+    userRepositoryRead.findUserByEmail.mockResolvedValue({
+      ...A_USER,
+      sessionVersion: 2,
+    });
+    passwordHasher.compare.mockResolvedValue(true);
+
+    const tokens = await authService.login({
+      email: A_USER.email,
+      password: 'secret123',
+    });
+
+    expect(tokens.refreshToken).toBe('refresh-user-1-v2');
   });
 
   it('should reject an unknown email with invalid credentials', async () => {
@@ -94,8 +111,51 @@ describe('When we refresh the tokens', () => {
     );
     expect(tokens).toEqual({
       accessToken: 'access-user-1',
-      refreshToken: 'refresh-user-1',
+      refreshToken: 'refresh-user-1-v0',
     });
+  });
+
+  it('should accept a token with the current session version', async () => {
+    tokenProvider.verifyRefreshToken.mockReturnValue({
+      sub: A_USER._id,
+      sessionVersion: 2,
+    });
+    userRepositoryRead.findUserById.mockResolvedValue({
+      ...A_USER,
+      sessionVersion: 2,
+    });
+
+    const tokens = await authService.refresh({ refreshToken: 'valid-refresh' });
+
+    expect(tokens.refreshToken).toBe('refresh-user-1-v2');
+  });
+
+  it('should reject a token issued before a password change with TOKEN_REVOKED', async () => {
+    tokenProvider.verifyRefreshToken.mockReturnValue({
+      sub: A_USER._id,
+      sessionVersion: 1,
+    });
+    userRepositoryRead.findUserById.mockResolvedValue({
+      ...A_USER,
+      sessionVersion: 2,
+    });
+
+    await expect(
+      authService.refresh({ refreshToken: 'old-refresh' }),
+    ).rejects.toMatchObject({ status: 401, code: 'TOKEN_REVOKED' });
+    expect(tokenProvider.generateRefreshToken).not.toHaveBeenCalled();
+  });
+
+  it('should reject a token without a version once the password changed', async () => {
+    tokenProvider.verifyRefreshToken.mockReturnValue({ sub: A_USER._id });
+    userRepositoryRead.findUserById.mockResolvedValue({
+      ...A_USER,
+      sessionVersion: 1,
+    });
+
+    await expect(
+      authService.refresh({ refreshToken: 'legacy-refresh' }),
+    ).rejects.toMatchObject({ code: 'TOKEN_REVOKED' });
   });
 
   it('should reject a refresh token of a deleted user', async () => {

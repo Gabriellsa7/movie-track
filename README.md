@@ -10,8 +10,9 @@ runtime.
 ## Features
 
 - **Accounts and auth** — sign up, log in and refresh tokens (JWT access +
-  refresh tokens, bcrypt password hashing). Every movie route is scoped to the
-  authenticated user.
+  refresh tokens, bcrypt password hashing). Changing the password revokes every
+  refresh token issued before. Every movie route is scoped to the authenticated
+  user.
 - **Movie log** — log a watched movie with rating (1–10, half steps), review,
   genres, release year, director, duration, poster and watch date.
 - **Posters** — upload a JPEG, PNG or WebP poster (up to 5 MB) stored in

@@ -125,6 +125,7 @@ export class UserService implements IUserService {
     );
     await this.userRepositoryWrite.updateUserById(params.id, {
       passwordHash: user.passwordHash,
+      sessionVersion: user.sessionVersion,
       updatedAt: user.updatedAt,
     });
   }
