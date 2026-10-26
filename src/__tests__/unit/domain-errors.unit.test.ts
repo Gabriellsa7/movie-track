@@ -4,6 +4,7 @@ import { ConflictError } from '../../domain/errors/conflict.error';
 import { UnauthorizedError } from '../../domain/errors/unauthorized.error';
 import { ForbiddenError } from '../../domain/errors/forbidden.error';
 import { UnprocessableEntityError } from '../../domain/errors/unprocessable-entity.error';
+import { ServiceUnavailableError } from '../../domain/errors/service-unavailable.error';
 
 describe('When we create domain errors without arguments', () => {
   it('should default DomainError to status 500', () => {
@@ -52,6 +53,14 @@ describe('When we create domain errors without arguments', () => {
     expect(error.message).toBe('Unauthorized');
     expect(error.status).toBe(401);
     expect(error.code).toBeUndefined();
+  });
+
+  it('should default ServiceUnavailableError to a generic 503 message', () => {
+    const error = new ServiceUnavailableError();
+
+    expect(error).toBeInstanceOf(DomainError);
+    expect(error.message).toBe('Service unavailable');
+    expect(error.status).toBe(503);
   });
 });
 
