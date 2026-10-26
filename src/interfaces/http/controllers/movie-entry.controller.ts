@@ -5,7 +5,6 @@ import {
   NextFunction,
   RequestHandler,
 } from 'express';
-import { BadRequest } from 'express-openapi-validator/dist/framework/types';
 import { IController } from './controller.interface';
 import {
   EMovieEntrySortField,
@@ -14,6 +13,7 @@ import {
 import { IMovieEntryService } from '../../../domain/movie-entry/interfaces/movie-entry.service.interface';
 import { MovieEntry } from '../../../domain/movie-entry/movie-entry.entity';
 import { authorizeSelf } from '../middlewares/auth.middleware';
+import { getUploadedFile } from './uploaded-file.helper';
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_PAGE_LIMIT = 20;
@@ -200,17 +200,9 @@ export class MovieEntryController implements IController {
     res: Response,
     next: NextFunction,
   ): Promise<void> => {
-    // The validator lets a text field named "poster" through, so the file itself must be checked.
-    const poster = (req.files as Express.Multer.File[] | undefined)?.find(
-      (file) => file.fieldname === POSTER_FIELD,
-    );
-    if (!poster) {
-      next(
-        new BadRequest({
-          path: `.body.${POSTER_FIELD}`,
-          message: 'should be a file',
-        }),
-      );
+    const poster = getUploadedFile(req, POSTER_FIELD);
+    if (poster instanceof Error) {
+      next(poster);
       return;
     }
     try {
