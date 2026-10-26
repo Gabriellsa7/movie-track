@@ -10,6 +10,9 @@ import { IController } from './controllers/controller.interface';
 import mongoose from 'mongoose';
 import * as OpenApiValidator from 'express-openapi-validator';
 import helmet from 'helmet';
+import { readFileSync } from 'fs';
+import { load } from 'js-yaml';
+import swaggerUi, { JsonObject } from 'swagger-ui-express';
 import { errorHandlerMiddleware } from './middlewares/error-handler.middleware';
 
 const MAX_UPLOAD_FILE_BYTES = 5 * 1024 * 1024;
@@ -48,6 +51,14 @@ export class Server {
     this.app.get('/health', (req: Request, res: Response) => {
       res.status(200).json({ status: 'OK' });
     });
+
+    // Before the validator and helmet: /docs is not in the contract, and helmet's CSP would block the UI.
+    if (this.apiSpecLocation) {
+      const apiSpec = load(
+        readFileSync(this.apiSpecLocation, 'utf8'),
+      ) as JsonObject;
+      this.app.use('/docs', swaggerUi.serve, swaggerUi.setup(apiSpec));
+    }
 
     this.middlewares([
       ...this.defaultMiddlewares,
