@@ -210,7 +210,7 @@ paths:
         - Users
       summary: Delete a user
       operationId: deleteUser
-      description: Delete an account. The current password is required.
+      description: Delete an account and everything in it (its movies, watchlist items, uploaded posters and avatar). The current password is required.
       security:
         - bearerAuth: []
       requestBody:

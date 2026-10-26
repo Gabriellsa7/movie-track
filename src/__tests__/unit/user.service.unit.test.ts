@@ -5,6 +5,10 @@ import { IUserRepositoryWrite } from '../../domain/user/repository/user.reposito
 import { IUser } from '../../domain/user/interfaces/user.interface';
 import { IPasswordHasher } from '../../domain/common/providers/password-hasher.provider';
 import { IClock } from '../../domain/common/providers/clock.provider';
+import { IStorageProvider } from '../../domain/common/providers/storage.provider';
+import { IMovieEntry } from '../../domain/movie-entry/interfaces/movie-entry.interface';
+import { IMovieEntryRepositoryWrite } from '../../domain/movie-entry/repository/movie-entry.repository.write';
+import { IWatchlistRepositoryWrite } from '../../domain/watchlist/repository/watchlist.repository.write';
 import { ConflictError } from '../../domain/errors/conflict.error';
 import { NotFoundError } from '../../domain/errors/not-found.error';
 import { UnauthorizedError } from '../../domain/errors/unauthorized.error';
@@ -33,6 +37,9 @@ const A_USER_PRIVATE = {
 
 let userRepositoryRead: jest.Mocked<IUserRepositoryRead>;
 let userRepositoryWrite: jest.Mocked<IUserRepositoryWrite>;
+let movieEntryRepositoryWrite: jest.Mocked<IMovieEntryRepositoryWrite>;
+let watchlistRepositoryWrite: jest.Mocked<IWatchlistRepositoryWrite>;
+let storageProvider: jest.Mocked<IStorageProvider>;
 let passwordHasher: jest.Mocked<IPasswordHasher>;
 let clock: jest.Mocked<IClock>;
 let userService: UserService;
@@ -49,6 +56,18 @@ beforeEach(() => {
     updateUserById: jest.fn(),
     deleteUserById: jest.fn(),
   };
+  movieEntryRepositoryWrite = {
+    createMovieEntry: jest.fn(),
+    updateMovieEntryById: jest.fn(),
+    deleteMovieEntryById: jest.fn(),
+    deleteMovieEntriesByUserId: jest.fn().mockResolvedValue([]),
+  };
+  watchlistRepositoryWrite = {
+    createWatchlistItem: jest.fn(),
+    deleteWatchlistItemById: jest.fn(),
+    deleteWatchlistItemsByUserId: jest.fn(),
+  };
+  storageProvider = { upload: jest.fn(), delete: jest.fn() };
   passwordHasher = {
     hash: jest.fn(async (plainPassword: string) => `hashed-${plainPassword}`),
     compare: jest.fn(),
@@ -57,6 +76,9 @@ beforeEach(() => {
   userService = new UserService({
     userRepositoryRead,
     userRepositoryWrite,
+    movieEntryRepositoryWrite,
+    watchlistRepositoryWrite,
+    storageProvider,
     passwordHasher,
     clock,
   });
@@ -293,6 +315,10 @@ describe('When we delete a user confirming the password', () => {
       userService.deleteUser({ id: A_USER._id, password: 'wrong123' }),
     ).rejects.toThrow(UnauthorizedError);
     expect(userRepositoryWrite.deleteUserById).not.toHaveBeenCalled();
+    expect(
+      movieEntryRepositoryWrite.deleteMovieEntriesByUserId,
+    ).not.toHaveBeenCalled();
+    expect(storageProvider.delete).not.toHaveBeenCalled();
   });
 
   it('should throw NotFoundError when the user does not exist', async () => {
@@ -301,6 +327,56 @@ describe('When we delete a user confirming the password', () => {
     await expect(
       userService.deleteUser({ id: 'missing-id', password: 'secret123' }),
     ).rejects.toThrow(NotFoundError);
+  });
+});
+
+describe('When we delete a user that has movies, a watchlist and files', () => {
+  beforeEach(() => {
+    userRepositoryRead.findUserById.mockResolvedValue(A_USER);
+    passwordHasher.compare.mockResolvedValue(true);
+    movieEntryRepositoryWrite.deleteMovieEntriesByUserId.mockResolvedValue([
+      { posterPublicId: 'posters/uploaded' } as IMovieEntry,
+      { posterUrl: 'https://example.com/external.png' } as IMovieEntry,
+    ]);
+  });
+
+  it('should delete their movies and watchlist items', async () => {
+    await userService.deleteUser({ id: A_USER._id, password: 'secret123' });
+
+    expect(
+      movieEntryRepositoryWrite.deleteMovieEntriesByUserId,
+    ).toHaveBeenCalledWith(A_USER._id);
+    expect(
+      watchlistRepositoryWrite.deleteWatchlistItemsByUserId,
+    ).toHaveBeenCalledWith(A_USER._id);
+  });
+
+  it('should delete the uploaded posters and the avatar from storage', async () => {
+    await userService.deleteUser({ id: A_USER._id, password: 'secret123' });
+
+    expect(storageProvider.delete).toHaveBeenCalledTimes(2);
+    expect(storageProvider.delete).toHaveBeenCalledWith('posters/uploaded');
+    expect(storageProvider.delete).toHaveBeenCalledWith(A_USER.avatarPublicId);
+  });
+
+  it('should still succeed and log a warning when the storage fails', async () => {
+    storageProvider.delete.mockRejectedValue(new Error('storage down'));
+    const warnSpy = jest
+      .spyOn(Logger, 'warn')
+      .mockImplementation(() => Logger);
+
+    await expect(
+      userService.deleteUser({ id: A_USER._id, password: 'secret123' }),
+    ).resolves.toBeUndefined();
+    expect(warnSpy).toHaveBeenCalledWith(
+      'Failed to delete a user file from storage',
+      expect.objectContaining({
+        eventName: 'user.file.delete_failed',
+        publicId: 'posters/uploaded',
+        error: 'storage down',
+      }),
+    );
+    warnSpy.mockRestore();
   });
 });
 
