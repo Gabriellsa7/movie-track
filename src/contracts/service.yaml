@@ -281,6 +281,38 @@ paths:
         default:
           $ref: '#/components/responses/UnexpectedError'
 
+  /users/{id}/stats:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+    get:
+      tags:
+        - Users
+      summary: Get my movie stats
+      operationId: getUserStats
+      description: >
+        Private: only the account owner can read them. Totals cover every logged movie;
+        moviesPerMonth covers the last 12 months (months without movies are left out) and
+        topGenres the 5 most watched genres.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The user's stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserStats'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+
   /auth/login:
     post:
       tags:
@@ -1390,6 +1422,75 @@ components:
         limit:
           type: integer
           minimum: 1
+    UserStats:
+      type: object
+      additionalProperties: false
+      required:
+        - totalMovies
+        - averageRating
+        - favoritesCount
+        - totalMinutes
+        - ratingDistribution
+        - moviesPerMonth
+        - topGenres
+      properties:
+        totalMovies:
+          type: integer
+          minimum: 0
+        averageRating:
+          type: number
+          nullable: true
+          description: Rounded to one decimal; null when there are no movies
+        favoritesCount:
+          type: integer
+          minimum: 0
+        totalMinutes:
+          type: integer
+          minimum: 0
+          description: Sum of durationMinutes; movies without a duration count as 0
+        ratingDistribution:
+          type: array
+          description: How many movies got each rating, by rating ascending
+          items:
+            type: object
+            additionalProperties: false
+            required: [rating, count]
+            properties:
+              rating:
+                type: number
+              count:
+                type: integer
+                minimum: 1
+        moviesPerMonth:
+          type: array
+          description: Movies watched per month in the last 12 months, oldest first
+          items:
+            type: object
+            additionalProperties: false
+            required: [month, count]
+            properties:
+              month:
+                type: string
+                pattern: '^\d{4}-\d{2}$'
+                example: '2026-03'
+              count:
+                type: integer
+                minimum: 1
+        topGenres:
+          type: array
+          description: The 5 most watched genres, most watched first
+          items:
+            type: object
+            additionalProperties: false
+            required: [genreId, name, count]
+            properties:
+              genreId:
+                type: string
+              name:
+                type: string
+              count:
+                type: integer
+                minimum: 1
     UserSummary:
       type: object
       additionalProperties: false

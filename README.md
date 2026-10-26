@@ -20,6 +20,8 @@ runtime.
   filter by genre, rating range and favorites, sort by watch date, rating,
   title or release year, with pagination.
 - **Favorites** — mark or unmark any logged movie.
+- **Stats** — totals, average rating, rating distribution, movies per month
+  and top genres of my own movie log.
 - **Watchlist** — save movies to watch later, search them, and move one to the
   movie log once watched (`watchlistItemId` in `POST /movies`).
 - **Genres** — a fixed list of genres, seeded on startup and mapped to TMDB
@@ -75,6 +77,7 @@ All `/movies`, `/watchlist` and `/tmdb` routes require `Authorization: Bearer <a
 | `GET` | `/users` | List users |
 | `GET` / `PUT` / `DELETE` | `/users/{id}` | Get, update or delete a user |
 | `PATCH` | `/users/{id}/password` | Change the password |
+| `GET` | `/users/{id}/stats` | My movie stats (totals, ratings, months, top genres) |
 | `POST` | `/auth/login` | Log in with email and password |
 | `POST` | `/auth/refresh` | Refresh the tokens |
 | `POST` | `/movies` | Log a watched movie |
