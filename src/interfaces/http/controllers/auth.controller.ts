@@ -1,19 +1,27 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import {
+  Router,
+  Request,
+  Response,
+  NextFunction,
+  RequestHandler,
+} from 'express';
 import { IController } from './controller.interface';
 import { IAuthService } from '../../../domain/auth/interfaces/auth.service.interface';
 
 export class AuthController implements IController {
   router: Router;
   private readonly authService: IAuthService;
+  private readonly loginRateLimit: RequestHandler[];
 
-  constructor(authService: IAuthService) {
+  constructor(authService: IAuthService, loginRateLimit: RequestHandler[]) {
     this.authService = authService;
+    this.loginRateLimit = loginRateLimit;
     this.router = Router();
     this.initRoutes();
   }
 
   initRoutes() {
-    this.router.post('/auth/login', this.login);
+    this.router.post('/auth/login', ...this.loginRateLimit, this.login);
     this.router.post('/auth/refresh', this.refresh);
   }
 

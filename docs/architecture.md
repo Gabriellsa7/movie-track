@@ -123,7 +123,7 @@ tests run it themselves when they need the real list (`configApp.ts` does not).
 ## Domain errors (`src/domain/errors/`)
 
 `DomainError` (base, carries the HTTP `status`) and the specializations
-`UnauthorizedError` (401), `ForbiddenError` (403), `NotFoundError` (404), `ConflictError` (409), `UnprocessableEntityError` (422) and `ServiceUnavailableError` (503). The error flow is always:
+`UnauthorizedError` (401), `ForbiddenError` (403), `NotFoundError` (404), `ConflictError` (409), `UnprocessableEntityError` (422), `TooManyRequestsError` (429) and `ServiceUnavailableError` (503). The error flow is always:
 service throws a typed error → controller passes it on with `next(error)` →
 central error handler responds in the contract shape. No other layer builds
 error responses.
@@ -190,6 +190,14 @@ token is never accepted as a refresh token, and vice versa.
   `INVALID_CREDENTIALS` for an unknown e-mail and a wrong password (no user
   enumeration); `refresh` checks that the user still exists and issues both
   tokens again.
+- **Login rate limit** (`src/interfaces/http/middlewares/rate-limit.middleware.ts`,
+  `express-rate-limit`): only failed attempts count. 5 per account (IP +
+  e-mail) and 50 per IP in 15 minutes (limits in `AuthControllerFactory`); past
+  them `POST /auth/login` answers 429 `TOO_MANY_ATTEMPTS`, even for the right
+  password. The store is in memory, so each instance counts on its own and a
+  restart clears it. `req.ip` depends on `TRUST_PROXY_HOPS` (`app.set('trust
+  proxy')`): behind a proxy, leaving it at 0 would make every client share the
+  proxy's IP.
 - **Middlewares** (`src/interfaces/http/middlewares/auth.middleware.ts`):
   `authenticate(tokenProvider)` verifies the bearer token and sets `req.userId`
   (401 otherwise); `authorizeSelf` lets the request through only when

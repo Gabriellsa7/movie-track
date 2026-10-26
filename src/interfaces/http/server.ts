@@ -41,8 +41,10 @@ export class Server {
     apiSpecLocation?: string;
     databaseURI?: string;
     timeoutMilliseconds?: number;
+    trustProxyHops?: number;
   }) {
     this.app = express();
+    this.app.set('trust proxy', appInit.trustProxyHops ?? 0);
     this.port = appInit.port;
     this.apiSpecLocation = appInit.apiSpecLocation;
     this.DATABASE_URI = appInit.databaseURI;

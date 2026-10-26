@@ -12,6 +12,8 @@ function requireEnv(name: string): string {
 
 export const env = {
   port: Number(process.env.PORT) || 3000,
+  // How many proxies sit in front of the app; req.ip (and the login rate limit) depends on it.
+  trustProxyHops: Number(process.env.TRUST_PROXY_HOPS) || 0,
   databaseUri: requireEnv('DATABASE_URI'),
   bcryptRounds: Number(process.env.BCRYPT_ROUNDS) || DEFAULT_BCRYPT_ROUNDS,
   jwtSecret: requireEnv('JWT_SECRET'),

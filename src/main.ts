@@ -31,6 +31,7 @@ const app = new Server({
     MovieSearchControllerFactory.create(),
   ],
   databaseURI: env.databaseUri,
+  trustProxyHops: env.trustProxyHops,
   apiSpecLocation: OPEN_API_SPEC_FILE_LOCATION,
 });
 

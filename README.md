@@ -10,7 +10,7 @@ runtime.
 ## Features
 
 - **Accounts and auth** — sign up, log in and refresh tokens (JWT access +
-  refresh tokens, bcrypt password hashing). Every movie route is scoped to the
+  refresh tokens, bcrypt password hashing, failed logins rate limited). Every movie route is scoped to the
   authenticated user.
 - **Movie log** — log a watched movie with rating (1–10, half steps), review,
   genres, release year, director, duration, poster and watch date.
@@ -115,6 +115,9 @@ For poster uploads, copy the cloud name, API key and API secret from
 `CLOUDINARY_API_KEY` and `CLOUDINARY_API_SECRET`. For movie search, copy the
 **API Read Access Token** from **Settings > API** on themoviedb.org into
 `TMDB_ACCESS_TOKEN`. The app does not boot without them.
+
+Behind a reverse proxy (Render, Railway, Fly.io…), set `TRUST_PROXY_HOPS=1` so
+the login rate limit sees each client's IP instead of the proxy's.
 
 Then:
 
