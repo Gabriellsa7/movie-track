@@ -1,22 +1,15 @@
 openapi: 3.0.2
 info:
-  title: Example API
-  description: This is a sample API to demonstrate OpenAPI specification.
+  title: Movie Track API
+  description: >
+    Log the movies you have watched (rating, review, favorites and poster), keep a watchlist
+    and search TMDB to prefill both. Every /movies, /watchlist and /tmdb route needs the access
+    token from POST /auth/login: click Authorize and paste it.
   version: 1.0.0
-  contact:
-    name: API Support
-    url: https://example.com/support
-    email: support@example.com
-  license:
-    name: MIT
-    url: https://opensource.org/licenses/MIT
 
 servers:
-  - url: https://api.example.com/v1
-    description: Production server
-  - url: https://staging-api.example.com/v1
-    description: Staging server
-  - url: http://localhost
+  - url: /
+    description: This server
 
 tags:
   - name: Users

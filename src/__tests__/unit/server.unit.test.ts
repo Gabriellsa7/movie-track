@@ -55,6 +55,25 @@ describe('When we check the health endpoint', () => {
   });
 });
 
+describe('When we open the API docs', () => {
+  it('should serve Swagger UI', async () => {
+    const { statusCode, text } = await supertest(app.app).get('/docs/');
+
+    expect(statusCode).toBe(200);
+    expect(text).toContain('swagger-ui');
+  });
+
+  it('should load the contract with its title and bearer auth', async () => {
+    const { statusCode, text } = await supertest(app.app).get(
+      '/docs/swagger-ui-init.js',
+    );
+
+    expect(statusCode).toBe(200);
+    expect(text).toContain('Movie Track API');
+    expect(text).toContain('bearerAuth');
+  });
+});
+
 describe('When an unexpected error reaches the central handler', () => {
   it('should respond 500 with the contract error shape', async () => {
     const { statusCode, body } = await supertest(app.app).get('/users');

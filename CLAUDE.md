@@ -92,7 +92,7 @@ Details in [docs/architecture.md](docs/architecture.md).
 
 - `service.yaml` validates **request and response** (`validateResponses: true`): a new endpoint or field without a contract update fails at runtime (400/500). Every operation needs `default: $ref: '#/components/responses/UnexpectedError'`, or a status not listed for it becomes a 500.
 - `yarn build` is `tsc -p .;yarn copy-essentials`: the `;` ignores type errors, so check types with `npx tsc -p . --noEmit` (tests also fail on them through ts-jest).
-- Routes not described in the contract are rejected by the validator (`/health` works because it is registered before the middlewares).
+- Routes not described in the contract are rejected by the validator (`/health` and `/docs`, the Swagger UI built from `service.yaml`, work because they are registered before the middlewares).
 - The build needs `copy-essentials` (yaml is not compiled by tsc) — already part of `yarn build`.
 - Integration tests only see controllers registered in `src/__tests__/configApp.ts`.
 - A protected route needs `security: [bearerAuth: []]` and `401`/`403` responses in the contract **and** `this.authenticate, authorizeSelf` in the controller; its integration tests must send `.set('Authorization', authHeaderFor(userId))` (`src/__tests__/testUtils.ts`). The token's user must be the `:id` in the URL, or the test gets 403 instead of the status it checks. Auth details in [docs/architecture.md](docs/architecture.md#authentication-jwt).
