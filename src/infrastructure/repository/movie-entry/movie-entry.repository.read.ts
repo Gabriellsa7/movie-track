@@ -54,20 +54,24 @@ export class MovieEntryRepositoryRead implements IMovieEntryRepositoryRead {
     userId: string;
     tmdbId?: number;
     normalizedTitle: string;
-    releaseYear: number;
+    releaseYear?: number;
     excludeId?: string;
   }): Promise<IMovieEntry | null> {
     if (!isObjectId(params.userId)) {
       return null;
     }
-    const sameMovie: FilterQuery<IMMovieEntry>[] = [
-      {
+    const sameMovie: FilterQuery<IMMovieEntry>[] = [];
+    if (params.releaseYear !== undefined) {
+      sameMovie.push({
         normalizedTitle: params.normalizedTitle,
         releaseYear: params.releaseYear,
-      },
-    ];
+      });
+    }
     if (params.tmdbId !== undefined) {
       sameMovie.push({ tmdbId: params.tmdbId });
+    }
+    if (sameMovie.length === 0) {
+      return null;
     }
 
     const filter: FilterQuery<IMMovieEntry> = {

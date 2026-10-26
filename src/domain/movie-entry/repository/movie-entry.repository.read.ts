@@ -12,7 +12,8 @@ export interface IMovieEntryRepositoryRead {
     userId: string;
     tmdbId?: number;
     normalizedTitle: string;
-    releaseYear: number;
+    // Without a year only tmdbId can match: the same title may be a remake.
+    releaseYear?: number;
     excludeId?: string;
   }): Promise<IMovieEntry | null>;
   listMovieEntries(

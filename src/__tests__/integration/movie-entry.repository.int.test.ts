@@ -89,6 +89,27 @@ describe('When we look for a duplicate movie entry', () => {
     expect(excluded).toBeNull();
     expect(otherUser).toBeNull();
   });
+
+  it('should match only by tmdb id when there is no year', async () => {
+    const userId = newObjectId();
+    const created = await movieEntryRepositoryWrite.createMovieEntry(
+      buildMovieEntry(userId, { tmdbId: 604 }),
+    );
+
+    const byTmdbId = await movieEntryRepositoryRead.findDuplicateMovieEntry({
+      userId,
+      tmdbId: 604,
+      normalizedTitle: 'another title',
+    });
+    const byTitleOnly =
+      await movieEntryRepositoryRead.findDuplicateMovieEntry({
+        userId,
+        normalizedTitle: 'the matrix',
+      });
+
+    expect(byTmdbId?._id).toBe(created._id);
+    expect(byTitleOnly).toBeNull();
+  });
 });
 
 describe('When we list movie entries', () => {
