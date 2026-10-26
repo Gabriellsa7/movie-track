@@ -13,6 +13,7 @@ import {
 } from '../../../domain/movie-entry/interfaces/movie-entry.interface';
 import { IMovieEntryService } from '../../../domain/movie-entry/interfaces/movie-entry.service.interface';
 import { MovieEntry } from '../../../domain/movie-entry/movie-entry.entity';
+import { authorizeSelf } from '../middlewares/auth.middleware';
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_PAGE_LIMIT = 20;
@@ -61,6 +62,13 @@ export class MovieEntryController implements IController {
       '/movies/:id/poster',
       this.authenticate,
       this.removePoster,
+    );
+    // Under /users because /movies/stats would be taken by /movies/:id.
+    this.router.get(
+      '/users/:id/stats',
+      this.authenticate,
+      authorizeSelf,
+      this.getUserStats,
     );
   }
 
@@ -229,6 +237,19 @@ export class MovieEntryController implements IController {
         req.userId!,
       );
       res.status(200).json(MovieEntry.toMovieEntryResponse(movieEntry));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getUserStats = async (
+    req: Request<{ id: string }>,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const stats = await this.movieEntryService.getUserStats(req.userId!);
+      res.status(200).json(stats);
     } catch (error) {
       next(error);
     }
