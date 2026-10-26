@@ -3,6 +3,11 @@ import bcrypt from 'bcryptjs';
 import supertest from 'supertest';
 import { app } from '../../../jest/setup-integration-tests';
 import { Muser } from '../../infrastructure/db/mongo/models/user.model';
+import { MmovieEntry } from '../../infrastructure/db/mongo/models/movie-entry.model';
+import { Mwatchlist } from '../../infrastructure/db/mongo/models/watchlist.model';
+import { toObjectId } from '../../infrastructure/db/mongo/object-id';
+import { WatchlistRepositoryWrite } from '../../infrastructure/repository/watchlist/watchlist.repository.write';
+import { createMovieFor } from '../configMovieEntryApp';
 import { IUser } from '../../domain/user/interfaces/user.interface';
 import { authHeaderFor, newObjectId } from '../testUtils';
 
@@ -33,6 +38,34 @@ describe('When we delete a user with the right password', () => {
     expect(statusCode).toBe(204);
     expect(body).toEqual({});
     await expect(Muser.findOne({ _id: existingUser._id })).resolves.toBeNull();
+  });
+});
+
+describe('When we delete a user that has movies and a watchlist', () => {
+  it('should also delete their movies and watchlist items, and only theirs', async () => {
+    const otherUserId = newObjectId();
+    await createMovieFor(existingUser._id);
+    await createMovieFor(existingUser._id);
+    await createMovieFor(otherUserId);
+    await new WatchlistRepositoryWrite().createWatchlistItem({
+      userId: existingUser._id,
+      title: 'Seven',
+      normalizedTitle: 'seven',
+      addedAt: new Date(),
+    });
+
+    const { statusCode } = await supertest(app.app)
+      .delete(`/users/${existingUser._id}`)
+      .set('Authorization', authHeaderFor(existingUser._id))
+      .send({ password: PASSWORD });
+
+    expect(statusCode).toBe(204);
+    const ownerFilter = { userId: toObjectId(existingUser._id) };
+    await expect(MmovieEntry.countDocuments(ownerFilter)).resolves.toBe(0);
+    await expect(Mwatchlist.countDocuments(ownerFilter)).resolves.toBe(0);
+    await expect(
+      MmovieEntry.countDocuments({ userId: toObjectId(otherUserId) }),
+    ).resolves.toBe(1);
   });
 });
 

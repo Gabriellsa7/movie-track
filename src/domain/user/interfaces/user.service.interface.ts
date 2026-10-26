@@ -4,6 +4,9 @@ import {
 } from '../../common/pagination.interface';
 import { IClock } from '../../common/providers/clock.provider';
 import { IPasswordHasher } from '../../common/providers/password-hasher.provider';
+import { IStorageProvider } from '../../common/providers/storage.provider';
+import { IMovieEntryRepositoryWrite } from '../../movie-entry/repository/movie-entry.repository.write';
+import { IWatchlistRepositoryWrite } from '../../watchlist/repository/watchlist.repository.write';
 import { IUserRepositoryRead } from '../repository/user.repository.read';
 import { IUserRepositoryWrite } from '../repository/user.repository.write';
 import {
@@ -43,6 +46,9 @@ export interface IParamsListUsers {
 export interface IParamsUserService {
   userRepositoryRead: IUserRepositoryRead;
   userRepositoryWrite: IUserRepositoryWrite;
+  movieEntryRepositoryWrite: IMovieEntryRepositoryWrite;
+  watchlistRepositoryWrite: IWatchlistRepositoryWrite;
+  storageProvider: IStorageProvider;
   passwordHasher: IPasswordHasher;
   clock: IClock;
 }

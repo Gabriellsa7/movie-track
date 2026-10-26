@@ -1,3 +1,4 @@
+import { Logger } from 'traceability';
 import { IUserRepositoryRead } from '../repository/user.repository.read';
 import { IUserRepositoryWrite } from '../repository/user.repository.write';
 import {
@@ -22,22 +23,34 @@ import { UnauthorizedError } from '../../errors/unauthorized.error';
 import { IPaginatedResult } from '../../common/pagination.interface';
 import { IClock } from '../../common/providers/clock.provider';
 import { IPasswordHasher } from '../../common/providers/password-hasher.provider';
+import { IStorageProvider } from '../../common/providers/storage.provider';
+import { IMovieEntryRepositoryWrite } from '../../movie-entry/repository/movie-entry.repository.write';
+import { IWatchlistRepositoryWrite } from '../../watchlist/repository/watchlist.repository.write';
 import { User } from '../user.entity';
 
 export class UserService implements IUserService {
   private userRepositoryRead: IUserRepositoryRead;
   private userRepositoryWrite: IUserRepositoryWrite;
+  private movieEntryRepositoryWrite: IMovieEntryRepositoryWrite;
+  private watchlistRepositoryWrite: IWatchlistRepositoryWrite;
+  private storageProvider: IStorageProvider;
   private passwordHasher: IPasswordHasher;
   private clock: IClock;
 
   constructor({
     userRepositoryRead,
     userRepositoryWrite,
+    movieEntryRepositoryWrite,
+    watchlistRepositoryWrite,
+    storageProvider,
     passwordHasher,
     clock,
   }: IParamsUserService) {
     this.userRepositoryRead = userRepositoryRead;
     this.userRepositoryWrite = userRepositoryWrite;
+    this.movieEntryRepositoryWrite = movieEntryRepositoryWrite;
+    this.watchlistRepositoryWrite = watchlistRepositoryWrite;
+    this.storageProvider = storageProvider;
     this.passwordHasher = passwordHasher;
     this.clock = clock;
   }
@@ -121,6 +134,7 @@ export class UserService implements IUserService {
     const user = await this.findExistingUser(params.id);
     await this.ensurePasswordMatches(params.password, user);
     await this.userRepositoryWrite.deleteUserById(params.id);
+    await this.deleteUserData(user);
   }
 
   @ErrorHandler()
@@ -151,6 +165,34 @@ export class UserService implements IUserService {
       throw this.userNotFoundError();
     }
     return user;
+  }
+
+  // Runs after the account is gone: a failure here leaves unreachable rows, never an account missing its movies.
+  private async deleteUserData(user: IUser): Promise<void> {
+    const [movieEntries] = await Promise.all([
+      this.movieEntryRepositoryWrite.deleteMovieEntriesByUserId(user._id),
+      this.watchlistRepositoryWrite.deleteWatchlistItemsByUserId(user._id),
+    ]);
+    const publicIds = [
+      user.avatarPublicId,
+      ...movieEntries.map((movieEntry) => movieEntry.posterPublicId),
+    ].filter((publicId): publicId is string => Boolean(publicId));
+    await Promise.all(
+      publicIds.map((publicId) => this.deleteStoredFile(publicId)),
+    );
+  }
+
+  // A storage failure only leaves an orphan file, so it must not fail the account deletion.
+  private async deleteStoredFile(publicId: string): Promise<void> {
+    try {
+      await this.storageProvider.delete(publicId);
+    } catch (error) {
+      Logger.warn('Failed to delete a user file from storage', {
+        eventName: 'user.file.delete_failed',
+        publicId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 
   private async ensurePasswordMatches(

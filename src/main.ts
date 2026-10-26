@@ -9,6 +9,7 @@ import { AuthControllerFactory } from './infrastructure/config/factories/auth.co
 import { GenreControllerFactory } from './infrastructure/config/factories/genre.controller.factory';
 import { GenreSeedFactory } from './infrastructure/config/factories/genre.seed.factory';
 import { MovieEntryControllerFactory } from './infrastructure/config/factories/movie-entry.controller.factory';
+import { syncMongoIndexes } from './infrastructure/db/mongo/mongo.indexes';
 
 const OPEN_API_SPEC_FILE_LOCATION = path.resolve(
   __dirname,
@@ -31,6 +32,7 @@ const app = new Server({
 
 async function start() {
   await app.databaseSetup();
+  await syncMongoIndexes();
   await GenreSeedFactory.create().run();
   const httpServer = app.listen();
 
