@@ -101,9 +101,18 @@ through untouched; anything else is logged with the service and method names
 
 In `main.ts`, the boot order is: telemetry (first-line import) → env validation
 (`infrastructure/config/env.ts`, fail-fast) → `new Server(...)` →
-`await databaseSetup()` → genre seed (`GenreSeedFactory.create().run()`) →
-`listen()` → graceful-shutdown registration (SIGTERM/SIGINT close the HTTP
-server and Mongoose, exit 0 on success, with a failsafe timeout).
+`await databaseSetup()` → index sync (`syncMongoIndexes()`) → genre seed
+(`GenreSeedFactory.create().run()`) → `listen()` → graceful-shutdown
+registration (SIGTERM/SIGINT close the HTTP server and Mongoose, exit 0 on
+success, with a failsafe timeout).
+
+The index sync (`src/infrastructure/db/mongo/mongo.indexes.ts`) runs
+`mongoose.syncIndexes()`: it creates the indexes declared in the schemas and
+**drops any index that is not declared in them**, logging each dropped one
+(`eventName: 'database.indexes_dropped'`). Mongoose alone never drops indexes,
+so a field removed from a schema used to leave its index behind (the old unique
+`users.id_1` rejected every new user once the field was gone). An index must
+therefore be declared in its schema, never created by hand in the database.
 
 The genre seed (`src/infrastructure/db/mongo/seed/genre.seed.ts`) upserts
 TMDB's pt-BR movie genres by `tmdbGenreId`, so it is idempotent and keeps each
