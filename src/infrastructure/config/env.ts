@@ -19,4 +19,7 @@ export const env = {
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || DEFAULT_JWT_EXPIRES_IN,
   refreshTokenExpiresIn:
     process.env.REFRESH_TOKEN_EXPIRES_IN || DEFAULT_REFRESH_TOKEN_EXPIRES_IN,
+  cloudinaryCloudName: requireEnv('CLOUDINARY_CLOUD_NAME'),
+  cloudinaryApiKey: requireEnv('CLOUDINARY_API_KEY'),
+  cloudinaryApiSecret: requireEnv('CLOUDINARY_API_SECRET'),
 };

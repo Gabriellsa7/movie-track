@@ -12,6 +12,8 @@ import * as OpenApiValidator from 'express-openapi-validator';
 import helmet from 'helmet';
 import { errorHandlerMiddleware } from './middlewares/error-handler.middleware';
 
+const MAX_UPLOAD_FILE_BYTES = 5 * 1024 * 1024;
+
 export class Server {
   public app: Application;
 
@@ -64,6 +66,7 @@ export class Server {
         apiSpec: this.apiSpecLocation || '',
         validateApiSpec: true,
         validateResponses: true,
+        fileUploader: { limits: { fileSize: MAX_UPLOAD_FILE_BYTES, files: 1 } },
       }),
     );
   }

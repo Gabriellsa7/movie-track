@@ -615,6 +615,41 @@ paths:
   /movies/{id}/poster:
     parameters:
       - $ref: '#/components/parameters/MovieId'
+    put:
+      tags:
+        - Movies
+      summary: Upload the poster of one of my movies
+      operationId: uploadMoviePoster
+      description: >
+        Stores the image in Cloudinary and sets it as the poster, replacing (and deleting)
+        any previous uploaded poster. JPEG, PNG or WebP, up to 5 MB.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PosterUpload'
+      responses:
+        '200':
+          description: Poster uploaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Movie'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/MovieNotFound'
+        '422':
+          $ref: '#/components/responses/InvalidPoster'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
     delete:
       tags:
         - Movies
@@ -733,6 +768,16 @@ components:
             message: 'rating must be between 1 and 10 in steps of 0.5'
             status: 422
             code: 'INVALID_RATING'
+    InvalidPoster:
+      description: The file is not a JPEG, PNG or WebP image (INVALID_POSTER_TYPE)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: 'poster must be a JPEG, PNG or WebP image'
+            status: 422
+            code: 'INVALID_POSTER_TYPE'
     UnexpectedError:
       description: >
         Any other error, in the same shape: 405 METHOD_NOT_ALLOWED, 413 PAYLOAD_TOO_LARGE,
@@ -934,6 +979,16 @@ components:
           maxLength: 2048
           pattern: '^https?://'
           description: An external poster URL; null removes the poster
+    PosterUpload:
+      type: object
+      additionalProperties: false
+      required:
+        - poster
+      properties:
+        poster:
+          type: string
+          format: binary
+          description: The image file (JPEG, PNG or WebP, up to 5 MB)
     MovieFavorite:
       type: object
       additionalProperties: false

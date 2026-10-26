@@ -5,6 +5,7 @@ import {
   NextFunction,
   RequestHandler,
 } from 'express';
+import { BadRequest } from 'express-openapi-validator/dist/framework/types';
 import { IController } from './controller.interface';
 import {
   EMovieEntrySortField,
@@ -15,6 +16,7 @@ import { MovieEntry } from '../../../domain/movie-entry/movie-entry.entity';
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_PAGE_LIMIT = 20;
+const POSTER_FIELD = 'poster';
 
 interface IListMovieEntriesQuery {
   search?: string;
@@ -54,6 +56,7 @@ export class MovieEntryController implements IController {
       this.setFavorite,
     );
     this.router.delete('/movies/:id', this.authenticate, this.deleteMovieEntry);
+    this.router.put('/movies/:id/poster', this.authenticate, this.uploadPoster);
     this.router.delete(
       '/movies/:id/poster',
       this.authenticate,
@@ -179,6 +182,37 @@ export class MovieEntryController implements IController {
     try {
       await this.movieEntryService.deleteMovieEntry(req.params.id, req.userId!);
       res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  uploadPoster = async (
+    req: Request<{ id: string }>,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    // The validator lets a text field named "poster" through, so the file itself must be checked.
+    const poster = (req.files as Express.Multer.File[] | undefined)?.find(
+      (file) => file.fieldname === POSTER_FIELD,
+    );
+    if (!poster) {
+      next(
+        new BadRequest({
+          path: `.body.${POSTER_FIELD}`,
+          message: 'should be a file',
+        }),
+      );
+      return;
+    }
+    try {
+      const movieEntry = await this.movieEntryService.uploadPoster({
+        id: req.params.id,
+        userId: req.userId!,
+        buffer: poster.buffer,
+        mimeType: poster.mimetype,
+      });
+      res.status(200).json(MovieEntry.toMovieEntryResponse(movieEntry));
     } catch (error) {
       next(error);
     }

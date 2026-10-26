@@ -28,6 +28,7 @@ import { IMovieEntryRepositoryRead } from '../repository/movie-entry.repository.
 import { IMovieEntryRepositoryWrite } from '../repository/movie-entry.repository.write';
 
 const POSTER_FOLDER = 'posters';
+const POSTER_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const STATS_MONTHS = 12;
 const MIN_RATING = 1;
 const MAX_RATING = 10;
@@ -198,6 +199,12 @@ export class MovieEntryService implements IMovieEntryService {
 
   @ErrorHandler()
   async uploadPoster(params: IParamsUploadPoster): Promise<IMovieEntry> {
+    if (!POSTER_MIME_TYPES.includes(params.mimeType)) {
+      throw new UnprocessableEntityError(
+        'poster must be a JPEG, PNG or WebP image',
+        'INVALID_POSTER_TYPE',
+      );
+    }
     const existingMovieEntry = await this.findExistingMovieEntry(
       params.id,
       params.userId,
