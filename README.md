@@ -1,80 +1,149 @@
-# Node Boilerplate
+# Movie Track
 
-This repository demonstrates a Node.js + TypeScript application structured
-following Clean Architecture. The layered separation makes testing and
-maintenance easier.
+A REST API to log the movies you have watched: rate them, write a review, mark
+favorites and find them again with search, filters and sorting.
 
-## Folder Architecture
+Built with Node.js + TypeScript following Clean Architecture, with a
+contract-first OpenAPI spec that validates every request **and** response at
+runtime.
 
-- **src/domain** – Entities, domain errors and repository/service contracts.
-- **src/interfaces** – Input/output adapters (e.g. HTTP).
-- **src/infrastructure** – Concrete implementations (Mongo, factories, telemetry, env).
-- **src/contracts** – OpenAPI spec that documents and validates the API.
-- **src/\_\_tests\_\_** – Unit and integration tests.
-- **main.ts** – Entry point that wires telemetry and instantiates the server.
+## Features
 
-## Running Locally
+- **Accounts and auth** — sign up, log in and refresh tokens (JWT access +
+  refresh tokens, bcrypt password hashing). Every movie route is scoped to the
+  authenticated user.
+- **Movie log** — log a watched movie with rating (1–10, half steps), review,
+  genres, release year, director, duration, poster URL and watch date.
+- **Search and filters** — search by title (case- and accent-insensitive),
+  filter by genre, rating range and favorites, sort by watch date, rating,
+  title or release year, with pagination.
+- **Favorites** — mark or unmark any logged movie.
+- **Genres** — a fixed list of genres, seeded on startup and mapped to TMDB
+  genre IDs.
 
-1. Install the dependencies:
+## Tech stack
+
+| Area | Tools |
+| --- | --- |
+| Runtime | Node.js 20, TypeScript (strict) |
+| HTTP | Express, Helmet, express-openapi-validator |
+| Data | MongoDB, Mongoose |
+| Auth | jsonwebtoken, bcryptjs |
+| Observability | OpenTelemetry (traces), structured JSON logs with `trace_id` |
+| Quality | Jest (unit + integration with mongodb-memory-server), ESLint, Prettier |
+| Delivery | GitHub Actions CI (lint, build, tests with an 80% coverage gate), Docker, Conventional Commits + semantic-release |
+
+## Architecture
+
+```mermaid
+graph TD
+    A[main.ts<br/>composition root] --> B[factories<br/>manual dependency injection]
+    B --> C[interfaces/http<br/>controllers + middlewares]
+    C --> D[domain<br/>entities, services, domain errors]
+    D --> E[domain repository contracts]
+    E -.implemented by.-> F[infrastructure/repository<br/>Mongoose]
+    F --> G[(MongoDB)]
+```
+
+- **`src/domain`** — entities, services and repository contracts. Pure business
+  logic: it imports nothing from the other layers.
+- **`src/interfaces/http`** — thin controllers, authentication and a central
+  error handler that maps domain errors to HTTP responses.
+- **`src/infrastructure`** — Mongoose repositories, providers (JWT, bcrypt,
+  clock, storage), env validation, factories and telemetry.
+- **`src/contracts/service.yaml`** — the OpenAPI spec, the source of truth for
+  the API.
+
+More in [docs/architecture.md](docs/architecture.md).
+
+## API
+
+All `/movies` routes require `Authorization: Bearer <access token>`.
+
+| Method | Route | Description |
+| --- | --- | --- |
+| `POST` | `/users` | Create an account |
+| `GET` | `/users` | List users |
+| `GET` / `PUT` / `DELETE` | `/users/{id}` | Get, update or delete a user |
+| `PATCH` | `/users/{id}/password` | Change the password |
+| `POST` | `/auth/login` | Log in with email and password |
+| `POST` | `/auth/refresh` | Refresh the tokens |
+| `POST` | `/movies` | Log a watched movie |
+| `GET` | `/movies` | List my movies (search, filters, sorting, pagination) |
+| `GET` / `PUT` / `DELETE` | `/movies/{id}` | Get, update or delete one of my movies |
+| `PATCH` | `/movies/{id}/favorite` | Mark or unmark a movie as favorite |
+| `DELETE` | `/movies/{id}/poster` | Remove a movie's poster |
+| `GET` | `/genres` | List the genres |
+| `GET` | `/health` | Health check |
+
+The full request and response shapes are in
+[src/contracts/service.yaml](src/contracts/service.yaml).
+
+## Running locally
+
+Requirements: Node.js 20+, Yarn and a MongoDB instance.
 
 ```bash
 yarn install
+cp .env.example .env
 ```
 
-2. Create a `.env` file from the example (`cp .env.example .env`) and adjust
-   `DATABASE_URI`, `PORT` and the `OTEL_*` variables. `JWT_SECRET` and
-   `REFRESH_TOKEN_SECRET` are required and must be different; generate each one with
-   `node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"`.
-3. Start in development mode:
+Edit `.env`: set `DATABASE_URI` and generate two **different** secrets for
+`JWT_SECRET` and `REFRESH_TOKEN_SECRET`:
 
 ```bash
-yarn dev
+node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
 ```
 
-4. To compile and run the built version:
+Then:
 
 ```bash
-yarn build
-yarn start
+yarn dev                   # development mode
+yarn build && yarn start   # compiled build
 ```
 
-5. Tests and linter:
+## Tests and quality
 
 ```bash
-yarn test
+yarn test           # unit + integration (no local MongoDB needed)
+yarn test:coverage  # with the merged 80% lines/branches gate used in CI
 yarn lint
 ```
 
-## Adding New Features
+Integration tests run against an in-memory MongoDB (`mongodb-memory-server`).
 
-1. Define entities and interfaces in `src/domain`.
-2. Create the implementations in `src/infrastructure`.
-3. Expose routes or adapters in `src/interfaces`.
-4. Register the dependencies in `src/infrastructure/config/factories` and update
-   `main.ts` (and `src/__tests__/configApp.ts` for the integration tests).
-5. Document the routes in `src/contracts/service.yaml`.
-6. Write tests in `src/__tests__`.
+## Design decisions
 
-The `src/contracts/service.yaml` file is the source of truth for the API
-documentation and must reflect any route or contract change.
+- **Contract-first:** the OpenAPI spec validates requests and responses, so the
+  documentation cannot drift from the implementation.
+- **Domain errors, not HTTP codes, in services:** services throw typed errors
+  (`NotFoundError`, `ConflictError`, `UnprocessableEntityError`…) and a single
+  middleware turns them into HTTP responses.
+- **Manual dependency injection:** static factories wire everything in one
+  place, which keeps services easy to test with fakes.
+- **Read/write repository split:** each feature has separate read and write
+  contracts.
+- **Traceable logs:** every log line inside a request carries the active
+  `trace_id`, so logs and traces can be correlated
+  ([docs/observability.md](docs/observability.md)).
 
-## Observability
+## Roadmap
 
-The project ships instrumented with **OpenTelemetry** (distributed tracing via
-`@opentelemetry/sdk-node` + auto-instrumentations) and **structured JSON logs**
-(`traceability`/winston). Every log line emitted inside a request automatically
-carries the `trace_id`/`span_id` of the active trace, enabling direct
-correlation between logs and traces.
-
-- Initialization in `src/infrastructure/telemetry/tracing.ts` (imported on the
-  first line of `src/main.ts`).
-- Configuration via `OTEL_*` variables (see `.env.example`).
-- Full guide in [docs/observability.md](docs/observability.md).
+- [ ] Poster upload to a file storage (the domain already supports it; the API
+      currently accepts only external poster URLs)
+- [ ] Watchlist routes (the persistence layer is already in place)
+- [ ] Movie search through the TMDB API
+- [ ] `docker-compose` for a one-command local setup
+- [ ] Interactive API docs (Swagger UI) and a public deploy
 
 ## Documentation
 
-- [CLAUDE.md](CLAUDE.md) — contribution guide for AI agents (Claude Code)
-- [docs/architecture.md](docs/architecture.md) — layers, flow and dependency injection
+- [docs/architecture.md](docs/architecture.md) — layers, request flow and dependency injection
 - [docs/conventions.md](docs/conventions.md) — naming and code patterns
-- [docs/testing.md](docs/testing.md) — testing strategy and conventions
+- [docs/testing.md](docs/testing.md) — testing strategy
 - [docs/observability.md](docs/observability.md) — OpenTelemetry and logging
+
+## Credits
+
+The project structure started from
+[whitebeardit/node-boilerplate](https://github.com/whitebeardit/node-boilerplate).
