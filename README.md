@@ -24,6 +24,8 @@ runtime.
   movie log once watched (`watchlistItemId` in `POST /movies`).
 - **Genres** — a fixed list of genres, seeded on startup and mapped to TMDB
   genre IDs.
+- **Movie search** — search TMDB by title to prefill a movie or a watchlist
+  item (title, year, synopsis, poster and genres already mapped to ours).
 
 ## Tech stack
 
@@ -34,6 +36,7 @@ runtime.
 | Data | MongoDB, Mongoose |
 | Auth | jsonwebtoken, bcryptjs |
 | File storage | Cloudinary |
+| Movie data | TMDB API |
 | Observability | OpenTelemetry (traces), structured JSON logs with `trace_id` |
 | Quality | Jest (unit + integration with mongodb-memory-server), ESLint, Prettier |
 | Delivery | GitHub Actions CI (lint, build, tests with an 80% coverage gate), Docker, Conventional Commits + semantic-release |
@@ -55,7 +58,7 @@ graph TD
 - **`src/interfaces/http`** — thin controllers, authentication and a central
   error handler that maps domain errors to HTTP responses.
 - **`src/infrastructure`** — Mongoose repositories, providers (JWT, bcrypt,
-  clock, Cloudinary storage), env validation, factories and telemetry.
+  clock, Cloudinary storage, TMDB catalog), env validation, factories and telemetry.
 - **`src/contracts/service.yaml`** — the OpenAPI spec, the source of truth for
   the API.
 
@@ -63,7 +66,7 @@ More in [docs/architecture.md](docs/architecture.md).
 
 ## API
 
-All `/movies` and `/watchlist` routes require `Authorization: Bearer <access token>`.
+All `/movies`, `/watchlist` and `/tmdb` routes require `Authorization: Bearer <access token>`.
 
 | Method | Route | Description |
 | --- | --- | --- |
@@ -82,6 +85,7 @@ All `/movies` and `/watchlist` routes require `Authorization: Bearer <access tok
 | `POST` | `/watchlist` | Add a movie to my watchlist |
 | `GET` | `/watchlist` | List my watchlist (search, pagination) |
 | `DELETE` | `/watchlist/{id}` | Remove a movie from my watchlist |
+| `GET` | `/tmdb/search` | Search movies in TMDB to prefill a movie or watchlist item |
 | `GET` | `/genres` | List the genres |
 | `GET` | `/health` | Health check |
 
@@ -90,7 +94,7 @@ The full request and response shapes are in
 
 ## Running locally
 
-Requirements: Node.js 20+, Yarn, a MongoDB instance and a Cloudinary account.
+Requirements: Node.js 20+, Yarn, a MongoDB instance, a Cloudinary account and a TMDB API token.
 
 ```bash
 yarn install
@@ -106,8 +110,9 @@ node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
 
 For poster uploads, copy the cloud name, API key and API secret from
 **Settings > API Keys** in the Cloudinary console into `CLOUDINARY_CLOUD_NAME`,
-`CLOUDINARY_API_KEY` and `CLOUDINARY_API_SECRET`. The app does not boot without
-them.
+`CLOUDINARY_API_KEY` and `CLOUDINARY_API_SECRET`. For movie search, copy the
+**API Read Access Token** from **Settings > API** on themoviedb.org into
+`TMDB_ACCESS_TOKEN`. The app does not boot without them.
 
 Then:
 
@@ -143,7 +148,6 @@ Integration tests run against an in-memory MongoDB (`mongodb-memory-server`).
 
 ## Roadmap
 
-- [ ] Movie search through the TMDB API
 - [ ] `docker-compose` for a one-command local setup
 - [ ] Interactive API docs (Swagger UI) and a public deploy
 

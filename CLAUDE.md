@@ -35,7 +35,7 @@ yarn prettier && yarn lint && yarn build && yarn test
 | Path | Responsibility |
 | --- | --- |
 | `src/domain/<feature>/` | Pure business logic (no I/O): entity, interfaces, repository contracts, service |
-| `src/domain/errors/` | Domain errors (`DomainError`, `UnauthorizedError` 401, `ForbiddenError` 403, `NotFoundError` 404, `ConflictError` 409, `UnprocessableEntityError` 422) — mapped to HTTP by the central error handler in `src/interfaces/http/middlewares/error-handler.middleware.ts` (classification in `error-response.mapper.ts`; 500 only for unexpected errors) |
+| `src/domain/errors/` | Domain errors (`DomainError`, `UnauthorizedError` 401, `ForbiddenError` 403, `NotFoundError` 404, `ConflictError` 409, `UnprocessableEntityError` 422, `ServiceUnavailableError` 503) — mapped to HTTP by the central error handler in `src/interfaces/http/middlewares/error-handler.middleware.ts` (classification in `error-response.mapper.ts`; 500 only for unexpected errors) |
 | `src/domain/common/` | Cross-feature domain types (e.g. `IPagination`) |
 | `src/interfaces/http/` | `server.ts` (Express + middlewares), `middlewares/` (central error handler, `authenticate` and `authorizeSelf`) and `controllers/` (thin HTTP adapters) |
 | `src/infrastructure/repository/<feature>/` | Repository contract implementations (Mongoose) |
