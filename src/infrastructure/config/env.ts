@@ -22,4 +22,5 @@ export const env = {
   cloudinaryCloudName: requireEnv('CLOUDINARY_CLOUD_NAME'),
   cloudinaryApiKey: requireEnv('CLOUDINARY_API_KEY'),
   cloudinaryApiSecret: requireEnv('CLOUDINARY_API_SECRET'),
+  tmdbAccessToken: requireEnv('TMDB_ACCESS_TOKEN'),
 };
