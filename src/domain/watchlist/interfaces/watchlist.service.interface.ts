@@ -3,6 +3,7 @@ import {
   IPaginatedResult,
   IPagination,
 } from '../../common/pagination.interface';
+import { IMovieEntryRepositoryRead } from '../../movie-entry/repository/movie-entry.repository.read';
 import { IWatchlistRepositoryRead } from '../repository/watchlist.repository.read';
 import { IWatchlistRepositoryWrite } from '../repository/watchlist.repository.write';
 import { IWatchlistItem } from './watchlist.interface';
@@ -24,6 +25,7 @@ export interface IParamsListWatchlistItems {
 export interface IParamsWatchlistService {
   watchlistRepositoryRead: IWatchlistRepositoryRead;
   watchlistRepositoryWrite: IWatchlistRepositoryWrite;
+  movieEntryRepositoryRead: IMovieEntryRepositoryRead;
   clock: IClock;
 }
 

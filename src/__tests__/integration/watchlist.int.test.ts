@@ -1,6 +1,7 @@
 import supertest from 'supertest';
 import { app } from '../../../jest/setup-integration-tests';
 import { Mwatchlist } from '../../infrastructure/db/mongo/models/watchlist.model';
+import { createMovieFor } from '../configMovieEntryApp';
 import { authHeaderFor, newObjectId } from '../testUtils';
 
 const addItem = (userId: string, item: object) =>
@@ -94,6 +95,47 @@ describe('When we add a movie that is already in our watchlist', () => {
     });
 
     expect(statusCode).toBe(201);
+  });
+});
+
+describe('When we add a movie we have already watched', () => {
+  it('should return 409 MOVIE_ALREADY_LOGGED for the same title and year', async () => {
+    const userId = newObjectId();
+    await createMovieFor(userId, { title: 'Cidade de Deus', releaseYear: 2002 });
+
+    const { body, statusCode } = await addItem(userId, {
+      title: 'cidade de deus',
+      releaseYear: 2002,
+    });
+
+    expect(statusCode).toBe(409);
+    expect(body.code).toBe('MOVIE_ALREADY_LOGGED');
+  });
+
+  it('should return 409 MOVIE_ALREADY_LOGGED for the same tmdbId without a year', async () => {
+    const userId = newObjectId();
+    await createMovieFor(userId, { title: 'Cidade de Deus', tmdbId: 598 });
+
+    const { statusCode } = await addItem(userId, {
+      title: 'City of God',
+      tmdbId: 598,
+    });
+
+    expect(statusCode).toBe(409);
+  });
+
+  it('should accept a movie with the same title but another year (a remake)', async () => {
+    const userId = newObjectId();
+    await createMovieFor(userId, { title: 'Duna', releaseYear: 1984 });
+
+    const withAnotherYear = await addItem(userId, {
+      title: 'Duna',
+      releaseYear: 2021,
+    });
+    const withoutYear = await addItem(userId, { title: 'Duna' });
+
+    expect(withAnotherYear.statusCode).toBe(201);
+    expect(withoutYear.statusCode).toBe(201);
   });
 });
 

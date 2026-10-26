@@ -703,7 +703,10 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '409':
-          description: The same movie (same tmdbId, or same title and release year) is already in your watchlist (ALREADY_IN_WATCHLIST)
+          description: >
+            The same movie (same tmdbId, or same title and release year) is already in your
+            watchlist (ALREADY_IN_WATCHLIST) or in your list of watched movies (MOVIE_ALREADY_LOGGED).
+            Without a release year, only tmdbId identifies a watched movie.
           content:
             application/json:
               schema:

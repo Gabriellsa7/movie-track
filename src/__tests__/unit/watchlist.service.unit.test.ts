@@ -1,5 +1,7 @@
 import { Logger } from 'traceability';
 import { IClock } from '../../domain/common/providers/clock.provider';
+import { IMovieEntry } from '../../domain/movie-entry/interfaces/movie-entry.interface';
+import { IMovieEntryRepositoryRead } from '../../domain/movie-entry/repository/movie-entry.repository.read';
 import { IWatchlistItem } from '../../domain/watchlist/interfaces/watchlist.interface';
 import { IWatchlistRepositoryRead } from '../../domain/watchlist/repository/watchlist.repository.read';
 import { IWatchlistRepositoryWrite } from '../../domain/watchlist/repository/watchlist.repository.write';
@@ -19,6 +21,9 @@ const AN_ITEM: IWatchlistItem = {
 
 let watchlistRepositoryRead: jest.Mocked<IWatchlistRepositoryRead>;
 let watchlistRepositoryWrite: jest.Mocked<IWatchlistRepositoryWrite>;
+let movieEntryRepositoryRead: jest.Mocked<
+  Pick<IMovieEntryRepositoryRead, 'findDuplicateMovieEntry'>
+>;
 let watchlistService: WatchlistService;
 
 beforeEach(() => {
@@ -36,10 +41,15 @@ beforeEach(() => {
     deleteWatchlistItemById: jest.fn(),
     deleteWatchlistItemsByUserId: jest.fn(),
   };
+  movieEntryRepositoryRead = {
+    findDuplicateMovieEntry: jest.fn().mockResolvedValue(null),
+  };
   const clock: IClock = { now: () => NOW };
   watchlistService = new WatchlistService({
     watchlistRepositoryRead,
     watchlistRepositoryWrite,
+    movieEntryRepositoryRead:
+      movieEntryRepositoryRead as unknown as IMovieEntryRepositoryRead,
     clock,
   });
 });
@@ -104,6 +114,32 @@ describe('When we add a movie that is already in the watchlist', () => {
     await expect(
       watchlistService.addWatchlistItem({ userId: USER_ID, title: 'Seven' }),
     ).rejects.toMatchObject({ status: 409, code: 'ALREADY_IN_WATCHLIST' });
+    expect(watchlistRepositoryWrite.createWatchlistItem).not.toHaveBeenCalled();
+  });
+});
+
+describe('When we add a movie we have already watched', () => {
+  it('should throw 409 MOVIE_ALREADY_LOGGED and save nothing', async () => {
+    movieEntryRepositoryRead.findDuplicateMovieEntry.mockResolvedValue({
+      _id: 'entry-1',
+    } as IMovieEntry);
+
+    await expect(
+      watchlistService.addWatchlistItem({
+        userId: USER_ID,
+        title: 'Seven',
+        releaseYear: 1995,
+        tmdbId: 807,
+      }),
+    ).rejects.toMatchObject({ status: 409, code: 'MOVIE_ALREADY_LOGGED' });
+    expect(
+      movieEntryRepositoryRead.findDuplicateMovieEntry,
+    ).toHaveBeenCalledWith({
+      userId: USER_ID,
+      tmdbId: 807,
+      normalizedTitle: 'seven',
+      releaseYear: 1995,
+    });
     expect(watchlistRepositoryWrite.createWatchlistItem).not.toHaveBeenCalled();
   });
 });

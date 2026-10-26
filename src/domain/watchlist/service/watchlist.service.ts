@@ -4,6 +4,7 @@ import { IClock } from '../../common/providers/clock.provider';
 import { ConflictError } from '../../errors/conflict.error';
 import { NotFoundError } from '../../errors/not-found.error';
 import { UnprocessableEntityError } from '../../errors/unprocessable-entity.error';
+import { IMovieEntryRepositoryRead } from '../../movie-entry/repository/movie-entry.repository.read';
 import { IWatchlistItem } from '../interfaces/watchlist.interface';
 import {
   IParamsAddWatchlistItem,
@@ -18,15 +19,18 @@ import { WatchlistItem } from '../watchlist.entity';
 export class WatchlistService implements IWatchlistService {
   private watchlistRepositoryRead: IWatchlistRepositoryRead;
   private watchlistRepositoryWrite: IWatchlistRepositoryWrite;
+  private movieEntryRepositoryRead: IMovieEntryRepositoryRead;
   private clock: IClock;
 
   constructor({
     watchlistRepositoryRead,
     watchlistRepositoryWrite,
+    movieEntryRepositoryRead,
     clock,
   }: IParamsWatchlistService) {
     this.watchlistRepositoryRead = watchlistRepositoryRead;
     this.watchlistRepositoryWrite = watchlistRepositoryWrite;
+    this.movieEntryRepositoryRead = movieEntryRepositoryRead;
     this.clock = clock;
   }
 
@@ -55,13 +59,23 @@ export class WatchlistService implements IWatchlistService {
       );
     }
 
+    const sameMovie = {
+      userId: watchlistItem.userId,
+      tmdbId: watchlistItem.tmdbId,
+      normalizedTitle: watchlistItem.normalizedTitle,
+      releaseYear: watchlistItem.releaseYear,
+    };
+    const loggedMovie =
+      await this.movieEntryRepositoryRead.findDuplicateMovieEntry(sameMovie);
+    if (loggedMovie) {
+      throw new ConflictError(
+        'You have already watched this movie',
+        'MOVIE_ALREADY_LOGGED',
+      );
+    }
+
     const duplicate =
-      await this.watchlistRepositoryRead.findDuplicateWatchlistItem({
-        userId: watchlistItem.userId,
-        tmdbId: watchlistItem.tmdbId,
-        normalizedTitle: watchlistItem.normalizedTitle,
-        releaseYear: watchlistItem.releaseYear,
-      });
+      await this.watchlistRepositoryRead.findDuplicateWatchlistItem(sameMovie);
     if (duplicate) {
       throw new ConflictError(
         'This movie is already in your watchlist',
