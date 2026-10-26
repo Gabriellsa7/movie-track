@@ -10,6 +10,7 @@ import {
   IUserStats,
 } from '../../../domain/movie-entry/interfaces/movie-entry.interface';
 import { IMovieEntryRepositoryRead } from '../../../domain/movie-entry/repository/movie-entry.repository.read';
+import { IUserMoviesSummary } from '../../../domain/user/interfaces/user.interface';
 import { MmovieEntry } from '../../db/mongo/models/movie-entry.model';
 import { HIDE_MONGO_INTERNAL_FIELDS } from '../../db/mongo/mongo.projection';
 import { isObjectId, toObjectId } from '../../db/mongo/object-id';
@@ -19,6 +20,18 @@ import { toMovieEntry } from './movie-entry.mapper';
 const REGEX_SPECIAL_CHARACTERS = /[.*+?^${}()|[\]\\]/g;
 const TOP_GENRES_LIMIT = 5;
 const GENRE_COLLECTION = 'genres';
+
+// $round rounds half to even (7.25 -> 7.2); ratings move in 0.5 steps, so averages
+// ending in 5 are common and must round half up like people expect (7.25 -> 7.3).
+function roundToOneDecimal(field: string) {
+  return {
+    $cond: [
+      { $eq: [field, null] },
+      null,
+      { $divide: [{ $floor: { $add: [{ $multiply: [field, 10] }, 0.5] } }, 10] },
+    ],
+  };
+}
 
 // Title sorts on the normalized value so "ágape" and "Avatar" sort as a reader expects.
 const SORT_FIELDS: Record<EMovieEntrySortField, keyof IMMovieEntry> = {
@@ -148,7 +161,7 @@ export class MovieEntryRepositoryRead implements IMovieEntryRepositoryRead {
               $project: {
                 _id: 0,
                 totalMovies: 1,
-                averageRating: { $round: ['$averageRating', 1] },
+                averageRating: roundToOneDecimal('$averageRating'),
                 favoritesCount: 1,
                 totalMinutes: 1,
               },
@@ -211,14 +224,9 @@ export class MovieEntryRepositoryRead implements IMovieEntryRepositoryRead {
     };
   }
 
-  async getSummariesByUserIds(userIds: string[]): Promise<
-    {
-      userId: string;
-      moviesCount: number;
-      averageRating: number | null;
-      favoritesCount: number;
-    }[]
-  > {
+  async getSummariesByUserIds(
+    userIds: string[],
+  ): Promise<(IUserMoviesSummary & { userId: string })[]> {
     const validUserIds = userIds.filter(isObjectId).map(toObjectId);
     if (!validUserIds.length) {
       return [];
@@ -238,7 +246,7 @@ export class MovieEntryRepositoryRead implements IMovieEntryRepositoryRead {
           _id: 0,
           userId: { $toString: '$_id' },
           moviesCount: 1,
-          averageRating: { $round: ['$averageRating', 1] },
+          averageRating: roundToOneDecimal('$averageRating'),
           favoritesCount: 1,
         },
       },
