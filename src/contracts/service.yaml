@@ -27,6 +27,8 @@ tags:
     description: The authenticated user's watched movies
   - name: Genres
     description: The fixed list of movie genres
+  - name: Watchlist
+    description: Movies the authenticated user wants to watch
 
 paths:
   /users:
@@ -389,11 +391,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
-          description: The watchlist item does not exist or is not yours (WATCHLIST_ITEM_NOT_FOUND)
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/WatchlistItemNotFound'
         '409':
           $ref: '#/components/responses/MovieAlreadyLogged'
         '422':
@@ -676,6 +674,125 @@ paths:
         default:
           $ref: '#/components/responses/UnexpectedError'
 
+  /watchlist:
+    post:
+      tags:
+        - Watchlist
+      summary: Add a movie to my watchlist
+      operationId: addWatchlistItem
+      description: >
+        Saves a movie to watch later. To log it once watched, send its id as watchlistItemId
+        in POST /movies, which removes it from the watchlist.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewWatchlistItem'
+      responses:
+        '201':
+          description: Movie added to the watchlist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WatchlistItem'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: The same movie (same tmdbId, or same title and release year) is already in your watchlist (ALREADY_IN_WATCHLIST)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: 'This movie is already in your watchlist'
+                status: 409
+                code: 'ALREADY_IN_WATCHLIST'
+        '422':
+          description: releaseYear is after next year (INVALID_RELEASE_YEAR)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+    get:
+      tags:
+        - Watchlist
+      summary: List my watchlist
+      operationId: getWatchlist
+      description: Paginated list of the authenticated user's watchlist, most recently added first.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 100
+          description: Part of the title, ignoring case and accents
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        '200':
+          description: A page of watchlist items
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WatchlistPage'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+
+  /watchlist/{id}:
+    parameters:
+      - $ref: '#/components/parameters/WatchlistItemId'
+    delete:
+      tags:
+        - Watchlist
+      summary: Remove a movie from my watchlist
+      operationId: removeWatchlistItem
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Movie removed from the watchlist
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/WatchlistItemNotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+
   /genres:
     get:
       tags:
@@ -715,6 +832,14 @@ components:
         type: string
         pattern: '^[0-9a-fA-F]{24}$'
       description: The ID of the movie entry
+    WatchlistItemId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[0-9a-fA-F]{24}$'
+      description: The ID of the watchlist item
   securitySchemes:
     bearerAuth:
       type: http
@@ -745,6 +870,16 @@ components:
             message: 'Movie not found'
             status: 404
             code: 'MOVIE_NOT_FOUND'
+    WatchlistItemNotFound:
+      description: The watchlist item does not exist or is not yours (WATCHLIST_ITEM_NOT_FOUND)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: 'Watchlist item not found'
+            status: 404
+            code: 'WATCHLIST_ITEM_NOT_FOUND'
     MovieAlreadyLogged:
       description: The same movie (same tmdbId, or same title and release year) is already in your list (MOVIE_ALREADY_LOGGED)
       content:
@@ -1070,6 +1205,79 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Movie'
+        total:
+          type: integer
+          minimum: 0
+        page:
+          type: integer
+          minimum: 1
+        limit:
+          type: integer
+          minimum: 1
+    NewWatchlistItem:
+      type: object
+      additionalProperties: false
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          pattern: '\S'
+          example: 'O Auto da Compadecida'
+        releaseYear:
+          type: integer
+          minimum: 1888
+          description: Up to next year (else INVALID_RELEASE_YEAR)
+          example: 2000
+        tmdbId:
+          type: integer
+          minimum: 1
+        posterUrl:
+          type: string
+          maxLength: 2048
+          pattern: '^https?://'
+          description: An external poster URL
+    WatchlistItem:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - userId
+        - title
+        - addedAt
+      properties:
+        id:
+          type: string
+          pattern: '^[0-9a-fA-F]{24}$'
+        userId:
+          type: string
+          pattern: '^[0-9a-fA-F]{24}$'
+        tmdbId:
+          type: integer
+        title:
+          type: string
+        posterUrl:
+          type: string
+        releaseYear:
+          type: integer
+        addedAt:
+          type: string
+          format: date-time
+    WatchlistPage:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+        - total
+        - page
+        - limit
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/WatchlistItem'
         total:
           type: integer
           minimum: 0

@@ -9,6 +9,7 @@ import { AuthControllerFactory } from './infrastructure/config/factories/auth.co
 import { GenreControllerFactory } from './infrastructure/config/factories/genre.controller.factory';
 import { GenreSeedFactory } from './infrastructure/config/factories/genre.seed.factory';
 import { MovieEntryControllerFactory } from './infrastructure/config/factories/movie-entry.controller.factory';
+import { WatchlistControllerFactory } from './infrastructure/config/factories/watchlist.controller.factory';
 import { syncMongoIndexes } from './infrastructure/db/mongo/mongo.indexes';
 
 const OPEN_API_SPEC_FILE_LOCATION = path.resolve(
@@ -25,6 +26,7 @@ const app = new Server({
     AuthControllerFactory.create(),
     GenreControllerFactory.create(),
     MovieEntryControllerFactory.create(),
+    WatchlistControllerFactory.create(),
   ],
   databaseURI: env.databaseUri,
   apiSpecLocation: OPEN_API_SPEC_FILE_LOCATION,

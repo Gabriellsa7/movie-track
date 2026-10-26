@@ -20,6 +20,8 @@ runtime.
   filter by genre, rating range and favorites, sort by watch date, rating,
   title or release year, with pagination.
 - **Favorites** — mark or unmark any logged movie.
+- **Watchlist** — save movies to watch later, search them, and move one to the
+  movie log once watched (`watchlistItemId` in `POST /movies`).
 - **Genres** — a fixed list of genres, seeded on startup and mapped to TMDB
   genre IDs.
 
@@ -61,7 +63,7 @@ More in [docs/architecture.md](docs/architecture.md).
 
 ## API
 
-All `/movies` routes require `Authorization: Bearer <access token>`.
+All `/movies` and `/watchlist` routes require `Authorization: Bearer <access token>`.
 
 | Method | Route | Description |
 | --- | --- | --- |
@@ -77,6 +79,9 @@ All `/movies` routes require `Authorization: Bearer <access token>`.
 | `PATCH` | `/movies/{id}/favorite` | Mark or unmark a movie as favorite |
 | `PUT` | `/movies/{id}/poster` | Upload a movie's poster (`multipart/form-data`, field `poster`) |
 | `DELETE` | `/movies/{id}/poster` | Remove a movie's poster |
+| `POST` | `/watchlist` | Add a movie to my watchlist |
+| `GET` | `/watchlist` | List my watchlist (search, pagination) |
+| `DELETE` | `/watchlist/{id}` | Remove a movie from my watchlist |
 | `GET` | `/genres` | List the genres |
 | `GET` | `/health` | Health check |
 
@@ -138,7 +143,6 @@ Integration tests run against an in-memory MongoDB (`mongodb-memory-server`).
 
 ## Roadmap
 
-- [ ] Watchlist routes (the persistence layer is already in place)
 - [ ] Movie search through the TMDB API
 - [ ] `docker-compose` for a one-command local setup
 - [ ] Interactive API docs (Swagger UI) and a public deploy
