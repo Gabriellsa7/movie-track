@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken';
 import { BcryptPasswordHasher } from '../../infrastructure/providers/password-hasher/bcrypt.password-hasher';
 import { SystemClock } from '../../infrastructure/providers/clock/system.clock';
 import { JwtTokenProvider } from '../../infrastructure/providers/token/jwt.token-provider';
+import { UnavailableStorageProvider } from '../../infrastructure/providers/storage/unavailable.storage-provider';
 
 const LOW_COST_ROUNDS = 4;
 
@@ -100,5 +101,19 @@ describe('When we sign and verify tokens with JWT', () => {
     expect(() => tokenProvider.verifyAccessToken(token)).toThrow(
       'Token expired',
     );
+  });
+});
+
+describe('When we use the storage before one is configured', () => {
+  const storageProvider = new UnavailableStorageProvider();
+
+  it('should reject uploads', async () => {
+    await expect(storageProvider.upload()).rejects.toThrow(
+      'File storage is not configured',
+    );
+  });
+
+  it('should treat deletes as a no-op', async () => {
+    await expect(storageProvider.delete()).resolves.toBeUndefined();
   });
 });

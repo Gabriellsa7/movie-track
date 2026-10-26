@@ -8,6 +8,7 @@ import { UserControllerFactory } from './infrastructure/config/factories/user.co
 import { AuthControllerFactory } from './infrastructure/config/factories/auth.controller.factory';
 import { GenreControllerFactory } from './infrastructure/config/factories/genre.controller.factory';
 import { GenreSeedFactory } from './infrastructure/config/factories/genre.seed.factory';
+import { MovieEntryControllerFactory } from './infrastructure/config/factories/movie-entry.controller.factory';
 
 const OPEN_API_SPEC_FILE_LOCATION = path.resolve(
   __dirname,
@@ -22,6 +23,7 @@ const app = new Server({
     UserControllerFactory.create(),
     AuthControllerFactory.create(),
     GenreControllerFactory.create(),
+    MovieEntryControllerFactory.create(),
   ],
   databaseURI: env.databaseUri,
   apiSpecLocation: OPEN_API_SPEC_FILE_LOCATION,
