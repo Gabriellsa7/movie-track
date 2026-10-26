@@ -39,7 +39,8 @@ runtime.
 | Movie data | TMDB API |
 | Observability | OpenTelemetry (traces), structured JSON logs with `trace_id` |
 | Quality | Jest (unit + integration with mongodb-memory-server), ESLint, Prettier |
-| Delivery | GitHub Actions CI (lint, build, tests with an 80% coverage gate), Docker, Conventional Commits + semantic-release |
+| API docs | Swagger UI (`/docs`) |
+| Delivery | GitHub Actions CI (lint, build, tests with an 80% coverage gate), Docker and docker compose, Conventional Commits + semantic-release |
 
 ## Architecture
 
@@ -88,6 +89,7 @@ All `/movies`, `/watchlist` and `/tmdb` routes require `Authorization: Bearer <a
 | `GET` | `/tmdb/search` | Search movies in TMDB to prefill a movie or watchlist item |
 | `GET` | `/genres` | List the genres |
 | `GET` | `/health` | Health check |
+| `GET` | `/docs` | Swagger UI |
 
 The full request and response shapes are in
 [src/contracts/service.yaml](src/contracts/service.yaml).
@@ -121,6 +123,21 @@ yarn dev                   # development mode
 yarn build && yarn start   # compiled build
 ```
 
+### With Docker
+
+`docker compose up --build` starts the API and its own MongoDB in one command.
+It reads the secrets from `.env` but ignores its `DATABASE_URI`: the API always
+uses the MongoDB container, whose data lives in the `mongo-data` volume
+(`docker compose down -v` wipes it). Set `API_PORT` to publish the API on a
+port other than 3000.
+
+### API docs
+
+With the app running, open [http://localhost:3000/docs](http://localhost:3000/docs)
+for Swagger UI, generated from the same contract that validates the requests.
+Log in with `POST /auth/login`, click **Authorize** and paste the `accessToken`
+to call the protected routes.
+
 ## Tests and quality
 
 ```bash
@@ -148,8 +165,7 @@ Integration tests run against an in-memory MongoDB (`mongodb-memory-server`).
 
 ## Roadmap
 
-- [ ] `docker-compose` for a one-command local setup
-- [ ] Interactive API docs (Swagger UI) and a public deploy
+- [ ] A public deploy
 
 ## Documentation
 
