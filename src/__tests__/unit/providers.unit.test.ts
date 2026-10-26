@@ -59,6 +59,18 @@ describe('When we sign and verify tokens with JWT', () => {
     expect(tokenProvider.verifyAccessToken(token)).toEqual({ sub: 'user-id' });
   });
 
+  it('should carry the session version in the refresh token', () => {
+    const token = tokenProvider.generateRefreshToken({
+      sub: 'user-id',
+      sessionVersion: 3,
+    });
+
+    expect(tokenProvider.verifyRefreshToken(token)).toEqual({
+      sub: 'user-id',
+      sessionVersion: 3,
+    });
+  });
+
   it('should return the subject of a valid refresh token', () => {
     const token = tokenProvider.generateRefreshToken({ sub: 'user-id' });
 

@@ -5,6 +5,8 @@ export interface IUser {
   passwordHash: string;
   avatarUrl?: string;
   avatarPublicId?: string;
+  // Absent for users created before it existed; read as 0.
+  sessionVersion?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -16,6 +18,7 @@ export interface IParamsUser {
   passwordHash: string;
   avatarUrl?: string;
   avatarPublicId?: string;
+  sessionVersion?: number;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -26,12 +29,18 @@ export type IUserData = Omit<IUser, '_id'>;
 
 export type IUserPrivate = Omit<
   IUser,
-  '_id' | 'passwordHash' | 'avatarPublicId'
+  '_id' | 'passwordHash' | 'avatarPublicId' | 'sessionVersion'
 > & {
   id: string;
 };
 
-export interface IUserPublicSummary {
+export interface IUserMoviesSummary {
+  moviesCount: number;
+  averageRating: number | null;
+  favoritesCount: number;
+}
+
+export interface IUserPublicSummary extends IUserMoviesSummary {
   id: string;
   name: string;
   avatarUrl?: string;

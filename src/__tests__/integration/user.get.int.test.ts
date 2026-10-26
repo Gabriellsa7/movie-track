@@ -4,6 +4,7 @@ import supertest from 'supertest';
 import { app } from '../../../jest/setup-integration-tests';
 import { Muser } from '../../infrastructure/db/mongo/models/user.model';
 import { IUser } from '../../domain/user/interfaces/user.interface';
+import { createMovieFor } from '../configMovieEntryApp';
 
 const NAME_PREFIX = `get${Date.now()}`;
 
@@ -34,6 +35,25 @@ describe('When we get a user profile', () => {
       name: existingUser.name,
       avatarUrl: existingUser.avatarUrl,
       memberSince: existingUser.createdAt.toISOString(),
+      moviesCount: 0,
+      averageRating: null,
+      favoritesCount: 0,
+    });
+  });
+
+  it('should include how many movies they logged, their average rating and favorites', async () => {
+    await createMovieFor(existingUser._id, { rating: 8, isFavorite: true });
+    await createMovieFor(existingUser._id, { rating: 6.5 });
+
+    const { body, statusCode } = await supertest(app.app).get(
+      `/users/${existingUser._id}`,
+    );
+
+    expect(statusCode).toBe(200);
+    expect(body).toMatchObject({
+      moviesCount: 2,
+      averageRating: 7.3,
+      favoritesCount: 1,
     });
   });
 });
@@ -68,6 +88,31 @@ describe('When we list users', () => {
     expect(body.total).toBeGreaterThanOrEqual(1);
     expect(body.items[0]).not.toHaveProperty('email');
     expect(body.items[0]).not.toHaveProperty('createdAt');
+  });
+
+  it('should include each user movies summary', async () => {
+    await createMovieFor(existingUser._id, { rating: 9 });
+
+    const { body, statusCode } = await supertest(app.app)
+      .get('/users')
+      .query({ search: NAME_PREFIX });
+
+    expect(statusCode).toBe(200);
+    const summaries = body.items.map(
+      (user: { id: string; moviesCount: number }) => [
+        user.id,
+        user.moviesCount,
+      ],
+    );
+    expect(summaries).toContainEqual([existingUser._id, 1]);
+    expect(
+      body.items.every(
+        (user: Record<string, unknown>) =>
+          'moviesCount' in user &&
+          'averageRating' in user &&
+          'favoritesCount' in user,
+      ),
+    ).toBe(true);
   });
 
   it('should search by name ignoring case and accents', async () => {

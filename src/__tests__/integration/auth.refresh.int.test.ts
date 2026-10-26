@@ -87,3 +87,29 @@ describe('When we refresh the token of a deleted user', () => {
     expect(body).toMatchObject({ status: 401, code: 'INVALID_TOKEN' });
   });
 });
+
+describe('When we refresh with a token issued before a password change', () => {
+  it('should return 401 TOKEN_REVOKED, while a login with the new password works', async () => {
+    const { accessToken, refreshToken } = await login();
+    const { statusCode: changeStatus } = await supertest(app.app)
+      .patch(`/users/${existingUser._id}/password`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ currentPassword: PASSWORD, newPassword: 'newSecret456' });
+    expect(changeStatus).toBe(204);
+
+    const { body, statusCode } = await supertest(app.app)
+      .post('/auth/refresh')
+      .send({ refreshToken });
+
+    expect(statusCode).toBe(401);
+    expect(body.code).toBe('TOKEN_REVOKED');
+
+    const { body: newTokens } = await supertest(app.app)
+      .post('/auth/login')
+      .send({ email: existingUser.email, password: 'newSecret456' });
+    const { statusCode: refreshStatus } = await supertest(app.app)
+      .post('/auth/refresh')
+      .send({ refreshToken: newTokens.refreshToken });
+    expect(refreshStatus).toBe(200);
+  });
+});

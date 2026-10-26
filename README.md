@@ -10,8 +10,9 @@ runtime.
 ## Features
 
 - **Accounts and auth** — sign up, log in and refresh tokens (JWT access +
-  refresh tokens, bcrypt password hashing, failed logins rate limited). Every movie route is scoped to the
-  authenticated user.
+  refresh tokens, bcrypt password hashing, failed logins rate limited).
+  Changing the password revokes every refresh token issued before. Every movie
+  route is scoped to the authenticated user.
 - **Movie log** — log a watched movie with rating (1–10, half steps), review,
   genres, release year, director, duration, poster and watch date.
 - **Posters** — upload a JPEG, PNG or WebP poster (up to 5 MB) stored in
@@ -20,6 +21,8 @@ runtime.
   filter by genre, rating range and favorites, sort by watch date, rating,
   title or release year, with pagination.
 - **Favorites** — mark or unmark any logged movie.
+- **Stats** — totals, average rating, rating distribution, movies per month
+  and top genres of my own movie log.
 - **Watchlist** — save movies to watch later, search them, and move one to the
   movie log once watched (`watchlistItemId` in `POST /movies`).
 - **Genres** — a fixed list of genres, seeded on startup and mapped to TMDB
@@ -72,9 +75,10 @@ All `/movies`, `/watchlist` and `/tmdb` routes require `Authorization: Bearer <a
 | Method | Route | Description |
 | --- | --- | --- |
 | `POST` | `/users` | Create an account |
-| `GET` | `/users` | List users |
-| `GET` / `PUT` / `DELETE` | `/users/{id}` | Get, update or delete a user |
+| `GET` | `/users` | List users, each with movies logged, average rating and favorites |
+| `GET` / `PUT` / `DELETE` | `/users/{id}` | Get a public profile (with the same summary), update or delete a user |
 | `PATCH` | `/users/{id}/password` | Change the password |
+| `GET` | `/users/{id}/stats` | My movie stats (totals, ratings, months, top genres) |
 | `POST` | `/auth/login` | Log in with email and password |
 | `POST` | `/auth/refresh` | Refresh the tokens |
 | `POST` | `/movies` | Log a watched movie |

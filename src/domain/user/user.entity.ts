@@ -2,6 +2,7 @@ import {
   IParamsUser,
   IUser,
   IUserData,
+  IUserMoviesSummary,
   IUserPrivate,
   IUserProfileData,
   IUserPublicProfile,
@@ -20,6 +21,8 @@ export class User implements IUserData {
   avatarUrl?: string;
 
   avatarPublicId?: string;
+
+  sessionVersion?: number;
 
   createdAt: Date;
 
@@ -43,6 +46,10 @@ export class User implements IUserData {
     if (params.avatarPublicId) {
       this.avatarPublicId = params.avatarPublicId;
     }
+
+    if (params.sessionVersion !== undefined) {
+      this.sessionVersion = params.sessionVersion;
+    }
   }
 
   updateProfile(profileData: IUserProfileData, updatedAt: Date): void {
@@ -57,8 +64,10 @@ export class User implements IUserData {
     this.updatedAt = updatedAt;
   }
 
+  // A new version revokes every refresh token issued with the old password.
   changePasswordHash(passwordHash: string, updatedAt: Date): void {
     this.passwordHash = passwordHash;
+    this.sessionVersion = (this.sessionVersion ?? 0) + 1;
     this.updatedAt = updatedAt;
   }
 
@@ -82,10 +91,14 @@ export class User implements IUserData {
     return user;
   }
 
-  public static toUserPublicSummary(data: IUser): IUserPublicSummary {
+  public static toUserPublicSummary(
+    data: IUser,
+    moviesSummary: IUserMoviesSummary,
+  ): IUserPublicSummary {
     const user: IUserPublicSummary = {
       id: data._id,
       name: data.name,
+      ...moviesSummary,
     };
 
     if (data.avatarUrl) {
@@ -95,9 +108,12 @@ export class User implements IUserData {
     return user;
   }
 
-  public static toUserPublicProfile(data: IUser): IUserPublicProfile {
+  public static toUserPublicProfile(
+    data: IUser,
+    moviesSummary: IUserMoviesSummary,
+  ): IUserPublicProfile {
     return {
-      ...User.toUserPublicSummary(data),
+      ...User.toUserPublicSummary(data, moviesSummary),
       memberSince: data.createdAt,
     };
   }

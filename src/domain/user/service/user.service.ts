@@ -3,6 +3,7 @@ import { IUserRepositoryRead } from '../repository/user.repository.read';
 import { IUserRepositoryWrite } from '../repository/user.repository.write';
 import {
   IUser,
+  IUserMoviesSummary,
   IUserPrivate,
   IUserPublicProfile,
   IUserPublicSummary,
@@ -24,13 +25,21 @@ import { IPaginatedResult } from '../../common/pagination.interface';
 import { IClock } from '../../common/providers/clock.provider';
 import { IPasswordHasher } from '../../common/providers/password-hasher.provider';
 import { IStorageProvider } from '../../common/providers/storage.provider';
+import { IMovieEntryRepositoryRead } from '../../movie-entry/repository/movie-entry.repository.read';
 import { IMovieEntryRepositoryWrite } from '../../movie-entry/repository/movie-entry.repository.write';
 import { IWatchlistRepositoryWrite } from '../../watchlist/repository/watchlist.repository.write';
 import { User } from '../user.entity';
 
+const NO_MOVIES: IUserMoviesSummary = {
+  moviesCount: 0,
+  averageRating: null,
+  favoritesCount: 0,
+};
+
 export class UserService implements IUserService {
   private userRepositoryRead: IUserRepositoryRead;
   private userRepositoryWrite: IUserRepositoryWrite;
+  private movieEntryRepositoryRead: IMovieEntryRepositoryRead;
   private movieEntryRepositoryWrite: IMovieEntryRepositoryWrite;
   private watchlistRepositoryWrite: IWatchlistRepositoryWrite;
   private storageProvider: IStorageProvider;
@@ -40,6 +49,7 @@ export class UserService implements IUserService {
   constructor({
     userRepositoryRead,
     userRepositoryWrite,
+    movieEntryRepositoryRead,
     movieEntryRepositoryWrite,
     watchlistRepositoryWrite,
     storageProvider,
@@ -48,6 +58,7 @@ export class UserService implements IUserService {
   }: IParamsUserService) {
     this.userRepositoryRead = userRepositoryRead;
     this.userRepositoryWrite = userRepositoryWrite;
+    this.movieEntryRepositoryRead = movieEntryRepositoryRead;
     this.movieEntryRepositoryWrite = movieEntryRepositoryWrite;
     this.watchlistRepositoryWrite = watchlistRepositoryWrite;
     this.storageProvider = storageProvider;
@@ -125,6 +136,7 @@ export class UserService implements IUserService {
     );
     await this.userRepositoryWrite.updateUserById(params.id, {
       passwordHash: user.passwordHash,
+      sessionVersion: user.sessionVersion,
       updatedAt: user.updatedAt,
     });
   }
@@ -146,8 +158,13 @@ export class UserService implements IUserService {
       this.userRepositoryRead.searchUsers(search, pagination),
       this.userRepositoryRead.countUsers(search),
     ]);
+    const summaries = await this.findMoviesSummaries(
+      users.map((user) => user._id),
+    );
     return {
-      items: users.map((user) => User.toUserPublicSummary(user)),
+      items: users.map((user) =>
+        User.toUserPublicSummary(user, summaries.get(user._id) ?? NO_MOVIES),
+      ),
       total,
       page: Math.floor(pagination.offset / pagination.limit) + 1,
       limit: pagination.limit,
@@ -156,7 +173,23 @@ export class UserService implements IUserService {
 
   @ErrorHandler()
   async getPublicProfile(id: string): Promise<IUserPublicProfile> {
-    return User.toUserPublicProfile(await this.findExistingUser(id));
+    const user = await this.findExistingUser(id);
+    const summaries = await this.findMoviesSummaries([user._id]);
+    return User.toUserPublicProfile(user, summaries.get(user._id) ?? NO_MOVIES);
+  }
+
+  // One query for the whole page; users without movies are absent from the result.
+  private async findMoviesSummaries(
+    userIds: string[],
+  ): Promise<Map<string, IUserMoviesSummary>> {
+    if (userIds.length === 0) {
+      return new Map();
+    }
+    const summaries =
+      await this.movieEntryRepositoryRead.getSummariesByUserIds(userIds);
+    return new Map(
+      summaries.map(({ userId, ...summary }) => [userId, summary]),
+    );
   }
 
   private async findExistingUser(id: string): Promise<IUser> {
