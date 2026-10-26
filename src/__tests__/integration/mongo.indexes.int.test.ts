@@ -8,8 +8,9 @@ const indexNames = async (): Promise<string[]> =>
 
 describe('When the database has an index that is no longer in the schema', () => {
   it('should drop it, keep the schema indexes and log the dropped one', async () => {
+    // Not unique: other suites leave users behind, and they would all collide on id: null.
     await Muser.createCollection();
-    await Muser.collection.createIndex({ id: 1 }, { unique: true });
+    await Muser.collection.createIndex({ id: 1 });
     const warnSpy = jest
       .spyOn(Logger, 'warn')
       .mockImplementation(() => Logger);
