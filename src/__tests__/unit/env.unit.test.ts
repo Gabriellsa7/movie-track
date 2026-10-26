@@ -62,6 +62,31 @@ describe('When we load the environment configuration', () => {
     });
   });
 
+  it('should trust no proxy unless TRUST_PROXY_HOPS is set', () => {
+    process.env = { ...ORIGINAL_ENV, DATABASE_URI: 'mongodb://localhost/test' };
+    delete process.env.TRUST_PROXY_HOPS;
+
+    jest.isolateModules(() => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { env } = require('../../infrastructure/config/env');
+      expect(env.trustProxyHops).toBe(0);
+    });
+  });
+
+  it('should read the proxy hops from TRUST_PROXY_HOPS', () => {
+    process.env = {
+      ...ORIGINAL_ENV,
+      DATABASE_URI: 'mongodb://localhost/test',
+      TRUST_PROXY_HOPS: '1',
+    };
+
+    jest.isolateModules(() => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { env } = require('../../infrastructure/config/env');
+      expect(env.trustProxyHops).toBe(1);
+    });
+  });
+
   it('should throw naming the missing required variable', () => {
     process.env = { ...ORIGINAL_ENV };
     delete process.env.DATABASE_URI;

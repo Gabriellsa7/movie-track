@@ -345,6 +345,18 @@ paths:
                 $ref: '#/components/schemas/ValidationError'
         '401':
           $ref: '#/components/responses/InvalidCredentials'
+        '429':
+          description: >
+            Too many failed attempts (TOO_MANY_ATTEMPTS): 5 for the same e-mail or 50 from the same
+            IP in 15 minutes. Successful logins do not count. The RateLimit header says when to retry.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: 'Too many failed login attempts, try again later'
+                status: 429
+                code: 'TOO_MANY_ATTEMPTS'
         '500':
           description: Server error
           content:
