@@ -71,6 +71,18 @@ export class User implements IUserData {
     this.updatedAt = updatedAt;
   }
 
+  changeAvatar(avatarUrl: string, avatarPublicId: string, updatedAt: Date): void {
+    this.avatarUrl = avatarUrl;
+    this.avatarPublicId = avatarPublicId;
+    this.updatedAt = updatedAt;
+  }
+
+  removeAvatar(updatedAt: Date): void {
+    this.avatarUrl = undefined;
+    this.avatarPublicId = undefined;
+    this.updatedAt = updatedAt;
+  }
+
   public static normalizeEmail(email: string): string {
     return email.trim().toLowerCase();
   }

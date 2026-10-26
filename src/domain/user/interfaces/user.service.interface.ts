@@ -55,6 +55,12 @@ export interface IParamsUserService {
   clock: IClock;
 }
 
+export interface IParamsUploadAvatar {
+  id: string;
+  buffer: Buffer;
+  mimeType: string;
+}
+
 export interface IUserService {
   createUser(params: IParamsCreateUser): Promise<IUserPrivate>;
   getUserById(id: string): Promise<IUserPrivate>;
@@ -66,4 +72,6 @@ export interface IUserService {
     params: IParamsListUsers,
   ): Promise<IPaginatedResult<IUserPublicSummary>>;
   getPublicProfile(id: string): Promise<IUserPublicProfile>;
+  uploadAvatar(params: IParamsUploadAvatar): Promise<IUserPrivate>;
+  removeAvatar(id: string): Promise<IUserPrivate>;
 }
