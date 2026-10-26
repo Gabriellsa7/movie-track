@@ -1,4 +1,5 @@
 import { IPagination } from '../../common/pagination.interface';
+import { IUserMoviesSummary } from '../../user/interfaces/user.interface';
 import {
   IMovieEntry,
   IMovieEntryFilter,
@@ -23,12 +24,7 @@ export interface IMovieEntryRepositoryRead {
   ): Promise<IMovieEntry[]>;
   countMovieEntries(filter: IMovieEntryFilter): Promise<number>;
   getUserStats(userId: string, since: Date): Promise<IUserStats>;
-  getSummariesByUserIds(userIds: string[]): Promise<
-    {
-      userId: string;
-      moviesCount: number;
-      averageRating: number | null;
-      favoritesCount: number;
-    }[]
-  >;
+  getSummariesByUserIds(
+    userIds: string[],
+  ): Promise<(IUserMoviesSummary & { userId: string })[]>;
 }

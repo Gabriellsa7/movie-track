@@ -1497,6 +1497,9 @@ components:
       required:
         - id
         - name
+        - moviesCount
+        - averageRating
+        - favoritesCount
       properties:
         id:
           type: string
@@ -1509,12 +1512,26 @@ components:
           type: string
           format: uri
           description: The URL of the user's avatar
+        moviesCount:
+          type: integer
+          minimum: 0
+          description: How many movies the user has logged
+        averageRating:
+          type: number
+          nullable: true
+          description: Average rating of the user's movies, rounded to one decimal; null without movies
+        favoritesCount:
+          type: integer
+          minimum: 0
     UserProfile:
       type: object
       additionalProperties: false
       required:
         - id
         - name
+        - moviesCount
+        - averageRating
+        - favoritesCount
         - memberSince
       properties:
         id:
@@ -1532,6 +1549,17 @@ components:
           type: string
           format: date-time
           description: When the user signed up
+        moviesCount:
+          type: integer
+          minimum: 0
+          description: How many movies the user has logged
+        averageRating:
+          type: number
+          nullable: true
+          description: Average rating of the user's movies, rounded to one decimal; null without movies
+        favoritesCount:
+          type: integer
+          minimum: 0
     UserPage:
       type: object
       additionalProperties: false

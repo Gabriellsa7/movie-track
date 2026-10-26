@@ -74,8 +74,8 @@ All `/movies`, `/watchlist` and `/tmdb` routes require `Authorization: Bearer <a
 | Method | Route | Description |
 | --- | --- | --- |
 | `POST` | `/users` | Create an account |
-| `GET` | `/users` | List users |
-| `GET` / `PUT` / `DELETE` | `/users/{id}` | Get, update or delete a user |
+| `GET` | `/users` | List users, each with movies logged, average rating and favorites |
+| `GET` / `PUT` / `DELETE` | `/users/{id}` | Get a public profile (with the same summary), update or delete a user |
 | `PATCH` | `/users/{id}/password` | Change the password |
 | `GET` | `/users/{id}/stats` | My movie stats (totals, ratings, months, top genres) |
 | `POST` | `/auth/login` | Log in with email and password |

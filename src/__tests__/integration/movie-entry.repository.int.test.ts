@@ -302,6 +302,27 @@ describe('When we compute the stats of a user', () => {
       { userId, moviesCount: 1, averageRating: 4, favoritesCount: 1 },
     ]);
   });
+
+  it('should round the average half up, not half to even', async () => {
+    const userId = newObjectId();
+    await movieEntryRepositoryWrite.createMovieEntry(
+      buildMovieEntry(userId, { rating: 8 }),
+    );
+    await movieEntryRepositoryWrite.createMovieEntry(
+      buildMovieEntry(userId, { rating: 6.5, title: 'Another movie' }),
+    );
+
+    const stats = await movieEntryRepositoryRead.getUserStats(
+      userId,
+      new Date(0),
+    );
+    const [summary] = await movieEntryRepositoryRead.getSummariesByUserIds([
+      userId,
+    ]);
+
+    expect(stats.averageRating).toBe(7.3);
+    expect(summary.averageRating).toBe(7.3);
+  });
 });
 
 describe('When we use ids that are not ObjectIds', () => {

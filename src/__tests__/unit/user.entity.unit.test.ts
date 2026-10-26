@@ -97,17 +97,25 @@ describe('When we map a user to its responses', () => {
     });
   });
 
-  it('should expose only public fields in the summary and profile', () => {
-    expect(User.toUserPublicSummary(A_USER)).toEqual({
+  it('should expose only public fields and the movies summary in the summary and profile', () => {
+    const moviesSummary = {
+      moviesCount: 3,
+      averageRating: 7.5,
+      favoritesCount: 1,
+    };
+
+    expect(User.toUserPublicSummary(A_USER, moviesSummary)).toEqual({
       id: A_USER._id,
       name: A_USER.name,
       avatarUrl: A_USER.avatarUrl,
+      ...moviesSummary,
     });
-    expect(User.toUserPublicProfile(A_USER)).toEqual({
+    expect(User.toUserPublicProfile(A_USER, moviesSummary)).toEqual({
       id: A_USER._id,
       name: A_USER.name,
       avatarUrl: A_USER.avatarUrl,
       memberSince: A_USER.createdAt,
+      ...moviesSummary,
     });
   });
 
@@ -117,7 +125,13 @@ describe('When we map a user to its responses', () => {
     expect(User.toUserPrivate(userWithoutAvatar)).not.toHaveProperty(
       'avatarUrl',
     );
-    expect(User.toUserPublicSummary(userWithoutAvatar)).not.toHaveProperty(
+    expect(
+      User.toUserPublicSummary(userWithoutAvatar, {
+        moviesCount: 0,
+        averageRating: null,
+        favoritesCount: 0,
+      }),
+    ).not.toHaveProperty(
       'avatarUrl',
     );
   });

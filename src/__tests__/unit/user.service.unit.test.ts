@@ -7,6 +7,7 @@ import { IPasswordHasher } from '../../domain/common/providers/password-hasher.p
 import { IClock } from '../../domain/common/providers/clock.provider';
 import { IStorageProvider } from '../../domain/common/providers/storage.provider';
 import { IMovieEntry } from '../../domain/movie-entry/interfaces/movie-entry.interface';
+import { IMovieEntryRepositoryRead } from '../../domain/movie-entry/repository/movie-entry.repository.read';
 import { IMovieEntryRepositoryWrite } from '../../domain/movie-entry/repository/movie-entry.repository.write';
 import { IWatchlistRepositoryWrite } from '../../domain/watchlist/repository/watchlist.repository.write';
 import { ConflictError } from '../../domain/errors/conflict.error';
@@ -37,6 +38,9 @@ const A_USER_PRIVATE = {
 
 let userRepositoryRead: jest.Mocked<IUserRepositoryRead>;
 let userRepositoryWrite: jest.Mocked<IUserRepositoryWrite>;
+let movieEntryRepositoryRead: jest.Mocked<
+  Pick<IMovieEntryRepositoryRead, 'getSummariesByUserIds'>
+>;
 let movieEntryRepositoryWrite: jest.Mocked<IMovieEntryRepositoryWrite>;
 let watchlistRepositoryWrite: jest.Mocked<IWatchlistRepositoryWrite>;
 let storageProvider: jest.Mocked<IStorageProvider>;
@@ -55,6 +59,9 @@ beforeEach(() => {
     createUser: jest.fn(),
     updateUserById: jest.fn(),
     deleteUserById: jest.fn(),
+  };
+  movieEntryRepositoryRead = {
+    getSummariesByUserIds: jest.fn().mockResolvedValue([]),
   };
   movieEntryRepositoryWrite = {
     createMovieEntry: jest.fn(),
@@ -76,6 +83,8 @@ beforeEach(() => {
   userService = new UserService({
     userRepositoryRead,
     userRepositoryWrite,
+    movieEntryRepositoryRead:
+      movieEntryRepositoryRead as unknown as IMovieEntryRepositoryRead,
     movieEntryRepositoryWrite,
     watchlistRepositoryWrite,
     storageProvider,
@@ -380,6 +389,8 @@ describe('When we delete a user that has movies, a watchlist and files', () => {
   });
 });
 
+const NO_MOVIES = { moviesCount: 0, averageRating: null, favoritesCount: 0 };
+
 describe('When we list public users', () => {
   it('should return only public fields with pagination metadata', async () => {
     userRepositoryRead.searchUsers.mockResolvedValue([A_USER]);
@@ -392,7 +403,12 @@ describe('When we list public users', () => {
 
     expect(result).toEqual({
       items: [
-        { id: A_USER._id, name: A_USER.name, avatarUrl: A_USER.avatarUrl },
+        {
+          id: A_USER._id,
+          name: A_USER.name,
+          avatarUrl: A_USER.avatarUrl,
+          ...NO_MOVIES,
+        },
       ],
       total: 41,
       page: 3,
@@ -403,6 +419,51 @@ describe('When we list public users', () => {
       offset: 40,
     });
     expect(userRepositoryRead.countUsers).toHaveBeenCalledWith('white');
+  });
+
+  it('should add each user movies summary with a single query', async () => {
+    const anotherUser = { ...A_USER, _id: 'user-2', name: 'Marco' };
+    userRepositoryRead.searchUsers.mockResolvedValue([A_USER, anotherUser]);
+    userRepositoryRead.countUsers.mockResolvedValue(2);
+    movieEntryRepositoryRead.getSummariesByUserIds.mockResolvedValue([
+      {
+        userId: 'user-2',
+        moviesCount: 4,
+        averageRating: 8.3,
+        favoritesCount: 2,
+      },
+    ]);
+
+    const result = await userService.listPublicUsers({
+      pagination: { limit: 20, offset: 0 },
+    });
+
+    expect(
+      movieEntryRepositoryRead.getSummariesByUserIds,
+    ).toHaveBeenCalledTimes(1);
+    expect(
+      movieEntryRepositoryRead.getSummariesByUserIds,
+    ).toHaveBeenCalledWith([A_USER._id, 'user-2']);
+    expect(result.items).toEqual([
+      expect.objectContaining({ id: A_USER._id, ...NO_MOVIES }),
+      expect.objectContaining({
+        id: 'user-2',
+        moviesCount: 4,
+        averageRating: 8.3,
+        favoritesCount: 2,
+      }),
+    ]);
+  });
+
+  it('should not query the movies when the page is empty', async () => {
+    userRepositoryRead.searchUsers.mockResolvedValue([]);
+    userRepositoryRead.countUsers.mockResolvedValue(0);
+
+    await userService.listPublicUsers({ pagination: { limit: 20, offset: 0 } });
+
+    expect(
+      movieEntryRepositoryRead.getSummariesByUserIds,
+    ).not.toHaveBeenCalled();
   });
 });
 
@@ -417,6 +478,27 @@ describe('When we get a public profile', () => {
       name: A_USER.name,
       avatarUrl: A_USER.avatarUrl,
       memberSince: A_USER.createdAt,
+      ...NO_MOVIES,
+    });
+  });
+
+  it('should include the movies summary of the user', async () => {
+    userRepositoryRead.findUserById.mockResolvedValue(A_USER);
+    movieEntryRepositoryRead.getSummariesByUserIds.mockResolvedValue([
+      {
+        userId: A_USER._id,
+        moviesCount: 2,
+        averageRating: 9,
+        favoritesCount: 0,
+      },
+    ]);
+
+    const profile = await userService.getPublicProfile(A_USER._id);
+
+    expect(profile).toMatchObject({
+      moviesCount: 2,
+      averageRating: 9,
+      favoritesCount: 0,
     });
   });
 
