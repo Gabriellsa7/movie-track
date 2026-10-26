@@ -1,0 +1,29 @@
+# Local stack: the API plus its own MongoDB. Secrets (JWT, Cloudinary, TMDB) come from .env;
+# DATABASE_URI is overridden so the API uses this MongoDB instead of the one in .env.
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ['CMD', 'mongosh', '--quiet', '--eval', "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PORT: 3000
+      DATABASE_URI: mongodb://mongo:27017/movie-track
+    ports:
+      - '${API_PORT:-3000}:3000'
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+volumes:
+  mongo-data:
