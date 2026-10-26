@@ -5,6 +5,7 @@ import {
 import { IClock } from '../../common/providers/clock.provider';
 import { IPasswordHasher } from '../../common/providers/password-hasher.provider';
 import { IStorageProvider } from '../../common/providers/storage.provider';
+import { IMovieEntryRepositoryRead } from '../../movie-entry/repository/movie-entry.repository.read';
 import { IMovieEntryRepositoryWrite } from '../../movie-entry/repository/movie-entry.repository.write';
 import { IWatchlistRepositoryWrite } from '../../watchlist/repository/watchlist.repository.write';
 import { IUserRepositoryRead } from '../repository/user.repository.read';
@@ -46,6 +47,7 @@ export interface IParamsListUsers {
 export interface IParamsUserService {
   userRepositoryRead: IUserRepositoryRead;
   userRepositoryWrite: IUserRepositoryWrite;
+  movieEntryRepositoryRead: IMovieEntryRepositoryRead;
   movieEntryRepositoryWrite: IMovieEntryRepositoryWrite;
   watchlistRepositoryWrite: IWatchlistRepositoryWrite;
   storageProvider: IStorageProvider;

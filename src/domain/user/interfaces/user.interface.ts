@@ -31,7 +31,13 @@ export type IUserPrivate = Omit<
   id: string;
 };
 
-export interface IUserPublicSummary {
+export interface IUserMoviesSummary {
+  moviesCount: number;
+  averageRating: number | null;
+  favoritesCount: number;
+}
+
+export interface IUserPublicSummary extends IUserMoviesSummary {
   id: string;
   name: string;
   avatarUrl?: string;
