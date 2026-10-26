@@ -29,6 +29,8 @@ tags:
     description: The fixed list of movie genres
   - name: Watchlist
     description: Movies the authenticated user wants to watch
+  - name: Movie search
+    description: Search movies in TMDB to prefill a movie or a watchlist item
 
 paths:
   /users:
@@ -796,6 +798,63 @@ paths:
         default:
           $ref: '#/components/responses/UnexpectedError'
 
+  /tmdb/search:
+    get:
+      tags:
+        - Movie search
+      summary: Search movies in TMDB
+      operationId: searchTmdbMovies
+      description: >
+        Searches TMDB by title (pt-BR). Each result has what POST /movies and POST /watchlist
+        need: tmdbId, title, releaseYear, synopsis, posterUrl and genreIds (already translated
+        to the ids of GET /genres). TMDB pages always hold up to 20 results.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+            pattern: '\S'
+          description: The movie title, or part of it
+          example: 'cidade de deus'
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+            default: 1
+      responses:
+        '200':
+          description: A page of TMDB results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MovieSearchPage'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '503':
+          description: TMDB did not answer or rejected the request (MOVIE_CATALOG_UNAVAILABLE)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: 'Movie catalog unavailable'
+                status: 503
+                code: 'MOVIE_CATALOG_UNAVAILABLE'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+
   /genres:
     get:
       tags:
@@ -1281,6 +1340,54 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/WatchlistItem'
+        total:
+          type: integer
+          minimum: 0
+        page:
+          type: integer
+          minimum: 1
+        limit:
+          type: integer
+          minimum: 1
+    MovieSearchResult:
+      type: object
+      additionalProperties: false
+      required:
+        - tmdbId
+        - title
+        - originalTitle
+        - genreIds
+      properties:
+        tmdbId:
+          type: integer
+        title:
+          type: string
+        originalTitle:
+          type: string
+        synopsis:
+          type: string
+        releaseYear:
+          type: integer
+        posterUrl:
+          type: string
+        genreIds:
+          type: array
+          items:
+            type: string
+          description: Ids from GET /genres; TMDB genres outside that list are left out
+    MovieSearchPage:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+        - total
+        - page
+        - limit
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MovieSearchResult'
         total:
           type: integer
           minimum: 0
