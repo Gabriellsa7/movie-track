@@ -714,65 +714,15 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - name: search
-          in: query
-          required: false
-          schema:
-            type: string
-            maxLength: 100
-          description: Part of the title, ignoring case and accents
-        - name: genreId
-          in: query
-          required: false
-          schema:
-            type: string
-          description: Only movies with this genre (must exist, else INVALID_GENRE)
-        - name: minRating
-          in: query
-          required: false
-          schema:
-            $ref: '#/components/schemas/RatingFilter'
-        - name: maxRating
-          in: query
-          required: false
-          schema:
-            $ref: '#/components/schemas/RatingFilter'
-        - name: favorite
-          in: query
-          required: false
-          schema:
-            type: boolean
-          description: true returns only favorites
-        - name: sort
-          in: query
-          required: false
-          schema:
-            type: string
-            enum: [watchedAt, rating, title, releaseYear, watchCount]
-            default: watchedAt
-          description: watchCount lists the most rewatched first with order=desc
-        - name: order
-          in: query
-          required: false
-          schema:
-            type: string
-            enum: [asc, desc]
-            default: desc
-        - name: page
-          in: query
-          required: false
-          schema:
-            type: integer
-            minimum: 1
-            default: 1
-        - name: limit
-          in: query
-          required: false
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 50
-            default: 20
+        - $ref: '#/components/parameters/MovieSearch'
+        - $ref: '#/components/parameters/MovieGenreId'
+        - $ref: '#/components/parameters/MovieMinRating'
+        - $ref: '#/components/parameters/MovieMaxRating'
+        - $ref: '#/components/parameters/MovieFavorite'
+        - $ref: '#/components/parameters/MovieSort'
+        - $ref: '#/components/parameters/MovieOrder'
+        - $ref: '#/components/parameters/MoviePageNumber'
+        - $ref: '#/components/parameters/MoviePageLimit'
       responses:
         '200':
           description: A page of movies
@@ -1023,6 +973,81 @@ paths:
         default:
           $ref: '#/components/responses/UnexpectedError'
 
+  /users/{id}/movies:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+    get:
+      tags:
+        - Movies
+      summary: List a user's movies
+      operationId: getUserMovies
+      description: >
+        Public: anyone can read the movies, ratings and reviews on a profile. Same search,
+        filters, sorting and pagination as GET /movies.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/MovieSearch'
+        - $ref: '#/components/parameters/MovieGenreId'
+        - $ref: '#/components/parameters/MovieMinRating'
+        - $ref: '#/components/parameters/MovieMaxRating'
+        - $ref: '#/components/parameters/MovieFavorite'
+        - $ref: '#/components/parameters/MovieSort'
+        - $ref: '#/components/parameters/MovieOrder'
+        - $ref: '#/components/parameters/MoviePageNumber'
+        - $ref: '#/components/parameters/MoviePageLimit'
+      responses:
+        '200':
+          description: A page of the user's movies
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MoviePage'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '404':
+          $ref: '#/components/responses/UserNotFound'
+        '422':
+          description: Unknown genre (INVALID_GENRE) or minRating greater than maxRating (INVALID_RATING_RANGE)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+  /users/{id}/movies/{movieId}:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+      - name: movieId
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: '^[0-9a-fA-F]{24}$'
+        description: The ID of the movie entry
+    get:
+      tags:
+        - Movies
+      summary: Get one of a user's movies
+      operationId: getUserMovie
+      description: Public, for the review page and its share link.
+      security: []
+      responses:
+        '200':
+          description: The movie, with the user's rating and review
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Movie'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '404':
+          $ref: '#/components/responses/MovieNotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
   /watchlist:
     post:
       tags:
@@ -1360,6 +1385,74 @@ components:
         type: string
         pattern: '^[0-9a-fA-F]{24}$'
       description: The ID of the movie entry
+    MovieSearch:
+      name: search
+      in: query
+      required: false
+      schema:
+        type: string
+        maxLength: 100
+      description: Part of the title, ignoring case and accents
+    MovieGenreId:
+      name: genreId
+      in: query
+      required: false
+      schema:
+        type: string
+      description: Only movies with this genre (must exist, else INVALID_GENRE)
+    MovieMinRating:
+      name: minRating
+      in: query
+      required: false
+      schema:
+        $ref: '#/components/schemas/RatingFilter'
+    MovieMaxRating:
+      name: maxRating
+      in: query
+      required: false
+      schema:
+        $ref: '#/components/schemas/RatingFilter'
+    MovieFavorite:
+      name: favorite
+      in: query
+      required: false
+      schema:
+        type: boolean
+      description: true returns only favorites
+    MovieSort:
+      name: sort
+      in: query
+      required: false
+      schema:
+        type: string
+        enum: [watchedAt, rating, title, releaseYear, watchCount]
+        default: watchedAt
+      description: watchCount lists the most rewatched first with order=desc
+    MovieOrder:
+      name: order
+      in: query
+      required: false
+      schema:
+        type: string
+        enum: [asc, desc]
+        default: desc
+    MoviePageNumber:
+      name: page
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    MoviePageLimit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 50
+        default: 20
     WatchlistItemId:
       name: id
       in: path

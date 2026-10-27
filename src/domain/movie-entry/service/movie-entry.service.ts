@@ -196,6 +196,20 @@ export class MovieEntryService implements IMovieEntryService {
     };
   }
 
+  // Public profile list: an unknown user answers 404 instead of an empty page.
+  @ErrorHandler()
+  async listUserMovieEntries(
+    params: IParamsListMovieEntries,
+  ): Promise<IPaginatedResult<IMovieEntry>> {
+    const user = await this.userRepositoryRead.findUserById(
+      params.filter.userId,
+    );
+    if (!user) {
+      throw new NotFoundError('User not found', 'USER_NOT_FOUND');
+    }
+    return this.listMovieEntries(params);
+  }
+
   @ErrorHandler()
   async updateMovieEntry(params: IParamsUpdateMovieEntry): Promise<IMovieEntry> {
     const { posterUrl, ...detailsData } = params.movieData;
