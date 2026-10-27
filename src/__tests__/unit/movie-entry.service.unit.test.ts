@@ -1,3 +1,4 @@
+import { IUserRepositoryRead } from '../../domain/user/repository/user.repository.read';
 import { Logger } from 'traceability';
 import { IClock } from '../../domain/common/providers/clock.provider';
 import { IStorageProvider } from '../../domain/common/providers/storage.provider';
@@ -46,6 +47,9 @@ const CREATE_PARAMS = {
   rating: 5,
 };
 
+let userRepositoryRead: jest.Mocked<
+  Pick<IUserRepositoryRead, 'findUserById'>
+>;
 let movieEntryRepositoryRead: jest.Mocked<IMovieEntryRepositoryRead>;
 let movieEntryRepositoryWrite: jest.Mocked<IMovieEntryRepositoryWrite>;
 let genreRepositoryRead: jest.Mocked<IGenreRepositoryRead>;
@@ -101,6 +105,9 @@ beforeEach(() => {
     }),
     delete: jest.fn(),
   };
+  userRepositoryRead = {
+    findUserById: jest.fn().mockResolvedValue({ _id: 'user-1' }),
+  };
   clock = { now: jest.fn(() => NOW) };
   movieEntryService = new MovieEntryService({
     movieEntryRepositoryRead,
@@ -109,7 +116,21 @@ beforeEach(() => {
     watchlistRepositoryRead,
     watchlistRepositoryWrite,
     storageProvider,
+    userRepositoryRead:
+      userRepositoryRead as unknown as IUserRepositoryRead,
     clock,
+  });
+});
+
+describe('When the token belongs to a deleted account', () => {
+  it('should reject the creation with 401 INVALID_TOKEN and save nothing', async () => {
+    userRepositoryRead.findUserById.mockResolvedValue(null);
+
+    await expect(movieEntryService.createMovieEntry(CREATE_PARAMS)).rejects.toMatchObject({
+      status: 401,
+      code: 'INVALID_TOKEN',
+    });
+    expect(movieEntryRepositoryWrite.createMovieEntry).not.toHaveBeenCalled();
   });
 });
 

@@ -4,6 +4,7 @@ import {
 } from '../../common/pagination.interface';
 import { IClock } from '../../common/providers/clock.provider';
 import { IStorageProvider } from '../../common/providers/storage.provider';
+import { IUserRepositoryRead } from '../../user/repository/user.repository.read';
 import { IGenreRepositoryRead } from '../../genre/repository/genre.repository.read';
 import { IWatchlistRepositoryRead } from '../../watchlist/repository/watchlist.repository.read';
 import { IWatchlistRepositoryWrite } from '../../watchlist/repository/watchlist.repository.write';
@@ -69,6 +70,7 @@ export interface IParamsMovieEntryService {
   genreRepositoryRead: IGenreRepositoryRead;
   watchlistRepositoryRead: IWatchlistRepositoryRead;
   watchlistRepositoryWrite: IWatchlistRepositoryWrite;
+  userRepositoryRead: IUserRepositoryRead;
   storageProvider: IStorageProvider;
   clock: IClock;
 }

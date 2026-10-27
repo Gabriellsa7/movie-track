@@ -189,6 +189,13 @@ tokens from before it existed) reads as 0. Access tokens are not checked against
 the database, so one issued before the change stays valid until it expires
 (`JWT_EXPIRES_IN`); keep that lifetime short.
 
+**Account takeover and deleted accounts:** changing the e-mail (the login)
+requires `currentPassword`, like changing the password or deleting the account,
+so a stolen access token alone cannot take the account over. Because access
+tokens outlive a deleted account, creating movies and watchlist items first
+checks that the token's user still exists (`ensureUserExists` in
+`src/domain/user/`), answering 401 `INVALID_TOKEN` otherwise.
+
 - **Port and adapter:** `ITokenProvider` (`src/domain/common/providers/token.provider.ts`)
   is the domain contract; `JwtTokenProvider` (`src/infrastructure/providers/token/`)
   is the only file that imports `jsonwebtoken`. It translates library errors into

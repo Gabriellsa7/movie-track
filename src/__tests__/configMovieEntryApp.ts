@@ -8,12 +8,13 @@ import { TokenProviderFactory } from '../infrastructure/config/factories/token.p
 import { SystemClock } from '../infrastructure/providers/clock/system.clock';
 import { MovieEntryRepositoryRead } from '../infrastructure/repository/movie-entry/movie-entry.repository.read';
 import { MovieEntryRepositoryWrite } from '../infrastructure/repository/movie-entry/movie-entry.repository.write';
+import { UserRepositoryRead } from '../infrastructure/repository/user/user.repository.read';
 import { WatchlistRepositoryRead } from '../infrastructure/repository/watchlist/watchlist.repository.read';
 import { WatchlistRepositoryWrite } from '../infrastructure/repository/watchlist/watchlist.repository.write';
 import { MovieEntryController } from '../interfaces/http/controllers/movie-entry.controller';
 import { authenticate } from '../interfaces/http/middlewares/auth.middleware';
 import { Server } from '../interfaces/http/server';
-import { authHeaderFor, newObjectId } from './testUtils';
+import { authHeaderFor, ensureUserExists, newObjectId } from './testUtils';
 
 export const KNOWN_GENRES: IGenre[] = [
   { _id: newObjectId(), name: 'Drama', tmdbGenreId: 18 },
@@ -48,6 +49,7 @@ export const movieEntryApp = new Server({
         genreRepositoryRead: fakeGenreRepositoryRead,
         watchlistRepositoryRead: new WatchlistRepositoryRead(),
         watchlistRepositoryWrite: new WatchlistRepositoryWrite(),
+        userRepositoryRead: new UserRepositoryRead(),
         storageProvider: fakeStorageProvider,
         clock: new SystemClock(),
       }),
@@ -61,6 +63,7 @@ export async function createMovieFor(
   userId: string,
   overrides: object = {},
 ): Promise<Record<string, unknown> & { id: string }> {
+  await ensureUserExists(userId);
   const { body } = await supertest(movieEntryApp.app)
     .post('/movies')
     .set('Authorization', authHeaderFor(userId))

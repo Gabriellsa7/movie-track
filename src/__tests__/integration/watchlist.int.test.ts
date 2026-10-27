@@ -2,13 +2,15 @@ import supertest from 'supertest';
 import { app } from '../../../jest/setup-integration-tests';
 import { Mwatchlist } from '../../infrastructure/db/mongo/models/watchlist.model';
 import { createMovieFor } from '../configMovieEntryApp';
-import { authHeaderFor, newObjectId } from '../testUtils';
+import { authHeaderFor, ensureUserExists, newObjectId } from '../testUtils';
 
-const addItem = (userId: string, item: object) =>
-  supertest(app.app)
+const addItem = async (userId: string, item: object) => {
+  await ensureUserExists(userId);
+  return supertest(app.app)
     .post('/watchlist')
     .set('Authorization', authHeaderFor(userId))
     .send(item);
+};
 
 const listItems = (
   userId: string,

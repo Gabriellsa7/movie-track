@@ -3,7 +3,7 @@ import '../../../jest/setup-integration-tests';
 import { Mwatchlist } from '../../infrastructure/db/mongo/models/watchlist.model';
 import { WatchlistRepositoryWrite } from '../../infrastructure/repository/watchlist/watchlist.repository.write';
 import { KNOWN_GENRES, movieEntryApp } from '../configMovieEntryApp';
-import { authHeaderFor, newObjectId } from '../testUtils';
+import { authHeaderFor, ensureUserExists, newObjectId } from '../testUtils';
 
 const NEW_MOVIE = {
   title: '  Cidade de Deus ',
@@ -19,11 +19,13 @@ beforeEach(() => {
   userId = newObjectId();
 });
 
-const postMovie = (body: object, asUserId = userId) =>
-  supertest(movieEntryApp.app)
+const postMovie = async (body: object, asUserId = userId) => {
+  await ensureUserExists(asUserId);
+  return supertest(movieEntryApp.app)
     .post('/movies')
     .set('Authorization', authHeaderFor(asUserId))
     .send(body);
+};
 
 describe('When we log a movie with valid data', () => {
   it('should return 201 with the movie owned by the token user', async () => {

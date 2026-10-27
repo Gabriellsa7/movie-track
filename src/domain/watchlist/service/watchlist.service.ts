@@ -5,6 +5,8 @@ import { ConflictError } from '../../errors/conflict.error';
 import { NotFoundError } from '../../errors/not-found.error';
 import { UnprocessableEntityError } from '../../errors/unprocessable-entity.error';
 import { IMovieEntryRepositoryRead } from '../../movie-entry/repository/movie-entry.repository.read';
+import { ensureUserExists } from '../../user/ensure-user-exists';
+import { IUserRepositoryRead } from '../../user/repository/user.repository.read';
 import { IWatchlistItem } from '../interfaces/watchlist.interface';
 import {
   IParamsAddWatchlistItem,
@@ -20,17 +22,20 @@ export class WatchlistService implements IWatchlistService {
   private watchlistRepositoryRead: IWatchlistRepositoryRead;
   private watchlistRepositoryWrite: IWatchlistRepositoryWrite;
   private movieEntryRepositoryRead: IMovieEntryRepositoryRead;
+  private userRepositoryRead: IUserRepositoryRead;
   private clock: IClock;
 
   constructor({
     watchlistRepositoryRead,
     watchlistRepositoryWrite,
     movieEntryRepositoryRead,
+    userRepositoryRead,
     clock,
   }: IParamsWatchlistService) {
     this.watchlistRepositoryRead = watchlistRepositoryRead;
     this.watchlistRepositoryWrite = watchlistRepositoryWrite;
     this.movieEntryRepositoryRead = movieEntryRepositoryRead;
+    this.userRepositoryRead = userRepositoryRead;
     this.clock = clock;
   }
 
@@ -58,6 +63,8 @@ export class WatchlistService implements IWatchlistService {
         'INVALID_RELEASE_YEAR',
       );
     }
+
+    await ensureUserExists(this.userRepositoryRead, params.userId);
 
     const sameMovie = {
       userId: watchlistItem.userId,
