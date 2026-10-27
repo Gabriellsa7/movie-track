@@ -1097,14 +1097,20 @@ paths:
             type: string
             enum: [high, medium, low]
           description: Only items with this priority
+        - name: planned
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: true lists only the "next movies" (with plannedFor); false only the ones without a date
         - name: sort
           in: query
           required: false
           schema:
             type: string
-            enum: [addedAt, priority]
+            enum: [addedAt, priority, plannedFor]
             default: addedAt
-          description: addedAt lists the newest first; priority lists high first, then the newest
+          description: addedAt lists the newest first; priority lists high first, then the newest; plannedFor lists the soonest plan first and items without a date last
         - name: page
           in: query
           required: false
@@ -1259,6 +1265,59 @@ paths:
                 message: 'Movie catalog unavailable'
                 status: 503
                 code: 'MOVIE_CATALOG_UNAVAILABLE'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+
+  /watchlist/{id}/watched:
+    parameters:
+      - $ref: '#/components/parameters/WatchlistItemId'
+    post:
+      tags:
+        - Watchlist
+      summary: Mark a movie in my watchlist as watched
+      operationId: markWatchlistItemWatched
+      description: >
+        The "I watched it" button: logs the movie with the item's data plus the rating (and
+        optionally a review, date and favorite), then removes the item. synopsis, releaseYear and
+        genreIds are required for a movie; send the ones the item does not have (else
+        INCOMPLETE_MOVIE). Every rule of POST /movies applies.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WatchlistItemWatched'
+      responses:
+        '201':
+          description: Movie logged and removed from the watchlist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Movie'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/WatchlistItemNotFound'
+        '409':
+          $ref: '#/components/responses/MovieAlreadyLogged'
+        '422':
+          description: >
+            The movie would miss synopsis, releaseYear or genreIds (INCOMPLETE_MOVIE), or a rule of
+            POST /movies failed (INVALID_RATING, INVALID_GENRE, INVALID_RELEASE_YEAR, INVALID_WATCHED_AT)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: 'Send synopsis, genreIds: the watchlist item does not have them'
+                status: 422
+                code: 'INCOMPLETE_MOVIE'
+        '500':
+          $ref: '#/components/responses/ServerError'
         default:
           $ref: '#/components/responses/UnexpectedError'
 
@@ -1751,11 +1810,31 @@ components:
           type: string
           maxLength: 500
           description: A personal note, e.g. who recommended it
+        synopsis:
+          type: string
+          maxLength: 2000
+          description: Kept for when it becomes a movie (POST /watchlist/{id}/watched)
+        genreIds:
+          type: array
+          description: 1 to 5 ids from GET /genres (else INVALID_GENRE)
+          items:
+            type: string
+        director:
+          type: string
+          maxLength: 200
+        durationMinutes:
+          type: integer
+          minimum: 1
+          maximum: 1000
+        plannedFor:
+          type: string
+          format: date
+          description: When I plan to watch it; items with it are the "next movies" (GET /watchlist?planned=true)
     UpdateWatchlistItem:
       type: object
       additionalProperties: false
       minProperties: 1
-      description: Only the fields sent change; null clears releaseYear, tmdbId or posterUrl, and an empty note clears it
+      description: Only the fields sent change; null clears releaseYear, tmdbId, posterUrl, genreIds, durationMinutes or plannedFor, and an empty text clears note, synopsis or director
       properties:
         title:
           type: string
@@ -1784,6 +1863,69 @@ components:
           type: string
           maxLength: 500
           description: A personal note, e.g. who recommended it
+        synopsis:
+          type: string
+          maxLength: 2000
+          description: Kept for when it becomes a movie (POST /watchlist/{id}/watched)
+        genreIds:
+          type: array
+          description: 1 to 5 ids from GET /genres (else INVALID_GENRE)
+          items:
+            type: string
+          nullable: true
+        director:
+          type: string
+          maxLength: 200
+        durationMinutes:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          nullable: true
+        plannedFor:
+          type: string
+          format: date
+          description: When I plan to watch it; items with it are the "next movies" (GET /watchlist?planned=true)
+          nullable: true
+    WatchlistItemWatched:
+      type: object
+      additionalProperties: false
+      required:
+        - rating
+      properties:
+        rating:
+          type: number
+          description: 1 to 10 in steps of 0.5 (else INVALID_RATING)
+          example: 8.5
+        review:
+          type: string
+          maxLength: 5000
+        watchedAt:
+          type: string
+          format: date
+          description: Defaults to today; cannot be in the future (else INVALID_WATCHED_AT)
+        isFavorite:
+          type: boolean
+        synopsis:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          description: Overrides the item's; required when the item has none
+        releaseYear:
+          type: integer
+          minimum: 1888
+          description: Overrides the item's; required when the item has none
+        genreIds:
+          type: array
+          description: Overrides the item's; required when the item has none
+          items:
+            type: string
+        director:
+          type: string
+          maxLength: 200
+        durationMinutes:
+          type: integer
+          minimum: 1
+          maximum: 1000
     WatchlistItem:
       type: object
       additionalProperties: false
@@ -1813,6 +1955,19 @@ components:
           enum: [high, medium, low]
         note:
           type: string
+        synopsis:
+          type: string
+        genreIds:
+          type: array
+          items:
+            type: string
+        director:
+          type: string
+        durationMinutes:
+          type: integer
+        plannedFor:
+          type: string
+          format: date-time
         addedAt:
           type: string
           format: date-time

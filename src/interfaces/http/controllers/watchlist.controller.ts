@@ -19,6 +19,7 @@ const DEFAULT_PAGE_LIMIT = 20;
 interface IListWatchlistQuery {
   search?: string;
   priority?: EWatchlistPriority;
+  planned?: boolean;
   sort?: EWatchlistSortField;
   page?: number;
   limit?: number;
@@ -59,9 +60,11 @@ export class WatchlistController implements IController {
     res: Response,
     next: NextFunction,
   ): Promise<void> => {
+    const { plannedFor, ...itemData } = req.body;
     try {
       const watchlistItem = await this.watchlistService.addWatchlistItem({
-        ...req.body,
+        ...itemData,
+        plannedFor: plannedFor ? new Date(plannedFor) : undefined,
         userId: req.userId!,
       });
       res
@@ -80,13 +83,14 @@ export class WatchlistController implements IController {
     const {
       search,
       priority,
+      planned,
       sort = EWatchlistSortField.ADDED_AT,
       page = DEFAULT_PAGE,
       limit = DEFAULT_PAGE_LIMIT,
     } = req.query as IListWatchlistQuery;
     try {
       const result = await this.watchlistService.listWatchlistItems({
-        filter: { userId: req.userId!, search, priority },
+        filter: { userId: req.userId!, search, priority, planned },
         sort,
         pagination: { limit, offset: (page - 1) * limit },
       });
@@ -104,11 +108,17 @@ export class WatchlistController implements IController {
     res: Response,
     next: NextFunction,
   ): Promise<void> => {
+    const { plannedFor, ...itemData } = req.body;
     try {
       const watchlistItem = await this.watchlistService.updateWatchlistItem({
         id: req.params.id,
         userId: req.userId!,
-        itemData: req.body,
+        itemData: {
+          ...itemData,
+          ...(plannedFor !== undefined && {
+            plannedFor: plannedFor === null ? null : new Date(plannedFor),
+          }),
+        },
       });
       res
         .status(200)

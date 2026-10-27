@@ -1,6 +1,8 @@
 import supertest from 'supertest';
 import { app } from '../../../jest/setup-integration-tests';
 import { Mwatchlist } from '../../infrastructure/db/mongo/models/watchlist.model';
+import { Mgenre } from '../../infrastructure/db/mongo/models/genre.model';
+import { GenreSeedFactory } from '../../infrastructure/config/factories/genre.seed.factory';
 import { createMovieFor } from '../configMovieEntryApp';
 import { authHeaderFor, ensureUserExists, newObjectId } from '../testUtils';
 
@@ -390,5 +392,82 @@ describe('When we list our watchlist by priority', () => {
 
     expect(titlesOf(body)).toEqual(['Medium one', 'Old item']);
     expect(body.total).toBe(2);
+  });
+});
+
+describe('When we plan the next movies to watch', () => {
+  const userId = newObjectId();
+
+  beforeAll(async () => {
+    await addItem(userId, { title: 'Some day' });
+    await addItem(userId, { title: 'Saturday', plannedFor: '2026-11-07' });
+    await addItem(userId, { title: 'Tomorrow', plannedFor: '2026-11-01' });
+  });
+
+  it('should list only the planned ones, soonest first', async () => {
+    const { body } = await listItems(userId, {
+      planned: 'true',
+      sort: 'plannedFor',
+    });
+
+    expect(titlesOf(body)).toEqual(['Tomorrow', 'Saturday']);
+    expect(body.items[0].plannedFor).toBe('2026-11-01T00:00:00.000Z');
+  });
+
+  it('should list the ones without a date with planned=false', async () => {
+    const { body } = await listItems(userId, { planned: 'false' });
+
+    expect(titlesOf(body)).toEqual(['Some day']);
+  });
+
+  it('should put the items without a date last when sorting by plan', async () => {
+    const { body } = await listItems(userId, { sort: 'plannedFor' });
+
+    expect(titlesOf(body)).toEqual(['Tomorrow', 'Saturday', 'Some day']);
+  });
+
+  it('should move or clear the plan when editing', async () => {
+    const { body: item } = await addItem(userId, {
+      title: 'Moved',
+      plannedFor: '2026-11-02',
+    });
+
+    const moved = await updateItem(userId, item.id, {
+      plannedFor: '2026-12-25',
+    });
+    const cleared = await updateItem(userId, item.id, { plannedFor: null });
+
+    expect(moved.body.plannedFor).toBe('2026-12-25T00:00:00.000Z');
+    expect(cleared.body).not.toHaveProperty('plannedFor');
+  });
+});
+
+describe('When a watchlist item has the movie data', () => {
+  it('should keep valid genres and reject unknown ones', async () => {
+    await GenreSeedFactory.create().run();
+    const drama = await Mgenre.findOne({ tmdbGenreId: 18 }).lean();
+    const userId = newObjectId();
+
+    const valid = await addItem(userId, {
+      title: 'Whiplash',
+      synopsis: 'A young drummer.',
+      genreIds: [drama!._id.toString()],
+      director: 'Damien Chazelle',
+      durationMinutes: 106,
+    });
+    const invalid = await addItem(userId, {
+      title: 'Other',
+      genreIds: [newObjectId()],
+    });
+
+    expect(valid.statusCode).toBe(201);
+    expect(valid.body).toMatchObject({
+      synopsis: 'A young drummer.',
+      genreIds: [drama!._id.toString()],
+      director: 'Damien Chazelle',
+      durationMinutes: 106,
+    });
+    expect(invalid.statusCode).toBe(422);
+    expect(invalid.body.code).toBe('INVALID_GENRE');
   });
 });

@@ -7,11 +7,15 @@ import {
 import { IMWatchlistItem } from '../../db/mongo/schema/watchlist.schema';
 
 export function toWatchlistItem(document: IMWatchlistItem): IWatchlistItem {
+  const { genreIds, ...item } = document;
   return {
-    ...document,
+    ...item,
     _id: document._id.toString(),
     userId: document.userId.toString(),
     priority: document.priority ?? EWatchlistPriority.MEDIUM,
+    ...(genreIds && {
+      genreIds: genreIds.map((genreId) => genreId.toString()),
+    }),
   };
 }
 

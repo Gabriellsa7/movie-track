@@ -68,6 +68,12 @@ export class MovieEntryController implements IController {
       this.authenticate,
       this.removePoster,
     );
+    // The movie is created here, so the watchlist's "I watched it" button lives in this controller.
+    this.router.post(
+      '/watchlist/:id/watched',
+      this.authenticate,
+      this.logWatchlistItem,
+    );
     // Under /users because /movies/stats would be taken by /movies/:id.
     this.router.get(
       '/users/:id/stats',
@@ -165,6 +171,25 @@ export class MovieEntryController implements IController {
         },
       });
       res.status(200).json(MovieEntry.toMovieEntryResponse(movieEntry));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  logWatchlistItem = async (
+    req: Request<{ id: string }>,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    const { watchedAt, ...movieData } = req.body;
+    try {
+      const movieEntry = await this.movieEntryService.logWatchlistItem({
+        ...movieData,
+        watchedAt: watchedAt ? new Date(watchedAt) : undefined,
+        userId: req.userId!,
+        watchlistItemId: req.params.id,
+      });
+      res.status(201).json(MovieEntry.toMovieEntryResponse(movieEntry));
     } catch (error) {
       next(error);
     }

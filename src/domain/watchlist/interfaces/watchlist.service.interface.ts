@@ -4,6 +4,7 @@ import {
   IPagination,
 } from '../../common/pagination.interface';
 import { IMovieEntryRepositoryRead } from '../../movie-entry/repository/movie-entry.repository.read';
+import { IGenreRepositoryRead } from '../../genre/repository/genre.repository.read';
 import { IUserRepositoryRead } from '../../user/repository/user.repository.read';
 import { IWatchlistRepositoryRead } from '../repository/watchlist.repository.read';
 import { IWatchlistRepositoryWrite } from '../repository/watchlist.repository.write';
@@ -23,6 +24,11 @@ export interface IParamsAddWatchlistItem {
   releaseYear?: number;
   priority?: EWatchlistPriority;
   note?: string;
+  synopsis?: string;
+  genreIds?: string[];
+  director?: string;
+  durationMinutes?: number;
+  plannedFor?: Date;
 }
 
 export interface IParamsUpdateWatchlistItem {
@@ -42,6 +48,7 @@ export interface IParamsWatchlistService {
   watchlistRepositoryWrite: IWatchlistRepositoryWrite;
   movieEntryRepositoryRead: IMovieEntryRepositoryRead;
   userRepositoryRead: IUserRepositoryRead;
+  genreRepositoryRead: IGenreRepositoryRead;
   clock: IClock;
 }
 

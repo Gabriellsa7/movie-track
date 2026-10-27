@@ -46,6 +46,22 @@ export interface IParamsUpdateMovieEntry {
   };
 }
 
+// Marks a watchlist item as watched: the movie data comes from the item, and the
+// optional fields here fill in (or override) what the item does not have.
+export interface IParamsLogWatchlistItem {
+  userId: string;
+  watchlistItemId: string;
+  rating: number;
+  review?: string;
+  watchedAt?: Date;
+  isFavorite?: boolean;
+  synopsis?: string;
+  releaseYear?: number;
+  genreIds?: string[];
+  director?: string;
+  durationMinutes?: number;
+}
+
 export interface IParamsRewatchMovieEntry {
   id: string;
   userId: string;
@@ -91,6 +107,7 @@ export interface IMovieEntryService {
   updateMovieEntry(params: IParamsUpdateMovieEntry): Promise<IMovieEntry>;
   setFavorite(params: IParamsSetFavorite): Promise<IMovieEntry>;
   rewatchMovieEntry(params: IParamsRewatchMovieEntry): Promise<IMovieEntry>;
+  logWatchlistItem(params: IParamsLogWatchlistItem): Promise<IMovieEntry>;
   deleteMovieEntry(id: string, userId: string): Promise<void>;
   uploadPoster(params: IParamsUploadPoster): Promise<IMovieEntry>;
   removePoster(id: string, userId: string): Promise<IMovieEntry>;

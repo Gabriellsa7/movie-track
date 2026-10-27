@@ -1,4 +1,4 @@
-import { FilterQuery } from 'mongoose';
+import { FilterQuery, PipelineStage } from 'mongoose';
 import { IPagination } from '../../../domain/common/pagination.interface';
 import { normalizeText } from '../../../domain/common/text.normalizer';
 import {
@@ -24,6 +24,23 @@ const PRIORITY_RANK = {
     ],
     default: 1,
   },
+};
+
+const SORT_STAGES: Record<EWatchlistSortField, PipelineStage[]> = {
+  [EWatchlistSortField.ADDED_AT]: [{ $sort: { addedAt: -1, _id: -1 } }],
+  [EWatchlistSortField.PRIORITY]: [
+    { $addFields: { priorityRank: PRIORITY_RANK } },
+    { $sort: { priorityRank: 1, addedAt: -1, _id: -1 } },
+  ],
+  // Soonest plan first; items without a date ("some day") go last.
+  [EWatchlistSortField.PLANNED_FOR]: [
+    {
+      $addFields: {
+        withoutDate: { $cond: [{ $ifNull: ['$plannedFor', false] }, 0, 1] },
+      },
+    },
+    { $sort: { withoutDate: 1, plannedFor: 1, addedAt: -1, _id: -1 } },
+  ],
 };
 
 export class WatchlistRepositoryRead implements IWatchlistRepositoryRead {
@@ -86,15 +103,16 @@ export class WatchlistRepositoryRead implements IWatchlistRepositoryRead {
     }
     const items = await Mwatchlist.aggregate<IMWatchlistItem>([
       { $match: this.buildFilter(filter) },
-      ...(sort === EWatchlistSortField.PRIORITY
-        ? [
-            { $addFields: { priorityRank: PRIORITY_RANK } },
-            { $sort: { priorityRank: 1, addedAt: -1, _id: -1 } as const },
-          ]
-        : [{ $sort: { addedAt: -1, _id: -1 } as const }]),
+      ...SORT_STAGES[sort],
       { $skip: pagination.offset },
       { $limit: pagination.limit },
-      { $project: { priorityRank: 0, ...HIDE_MONGO_INTERNAL_FIELDS } },
+      {
+        $project: {
+          priorityRank: 0,
+          withoutDate: 0,
+          ...HIDE_MONGO_INTERNAL_FIELDS,
+        },
+      },
     ]);
     return items.map(toWatchlistItem);
   }
@@ -115,6 +133,9 @@ export class WatchlistRepositoryRead implements IWatchlistRepositoryRead {
       query.normalizedTitle = {
         $regex: normalizedSearch.replace(REGEX_SPECIAL_CHARACTERS, '\\$&'),
       };
+    }
+    if (filter.planned !== undefined) {
+      query.plannedFor = { $exists: filter.planned };
     }
     if (filter.priority) {
       // A missing priority reads as medium (items saved before priorities existed).
