@@ -51,6 +51,7 @@ export const userApp = new Server({
       }),
       authenticate(TokenProviderFactory.create()),
       (_req, _res, next) => next(),
+      (_req, _res, next) => next(),
     ),
   ],
   apiSpecLocation: OPEN_API_SPEC_FILE_LOCATION,

@@ -56,19 +56,24 @@ export interface IParamsRequestRateLimit {
   limit: number;
   identifier: string;
   key: (req: Request) => string;
+  // Count only requests that succeeded (e.g. accounts actually created).
+  onlySuccessful?: boolean;
 }
 
-// Every request counts: used on routes that send e-mails, so they cannot flood an inbox.
+// Every request counts unless onlySuccessful: used on routes that send e-mails, so they
+// cannot flood an inbox, and on sign-up, so accounts cannot be created in bulk.
 export function requestRateLimit({
   windowMilliseconds,
   limit,
   identifier,
   key,
+  onlySuccessful = false,
 }: IParamsRequestRateLimit): RequestHandler {
   return rateLimit({
     windowMs: windowMilliseconds,
     limit,
     identifier,
+    skipFailedRequests: onlySuccessful,
     standardHeaders: 'draft-8',
     legacyHeaders: false,
     keyGenerator: key,

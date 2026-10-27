@@ -84,7 +84,7 @@ paths:
         - Users
       summary: Create a new user
       operationId: createUser
-      description: Create an account. Moves to POST /auth/signup when authentication is added.
+      description: Create an account and e-mail a confirmation link. Limited to 5 accounts per IP per hour; failed attempts do not count.
       requestBody:
         required: true
         content:
@@ -114,6 +114,16 @@ paths:
                 message: 'A user with this email already exists'
                 status: 409
                 code: 'EMAIL_TAKEN'
+        '429':
+          description: Too many accounts created from this IP; 5 per hour (TOO_MANY_REQUESTS)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: 'Too many requests, try again later'
+                status: 429
+                code: 'TOO_MANY_REQUESTS'
         '500':
           description: Server error
           content:
