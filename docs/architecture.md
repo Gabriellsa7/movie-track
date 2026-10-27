@@ -78,13 +78,18 @@ Rules:
 
 Initialization order in the `Server` constructor:
 
-1. `/health` route (registered **before** the middlewares — which is why it escapes the OpenApiValidator).
-2. Middlewares: `express.json({ limit: '3mb' })` → `express.urlencoded` →
+1. `cors()` with the `corsOrigins` given to the constructor (`CORS_ORIGINS` in
+   `env.ts`, defaulting to `APP_URL`; none when omitted, as in the tests). It
+   comes first so preflight `OPTIONS` requests are answered before the
+   validator, and it exposes `RateLimit`, `RateLimit-Policy` and `Retry-After`
+   to browser code.
+2. `/health` route (registered **before** the middlewares — which is why it escapes the OpenApiValidator).
+3. Middlewares: `express.json({ limit: '3mb' })` → `express.urlencoded` →
    `ContextAsyncHooks.getExpressMiddlewareTracking()` (traceability cid) → `helmet()` →
    extra middlewares passed via `middlewaresToStart` in the constructor.
-3. `OpenApiValidator.middleware` with `validateApiSpec: true` and `validateResponses: true`.
-4. Controller routes (`controller.getRoutes()` mounted at `/`).
-5. **Central error handler** (`errorHandlerMiddleware` in `src/interfaces/http/middlewares/error-handler.middleware.ts`,
+4. `OpenApiValidator.middleware` with `validateApiSpec: true` and `validateResponses: true`.
+5. Controller routes (`controller.getRoutes()` mounted at `/`).
+6. **Central error handler** (`errorHandlerMiddleware` in `src/interfaces/http/middlewares/error-handler.middleware.ts`,
    mounted by `errorHandler()`): the only place that translates
    errors into HTTP responses. `toErrorResponse` (`error-response.mapper.ts`)
    classifies the error into `{ message, status, code, errors? }`: `DomainError`,

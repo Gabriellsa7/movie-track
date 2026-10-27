@@ -100,6 +100,38 @@ describe('When we load the environment configuration', () => {
     });
   });
 
+  it('should allow only APP_URL by CORS when CORS_ORIGINS is not set', () => {
+    process.env = {
+      ...ORIGINAL_ENV,
+      DATABASE_URI: 'mongodb://localhost/test',
+      APP_URL: 'http://localhost:5173',
+    };
+    delete process.env.CORS_ORIGINS;
+
+    jest.isolateModules(() => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { env } = require('../../infrastructure/config/env');
+      expect(env.corsOrigins).toEqual(['http://localhost:5173']);
+    });
+  });
+
+  it('should read the CORS origins from CORS_ORIGINS, ignoring blanks', () => {
+    process.env = {
+      ...ORIGINAL_ENV,
+      DATABASE_URI: 'mongodb://localhost/test',
+      CORS_ORIGINS: 'http://localhost:5173, https://movie-track-web.vercel.app,',
+    };
+
+    jest.isolateModules(() => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { env } = require('../../infrastructure/config/env');
+      expect(env.corsOrigins).toEqual([
+        'http://localhost:5173',
+        'https://movie-track-web.vercel.app',
+      ]);
+    });
+  });
+
   it('should throw when APP_URL is missing', () => {
     process.env = { ...ORIGINAL_ENV, DATABASE_URI: 'mongodb://localhost/test' };
     delete process.env.APP_URL;

@@ -139,6 +139,10 @@ For poster uploads, copy the cloud name, API key and API secret from
 Behind a reverse proxy (Render, Railway, Fly.io…), set `TRUST_PROXY_HOPS=1` so
 the login rate limit sees each client's IP instead of the proxy's.
 
+CORS: browsers only reach the API from the origins in `CORS_ORIGINS`
+(comma-separated, e.g. `http://localhost:5173,https://movie-track-web.vercel.app`).
+It defaults to `APP_URL`. Native apps are not affected.
+
 E-mails: set `APP_URL` to the front-end URL (links go to its `/verify-email`
 and `/reset-password` pages) and `RESEND_API_KEY` to an API key from
 [resend.com](https://resend.com). Without the key, e-mails are only written to
