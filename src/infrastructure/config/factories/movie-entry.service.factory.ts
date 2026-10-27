@@ -4,6 +4,7 @@ import { MovieEntryRepositoryRead } from '../../repository/movie-entry/movie-ent
 import { MovieEntryRepositoryWrite } from '../../repository/movie-entry/movie-entry.repository.write';
 import { WatchlistRepositoryRead } from '../../repository/watchlist/watchlist.repository.read';
 import { WatchlistRepositoryWrite } from '../../repository/watchlist/watchlist.repository.write';
+import { UserRepositoryRead } from '../../repository/user/user.repository.read';
 import { SystemClock } from '../../providers/clock/system.clock';
 import { StorageProviderFactory } from './storage.provider.factory';
 
@@ -15,6 +16,7 @@ export class MovieEntryServiceFactory {
       genreRepositoryRead: new GenreRepositoryRead(),
       watchlistRepositoryRead: new WatchlistRepositoryRead(),
       watchlistRepositoryWrite: new WatchlistRepositoryWrite(),
+      userRepositoryRead: new UserRepositoryRead(),
       storageProvider: StorageProviderFactory.create(),
       clock: new SystemClock(),
     });

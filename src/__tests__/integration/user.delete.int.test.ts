@@ -69,6 +69,27 @@ describe('When we delete a user that has movies and a watchlist', () => {
   });
 });
 
+describe('When a deleted account uses its access token to create data', () => {
+  it('should return 401 INVALID_TOKEN instead of saving an orphan item', async () => {
+    const authHeader = authHeaderFor(existingUser._id);
+    await supertest(app.app)
+      .delete(`/users/${existingUser._id}`)
+      .set('Authorization', authHeader)
+      .send({ password: PASSWORD });
+
+    const { body, statusCode } = await supertest(app.app)
+      .post('/watchlist')
+      .set('Authorization', authHeader)
+      .send({ title: 'Seven' });
+
+    expect(statusCode).toBe(401);
+    expect(body.code).toBe('INVALID_TOKEN');
+    await expect(
+      Mwatchlist.countDocuments({ userId: toObjectId(existingUser._id) }),
+    ).resolves.toBe(0);
+  });
+});
+
 describe('When we delete a user with a wrong password', () => {
   it('should return 401 and keep the user', async () => {
     const { body, statusCode } = await supertest(app.app)

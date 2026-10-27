@@ -1,6 +1,7 @@
 import { Types } from 'mongoose';
 import { MongooseDatabase } from '../../jest/setup-db';
 import { TokenProviderFactory } from '../infrastructure/config/factories/token.provider.factory';
+import { Muser } from '../infrastructure/db/mongo/models/user.model';
 import { app } from './configApp';
 
 export async function bootstrapTest() {
@@ -21,6 +22,25 @@ export function authHeaderFor(userId: string): string {
     sub: userId,
   });
   return `Bearer ${accessToken}`;
+}
+
+// Creating movies and watchlist items requires the token's user to exist.
+export async function ensureUserExists(userId: string): Promise<void> {
+  const now = new Date();
+  await Muser.updateOne(
+    { _id: userId },
+    {
+      $setOnInsert: {
+        name: 'Test user',
+        normalizedName: 'test user',
+        email: `user-${userId}@email.com`,
+        passwordHash: 'hashed-secret123',
+        createdAt: now,
+        updatedAt: now,
+      },
+    },
+    { upsert: true },
+  );
 }
 
 export function newObjectId(): string {

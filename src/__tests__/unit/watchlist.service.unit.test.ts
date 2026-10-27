@@ -1,3 +1,4 @@
+import { IUserRepositoryRead } from '../../domain/user/repository/user.repository.read';
 import { Logger } from 'traceability';
 import { IClock } from '../../domain/common/providers/clock.provider';
 import { IMovieEntry } from '../../domain/movie-entry/interfaces/movie-entry.interface';
@@ -19,6 +20,9 @@ const AN_ITEM: IWatchlistItem = {
   addedAt: NOW,
 };
 
+let userRepositoryRead: jest.Mocked<
+  Pick<IUserRepositoryRead, 'findUserById'>
+>;
 let watchlistRepositoryRead: jest.Mocked<IWatchlistRepositoryRead>;
 let watchlistRepositoryWrite: jest.Mocked<IWatchlistRepositoryWrite>;
 let movieEntryRepositoryRead: jest.Mocked<
@@ -44,12 +48,17 @@ beforeEach(() => {
   movieEntryRepositoryRead = {
     findDuplicateMovieEntry: jest.fn().mockResolvedValue(null),
   };
+  userRepositoryRead = {
+    findUserById: jest.fn().mockResolvedValue({ _id: 'user-1' }),
+  };
   const clock: IClock = { now: () => NOW };
   watchlistService = new WatchlistService({
     watchlistRepositoryRead,
     watchlistRepositoryWrite,
     movieEntryRepositoryRead:
       movieEntryRepositoryRead as unknown as IMovieEntryRepositoryRead,
+    userRepositoryRead:
+      userRepositoryRead as unknown as IUserRepositoryRead,
     clock,
   });
 });
@@ -139,6 +148,18 @@ describe('When we add a movie we have already watched', () => {
       tmdbId: 807,
       normalizedTitle: 'seven',
       releaseYear: 1995,
+    });
+    expect(watchlistRepositoryWrite.createWatchlistItem).not.toHaveBeenCalled();
+  });
+});
+
+describe('When the token belongs to a deleted account', () => {
+  it('should reject the creation with 401 INVALID_TOKEN and save nothing', async () => {
+    userRepositoryRead.findUserById.mockResolvedValue(null);
+
+    await expect(watchlistService.addWatchlistItem({ userId: USER_ID, title: 'Seven' })).rejects.toMatchObject({
+      status: 401,
+      code: 'INVALID_TOKEN',
     });
     expect(watchlistRepositoryWrite.createWatchlistItem).not.toHaveBeenCalled();
   });

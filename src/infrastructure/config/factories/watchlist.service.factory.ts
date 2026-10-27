@@ -2,6 +2,7 @@ import { WatchlistService } from '../../../domain/watchlist/service/watchlist.se
 import { WatchlistRepositoryRead } from '../../repository/watchlist/watchlist.repository.read';
 import { WatchlistRepositoryWrite } from '../../repository/watchlist/watchlist.repository.write';
 import { MovieEntryRepositoryRead } from '../../repository/movie-entry/movie-entry.repository.read';
+import { UserRepositoryRead } from '../../repository/user/user.repository.read';
 import { SystemClock } from '../../providers/clock/system.clock';
 
 export class WatchlistServiceFactory {
@@ -10,6 +11,7 @@ export class WatchlistServiceFactory {
       watchlistRepositoryRead: new WatchlistRepositoryRead(),
       watchlistRepositoryWrite: new WatchlistRepositoryWrite(),
       movieEntryRepositoryRead: new MovieEntryRepositoryRead(),
+      userRepositoryRead: new UserRepositoryRead(),
       clock: new SystemClock(),
     });
   }

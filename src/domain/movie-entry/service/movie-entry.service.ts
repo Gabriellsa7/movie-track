@@ -8,6 +8,8 @@ import { ConflictError } from '../../errors/conflict.error';
 import { NotFoundError } from '../../errors/not-found.error';
 import { UnprocessableEntityError } from '../../errors/unprocessable-entity.error';
 import { IGenreRepositoryRead } from '../../genre/repository/genre.repository.read';
+import { ensureUserExists } from '../../user/ensure-user-exists';
+import { IUserRepositoryRead } from '../../user/repository/user.repository.read';
 import { IWatchlistRepositoryRead } from '../../watchlist/repository/watchlist.repository.read';
 import { IWatchlistRepositoryWrite } from '../../watchlist/repository/watchlist.repository.write';
 import {
@@ -42,6 +44,7 @@ export class MovieEntryService implements IMovieEntryService {
   private genreRepositoryRead: IGenreRepositoryRead;
   private watchlistRepositoryRead: IWatchlistRepositoryRead;
   private watchlistRepositoryWrite: IWatchlistRepositoryWrite;
+  private userRepositoryRead: IUserRepositoryRead;
   private storageProvider: IStorageProvider;
   private clock: IClock;
 
@@ -52,6 +55,7 @@ export class MovieEntryService implements IMovieEntryService {
     movieEntryRepositoryWrite,
     watchlistRepositoryRead,
     watchlistRepositoryWrite,
+    userRepositoryRead,
     storageProvider,
   }: IParamsMovieEntryService) {
     this.movieEntryRepositoryRead = movieEntryRepositoryRead;
@@ -59,6 +63,7 @@ export class MovieEntryService implements IMovieEntryService {
     this.genreRepositoryRead = genreRepositoryRead;
     this.watchlistRepositoryRead = watchlistRepositoryRead;
     this.watchlistRepositoryWrite = watchlistRepositoryWrite;
+    this.userRepositoryRead = userRepositoryRead;
     this.storageProvider = storageProvider;
     this.clock = clock;
   }
@@ -85,6 +90,7 @@ export class MovieEntryService implements IMovieEntryService {
     });
 
     this.ensureValidMovieEntry(movieEntry, movieEntry.createdAt);
+    await ensureUserExists(this.userRepositoryRead, params.userId);
     await this.ensureGenresExist(movieEntry.genreIds);
     await this.ensureNotDuplicate(movieEntry);
     if (params.watchlistItemId) {

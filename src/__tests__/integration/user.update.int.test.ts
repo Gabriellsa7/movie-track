@@ -1,8 +1,12 @@
+import bcrypt from 'bcryptjs';
 import supertest from 'supertest';
 import { app } from '../../../jest/setup-integration-tests';
 import { Muser } from '../../infrastructure/db/mongo/models/user.model';
 import { IUser } from '../../domain/user/interfaces/user.interface';
 import { authHeaderFor, newObjectId } from '../testUtils';
+
+const PASSWORD = 'secret123';
+const LOW_COST_ROUNDS = 4;
 
 let existingUser: IUser;
 
@@ -11,11 +15,61 @@ beforeEach(async () => {
     _id: newObjectId(),
     email: `update-${Date.now()}@email.com`,
     name: 'Whitebeard',
-    passwordHash: 'hashed-secret123',
+    passwordHash: await bcrypt.hash(PASSWORD, LOW_COST_ROUNDS),
     createdAt: new Date(),
     updatedAt: new Date(),
   };
   await Muser.create(existingUser);
+});
+
+const updateUser = (body: object) =>
+  supertest(app.app)
+    .put(`/users/${existingUser._id}`)
+    .set('Authorization', authHeaderFor(existingUser._id))
+    .send(body);
+
+describe('When we change our e-mail', () => {
+  it('should return 422 CURRENT_PASSWORD_REQUIRED without the current password', async () => {
+    const { body, statusCode } = await updateUser({
+      email: `new-${Date.now()}@email.com`,
+    });
+
+    expect(statusCode).toBe(422);
+    expect(body.code).toBe('CURRENT_PASSWORD_REQUIRED');
+    const inDb = await Muser.findById(existingUser._id).lean();
+    expect(inDb?.email).toBe(existingUser.email);
+  });
+
+  it('should return 401 INVALID_CREDENTIALS with a wrong password', async () => {
+    const { body, statusCode } = await updateUser({
+      email: `new-${Date.now()}@email.com`,
+      currentPassword: 'wrong123',
+    });
+
+    expect(statusCode).toBe(401);
+    expect(body.code).toBe('INVALID_CREDENTIALS');
+  });
+
+  it('should change it with the right password', async () => {
+    const newEmail = `new-${Date.now()}@email.com`;
+
+    const { body, statusCode } = await updateUser({
+      email: newEmail,
+      currentPassword: PASSWORD,
+    });
+
+    expect(statusCode).toBe(200);
+    expect(body.email).toBe(newEmail);
+  });
+
+  it('should not ask for the password when the e-mail stays the same', async () => {
+    const { statusCode } = await updateUser({
+      email: existingUser.email.toUpperCase(),
+      name: 'Edward Newgate',
+    });
+
+    expect(statusCode).toBe(200);
+  });
 });
 
 describe('When we update an existing user', () => {
@@ -52,7 +106,7 @@ describe('When we update a user with an email used by another user', () => {
     const { body, statusCode } = await supertest(app.app)
       .put(`/users/${existingUser._id}`)
       .set('Authorization', authHeaderFor(existingUser._id))
-      .send({ email: otherUser.email.toUpperCase() });
+      .send({ email: otherUser.email.toUpperCase(), currentPassword: PASSWORD });
 
     expect(statusCode).toBe(409);
     expect(body).toMatchObject({
