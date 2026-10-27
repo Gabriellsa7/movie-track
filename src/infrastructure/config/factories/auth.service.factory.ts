@@ -1,6 +1,8 @@
 import { AuthService } from '../../../domain/auth/service/auth.service';
 import { UserRepositoryRead } from '../../repository/user/user.repository.read';
 import { UserRepositoryWrite } from '../../repository/user/user.repository.write';
+import { RevokedTokenRepositoryRead } from '../../repository/auth/revoked-token.repository.read';
+import { RevokedTokenRepositoryWrite } from '../../repository/auth/revoked-token.repository.write';
 import { SystemClock } from '../../providers/clock/system.clock';
 import { CryptoSecureTokenProvider } from '../../providers/secure-token/crypto.secure-token-provider';
 import { AccountMailerFactory } from './account-mailer.factory';
@@ -13,6 +15,8 @@ export class AuthServiceFactory {
     return new AuthService({
       userRepositoryRead: new UserRepositoryRead(),
       userRepositoryWrite: new UserRepositoryWrite(),
+      revokedTokenRepositoryRead: new RevokedTokenRepositoryRead(),
+      revokedTokenRepositoryWrite: new RevokedTokenRepositoryWrite(),
       passwordHasher: new BcryptPasswordHasher(env.bcryptRounds),
       tokenProvider: TokenProviderFactory.create(),
       secureTokenProvider: new CryptoSecureTokenProvider(),

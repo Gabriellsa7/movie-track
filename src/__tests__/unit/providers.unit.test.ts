@@ -67,16 +67,48 @@ describe('When we sign and verify tokens with JWT', () => {
       sessionVersion: 3,
     });
 
-    expect(tokenProvider.verifyRefreshToken(token)).toEqual({
+    expect(tokenProvider.verifyRefreshToken(token)).toMatchObject({
       sub: 'user-id',
       sessionVersion: 3,
     });
   });
 
-  it('should return the subject of a valid refresh token', () => {
+  it('should return the subject, a token id and the expiration of a refresh token', () => {
+    jest.useFakeTimers({ now: new Date('2026-01-01T00:00:00Z') });
     const token = tokenProvider.generateRefreshToken({ sub: 'user-id' });
 
-    expect(tokenProvider.verifyRefreshToken(token)).toEqual({ sub: 'user-id' });
+    expect(tokenProvider.verifyRefreshToken(token)).toEqual({
+      sub: 'user-id',
+      tokenId: expect.stringMatching(/^[0-9a-f-]{36}$/),
+      expiresAt: new Date('2026-01-08T00:00:00Z'),
+    });
+  });
+
+  it('should give each refresh token its own id, even for the same user and second', () => {
+    jest.useFakeTimers({ now: new Date('2026-01-01T00:00:00Z') });
+    const first = tokenProvider.generateRefreshToken({ sub: 'user-id' });
+    const second = tokenProvider.generateRefreshToken({ sub: 'user-id' });
+
+    expect(first).not.toBe(second);
+    expect(tokenProvider.verifyRefreshToken(first).tokenId).not.toBe(
+      tokenProvider.verifyRefreshToken(second).tokenId,
+    );
+  });
+
+  it('should reject a refresh token without a token id', () => {
+    const legacyToken = jwt.sign({ sub: 'user-id', ver: 0 }, 'refresh-secret', {
+      expiresIn: '7d',
+    });
+
+    expect(() => tokenProvider.verifyRefreshToken(legacyToken)).toThrow(
+      'Invalid token',
+    );
+  });
+
+  it('should not put a token id in access tokens', () => {
+    const token = tokenProvider.generateAccessToken({ sub: 'user-id' });
+
+    expect(jwt.decode(token)).not.toHaveProperty('jti');
   });
 
   it('should reject a refresh token used as an access token', () => {

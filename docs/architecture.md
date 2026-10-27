@@ -176,10 +176,11 @@ Stateless JWT with two tokens, both HS256 with the algorithm pinned on sign
 | Token | Secret / lifetime | Used on |
 | --- | --- | --- |
 | Access | `JWT_SECRET` / `JWT_EXPIRES_IN` (default `1h`) | `Authorization: Bearer <token>` on protected routes |
-| Refresh | `REFRESH_TOKEN_SECRET` / `REFRESH_TOKEN_EXPIRES_IN` (default `7d`) | body of `POST /auth/refresh` only |
+| Refresh | `REFRESH_TOKEN_SECRET` / `REFRESH_TOKEN_EXPIRES_IN` (default `7d`) | body of `POST /auth/refresh` and `POST /auth/logout` only |
 
 The access token carries only `sub` (the user id); the refresh token also
-carries `ver`, the user's `sessionVersion`. Separate secrets mean an access
+carries `ver`, the user's `sessionVersion`, and `jti`, a random UUID unique to
+each refresh token (a refresh token without it answers `INVALID_TOKEN`). Separate secrets mean an access
 token is never accepted as a refresh token, and vice versa.
 
 **Revocation:** changing the password bumps `sessionVersion`
@@ -188,6 +189,14 @@ before with 401 `TOKEN_REVOKED`, on every device. A missing version (users and
 tokens from before it existed) reads as 0. Access tokens are not checked against
 the database, so one issued before the change stays valid until it expires
 (`JWT_EXPIRES_IN`); keep that lifetime short.
+
+**Logout:** `POST /auth/logout` revokes only the refresh token it receives, so
+the other devices stay logged in. Its `jti` goes to the `revokedtokens`
+collection (`IRevokedTokenRepositoryRead/Write` in `src/domain/auth/repository/`)
+with the token's own expiration; a TTL index on `expiresAt` deletes the entry
+once the token would be expired anyway, so the collection never outgrows the
+tokens still alive. `refresh` rejects a revoked `jti` with 401 `TOKEN_REVOKED`.
+Logging out twice, or with an expired token, answers 204.
 
 **E-mail confirmation and password reset:** both use one-time tokens: 256
 random bits sent only in the e-mail link, with just their SHA-256 hash stored on
@@ -220,8 +229,9 @@ checks that the token's user still exists (`ensureUserExists` in
   builds it from `env`.
 - **`AuthService`** (`src/domain/auth/`): `login` answers the same
   `INVALID_CREDENTIALS` for an unknown e-mail and a wrong password (no user
-  enumeration); `refresh` checks that the user still exists and that the
-  token's session version is current, then issues both tokens again.
+  enumeration); `refresh` checks that the token was not revoked by a logout,
+  that the user still exists and that the token's session version is current,
+  then issues both tokens again.
 - **Login rate limit** (`src/interfaces/http/middlewares/rate-limit.middleware.ts`,
   `express-rate-limit`): only failed attempts count. 5 per account (IP +
   e-mail) and 50 per IP in 15 minutes (limits in `AuthControllerFactory`); past

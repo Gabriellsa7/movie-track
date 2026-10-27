@@ -10,6 +10,9 @@ import { ITokenProvider } from '../../common/providers/token.provider';
 import { UnauthorizedError } from '../../errors/unauthorized.error';
 import { IUser } from '../../user/interfaces/user.interface';
 import { IUserRepositoryRead } from '../../user/repository/user.repository.read';
+import { IRevokedTokenRepositoryRead } from '../repository/revoked-token.repository.read';
+import { IRevokedTokenRepositoryWrite } from '../repository/revoked-token.repository.write';
+import { IRefreshTokenClaims } from '../../common/providers/token.provider';
 import { User } from '../../user/user.entity';
 import {
   IAuthService,
@@ -25,6 +28,8 @@ const PASSWORD_RESET_TTL_MILLISECONDS = 60 * 60 * 1000;
 export class AuthService implements IAuthService {
   private userRepositoryRead: IUserRepositoryRead;
   private userRepositoryWrite: IUserRepositoryWrite;
+  private revokedTokenRepositoryRead: IRevokedTokenRepositoryRead;
+  private revokedTokenRepositoryWrite: IRevokedTokenRepositoryWrite;
   private passwordHasher: IPasswordHasher;
   private tokenProvider: ITokenProvider;
   private secureTokenProvider: ISecureTokenProvider;
@@ -34,6 +39,8 @@ export class AuthService implements IAuthService {
   constructor({
     userRepositoryRead,
     userRepositoryWrite,
+    revokedTokenRepositoryRead,
+    revokedTokenRepositoryWrite,
     passwordHasher,
     tokenProvider,
     secureTokenProvider,
@@ -42,6 +49,8 @@ export class AuthService implements IAuthService {
   }: IParamsAuthService) {
     this.userRepositoryRead = userRepositoryRead;
     this.userRepositoryWrite = userRepositoryWrite;
+    this.revokedTokenRepositoryRead = revokedTokenRepositoryRead;
+    this.revokedTokenRepositoryWrite = revokedTokenRepositoryWrite;
     this.passwordHasher = passwordHasher;
     this.tokenProvider = tokenProvider;
     this.secureTokenProvider = secureTokenProvider;
@@ -71,9 +80,15 @@ export class AuthService implements IAuthService {
 
   @ErrorHandler()
   async refresh(params: IParamsRefreshToken): Promise<IAuthTokens> {
-    const { sub, sessionVersion = 0 } = this.tokenProvider.verifyRefreshToken(
-      params.refreshToken,
-    );
+    const {
+      sub,
+      sessionVersion = 0,
+      tokenId,
+    } = this.tokenProvider.verifyRefreshToken(params.refreshToken);
+
+    if (await this.revokedTokenRepositoryRead.isTokenRevoked(tokenId)) {
+      throw new UnauthorizedError('Token revoked by a logout', 'TOKEN_REVOKED');
+    }
 
     const user = await this.userRepositoryRead.findUserById(sub);
     if (!user) {
@@ -87,6 +102,25 @@ export class AuthService implements IAuthService {
     }
 
     return this.issueTokens(user);
+  }
+
+  @ErrorHandler()
+  async logout(params: IParamsRefreshToken): Promise<void> {
+    let claims: IRefreshTokenClaims;
+    try {
+      claims = this.tokenProvider.verifyRefreshToken(params.refreshToken);
+    } catch (error) {
+      // An expired token can't be refreshed anymore, so there is nothing to revoke.
+      if (error instanceof UnauthorizedError && error.code === 'TOKEN_EXPIRED') {
+        return;
+      }
+      throw error;
+    }
+
+    await this.revokedTokenRepositoryWrite.revokeToken({
+      tokenId: claims.tokenId,
+      expiresAt: claims.expiresAt,
+    });
   }
 
   @ErrorHandler()
