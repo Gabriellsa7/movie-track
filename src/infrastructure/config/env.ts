@@ -4,6 +4,13 @@ const DEFAULT_REFRESH_TOKEN_EXPIRES_IN = '7d';
 // Resend's shared sender works without a domain, but only delivers to the account owner's address.
 const DEFAULT_EMAIL_FROM = 'Movie Track <onboarding@resend.dev>';
 
+function parseList(value: string | undefined): Array<string> {
+  return (value ?? '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 function requireEnv(name: string): string {
   const value = process.env[name];
   if (!value) {
@@ -29,6 +36,8 @@ export const env = {
   tmdbAccessToken: requireEnv('TMDB_ACCESS_TOKEN'),
   // Where the front-end runs; e-mail links point to its /verify-email and /reset-password pages.
   appUrl: requireEnv('APP_URL'),
+  // Browser origins allowed by CORS, comma-separated; defaults to APP_URL. Native apps don't need it.
+  corsOrigins: parseList(process.env.CORS_ORIGINS || process.env.APP_URL),
   // Optional: without it e-mails are logged instead of sent (see LogAccountMailer).
   resendApiKey: process.env.RESEND_API_KEY || undefined,
   emailFrom: process.env.EMAIL_FROM || DEFAULT_EMAIL_FROM,

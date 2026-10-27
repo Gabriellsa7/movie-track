@@ -46,6 +46,54 @@ const app = new Server({
   timeoutMilliseconds: 1000,
 });
 
+describe('When a browser calls the API from another origin', () => {
+  const ALLOWED_ORIGIN = 'http://localhost:5173';
+  const corsApp = new Server({
+    port: 0,
+    apiSpecLocation: OPEN_API_SPEC_FILE_LOCATION,
+    corsOrigins: [ALLOWED_ORIGIN],
+  });
+
+  it('should answer the preflight of an allowed origin with 204', async () => {
+    const { statusCode, headers } = await supertest(corsApp.app)
+      .options('/movies')
+      .set('Origin', ALLOWED_ORIGIN)
+      .set('Access-Control-Request-Method', 'POST')
+      .set('Access-Control-Request-Headers', 'authorization,content-type');
+
+    expect(statusCode).toBe(204);
+    expect(headers['access-control-allow-origin']).toBe(ALLOWED_ORIGIN);
+    expect(headers['access-control-allow-methods']).toContain('PATCH');
+  });
+
+  it('should let the browser read the rate limit headers', async () => {
+    const { headers } = await supertest(corsApp.app)
+      .get('/health')
+      .set('Origin', ALLOWED_ORIGIN);
+
+    expect(headers['access-control-allow-origin']).toBe(ALLOWED_ORIGIN);
+    expect(headers['access-control-expose-headers']).toBe(
+      'RateLimit,RateLimit-Policy,Retry-After',
+    );
+  });
+
+  it('should not allow an origin outside the list', async () => {
+    const { headers } = await supertest(corsApp.app)
+      .get('/health')
+      .set('Origin', 'https://evil.example');
+
+    expect(headers['access-control-allow-origin']).toBeUndefined();
+  });
+
+  it('should allow no origin when none is configured', async () => {
+    const { headers } = await supertest(app.app)
+      .get('/health')
+      .set('Origin', ALLOWED_ORIGIN);
+
+    expect(headers['access-control-allow-origin']).toBeUndefined();
+  });
+});
+
 describe('When we check the health endpoint', () => {
   it('should return 200 with status OK', async () => {
     const { statusCode, body } = await supertest(app.app).get('/health');

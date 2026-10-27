@@ -32,6 +32,7 @@ const app = new Server({
   ],
   databaseURI: env.databaseUri,
   trustProxyHops: env.trustProxyHops,
+  corsOrigins: env.corsOrigins,
   apiSpecLocation: OPEN_API_SPEC_FILE_LOCATION,
 });
 
