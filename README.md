@@ -15,8 +15,8 @@ runtime.
   route is scoped to the authenticated user.
 - **Movie log** — log a watched movie with rating (1–10, half steps), review,
   genres, release year, director, duration, poster and watch date.
-- **Posters** — upload a JPEG, PNG or WebP poster (up to 5 MB) stored in
-  Cloudinary, or point to an external poster URL.
+- **Posters and avatars** — upload a JPEG, PNG or WebP image (up to 5 MB)
+  stored in Cloudinary; a poster can also be an external URL.
 - **Search and filters** — search by title (case- and accent-insensitive),
   filter by genre, rating range and favorites, sort by watch date, rating,
   title or release year, with pagination.
@@ -78,6 +78,7 @@ All `/movies`, `/watchlist` and `/tmdb` routes require `Authorization: Bearer <a
 | `GET` | `/users` | List users, each with movies logged, average rating and favorites |
 | `GET` / `PUT` / `DELETE` | `/users/{id}` | Get a public profile (with the same summary), update or delete a user |
 | `PATCH` | `/users/{id}/password` | Change the password |
+| `PUT` / `DELETE` | `/users/{id}/avatar` | Upload (`multipart/form-data`, field `avatar`) or remove my avatar |
 | `GET` | `/users/{id}/stats` | My movie stats (totals, ratings, months, top genres) |
 | `POST` | `/auth/login` | Log in with email and password |
 | `POST` | `/auth/refresh` | Refresh the tokens |

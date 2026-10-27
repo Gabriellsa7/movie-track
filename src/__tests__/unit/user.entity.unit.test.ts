@@ -100,6 +100,28 @@ describe('When we change a user password hash', () => {
   });
 });
 
+describe('When we change the avatar of a user', () => {
+  it('should set the new avatar and its storage id', () => {
+    const user = new User(A_USER);
+
+    user.changeAvatar('https://cdn.example.com/new.png', 'avatars/new', LATER);
+
+    expect(user.avatarUrl).toBe('https://cdn.example.com/new.png');
+    expect(user.avatarPublicId).toBe('avatars/new');
+    expect(user.updatedAt).toBe(LATER);
+  });
+
+  it('should clear the avatar and its storage id when removed', () => {
+    const user = new User(A_USER);
+
+    user.removeAvatar(LATER);
+
+    expect(user.avatarUrl).toBeUndefined();
+    expect(user.avatarPublicId).toBeUndefined();
+    expect(user.updatedAt).toBe(LATER);
+  });
+});
+
 describe('When we map a user to its responses', () => {
   it('should hide the password hash, avatar public id and session version from the private view', () => {
     expect(User.toUserPrivate({ ...A_USER, sessionVersion: 1 })).toEqual({

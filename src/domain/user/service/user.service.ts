@@ -14,6 +14,7 @@ import {
   IParamsDeleteUser,
   IParamsListUsers,
   IParamsUpdateUser,
+  IParamsUploadAvatar,
   IParamsUserService,
   IUserService,
 } from '../interfaces/user.service.interface';
@@ -21,6 +22,8 @@ import { ErrorHandler } from '../../common/decorators/error-handler.decorator';
 import { ConflictError } from '../../errors/conflict.error';
 import { NotFoundError } from '../../errors/not-found.error';
 import { UnauthorizedError } from '../../errors/unauthorized.error';
+import { UnprocessableEntityError } from '../../errors/unprocessable-entity.error';
+import { IMAGE_MIME_TYPES } from '../../common/image.mime-types';
 import { IPaginatedResult } from '../../common/pagination.interface';
 import { IClock } from '../../common/providers/clock.provider';
 import { IPasswordHasher } from '../../common/providers/password-hasher.provider';
@@ -29,6 +32,8 @@ import { IMovieEntryRepositoryRead } from '../../movie-entry/repository/movie-en
 import { IMovieEntryRepositoryWrite } from '../../movie-entry/repository/movie-entry.repository.write';
 import { IWatchlistRepositoryWrite } from '../../watchlist/repository/watchlist.repository.write';
 import { User } from '../user.entity';
+
+const AVATAR_FOLDER = 'avatars';
 
 const NO_MOVIES: IUserMoviesSummary = {
   moviesCount: 0,
@@ -178,6 +183,67 @@ export class UserService implements IUserService {
     return User.toUserPublicProfile(user, summaries.get(user._id) ?? NO_MOVIES);
   }
 
+  @ErrorHandler()
+  async uploadAvatar(params: IParamsUploadAvatar): Promise<IUserPrivate> {
+    if (!IMAGE_MIME_TYPES.includes(params.mimeType)) {
+      throw new UnprocessableEntityError(
+        'avatar must be a JPEG, PNG or WebP image',
+        'INVALID_AVATAR_TYPE',
+      );
+    }
+    const existingUser = await this.findExistingUser(params.id);
+    const storedAvatar = await this.storageProvider.upload({
+      buffer: params.buffer,
+      mimeType: params.mimeType,
+      folder: AVATAR_FOLDER,
+    });
+
+    const user = new User(existingUser);
+    user.changeAvatar(storedAvatar.url, storedAvatar.publicId, this.clock.now());
+    const updatedUser = await this.userRepositoryWrite.updateUserById(
+      params.id,
+      {
+        avatarUrl: user.avatarUrl,
+        avatarPublicId: user.avatarPublicId,
+        updatedAt: user.updatedAt,
+      },
+    );
+    if (!updatedUser) {
+      // The account vanished meanwhile: do not leave an orphan file behind.
+      await this.deleteStoredFile(storedAvatar.publicId);
+      throw this.userNotFoundError();
+    }
+
+    if (existingUser.avatarPublicId) {
+      await this.deleteStoredFile(existingUser.avatarPublicId);
+    }
+    return User.toUserPrivate(updatedUser);
+  }
+
+  @ErrorHandler()
+  async removeAvatar(id: string): Promise<IUserPrivate> {
+    const existingUser = await this.findExistingUser(id);
+    if (!existingUser.avatarUrl) {
+      return User.toUserPrivate(existingUser);
+    }
+
+    const user = new User(existingUser);
+    user.removeAvatar(this.clock.now());
+    const updatedUser = await this.userRepositoryWrite.updateUserById(id, {
+      avatarUrl: user.avatarUrl,
+      avatarPublicId: user.avatarPublicId,
+      updatedAt: user.updatedAt,
+    });
+    if (!updatedUser) {
+      throw this.userNotFoundError();
+    }
+
+    if (existingUser.avatarPublicId) {
+      await this.deleteStoredFile(existingUser.avatarPublicId);
+    }
+    return User.toUserPrivate(updatedUser);
+  }
+
   // One query for the whole page; users without movies are absent from the result.
   private async findMoviesSummaries(
     userIds: string[],
@@ -215,7 +281,7 @@ export class UserService implements IUserService {
     );
   }
 
-  // A storage failure only leaves an orphan file, so it must not fail the account deletion.
+  // A storage failure only leaves an orphan file, so it must not fail the request.
   private async deleteStoredFile(publicId: string): Promise<void> {
     try {
       await this.storageProvider.delete(publicId);
