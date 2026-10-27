@@ -293,6 +293,82 @@ paths:
         default:
           $ref: '#/components/responses/UnexpectedError'
 
+  /users/{id}/avatar:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+    put:
+      tags:
+        - Users
+      summary: Upload my avatar
+      operationId: uploadAvatar
+      description: >
+        Stores the image in Cloudinary and sets it as the avatar, replacing (and deleting) the
+        previous one. JPEG, PNG or WebP, up to 5 MB.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AvatarUpload'
+      responses:
+        '200':
+          description: Avatar uploaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/UserNotFound'
+        '422':
+          description: The file is not a JPEG, PNG or WebP image (INVALID_AVATAR_TYPE)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: 'avatar must be a JPEG, PNG or WebP image'
+                status: 422
+                code: 'INVALID_AVATAR_TYPE'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+    delete:
+      tags:
+        - Users
+      summary: Remove my avatar
+      operationId: removeAvatar
+      description: Clears the avatar and deletes the uploaded file. A no-op when there is no avatar.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Avatar removed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/UserNotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+
   /users/{id}/stats:
     parameters:
       - $ref: '#/components/parameters/UserId'
@@ -1027,7 +1103,8 @@ components:
     UnexpectedError:
       description: >
         Any other error, in the same shape: 405 METHOD_NOT_ALLOWED, 413 PAYLOAD_TOO_LARGE,
-        415 UNSUPPORTED_MEDIA_TYPE, 503 SERVICE_UNAVAILABLE (database down) or
+        415 UNSUPPORTED_MEDIA_TYPE, 503 SERVICE_UNAVAILABLE (database down),
+        503 STORAGE_UNAVAILABLE (Cloudinary failed an upload) or
         500 INTERNAL_ERROR (unexpected, logged with the trace id)
       content:
         application/json:
@@ -1225,6 +1302,16 @@ components:
           maxLength: 2048
           pattern: '^https?://'
           description: An external poster URL; null removes the poster
+    AvatarUpload:
+      type: object
+      additionalProperties: false
+      required:
+        - avatar
+      properties:
+        avatar:
+          type: string
+          format: binary
+          description: The image file (JPEG, PNG or WebP, up to 5 MB)
     PosterUpload:
       type: object
       additionalProperties: false

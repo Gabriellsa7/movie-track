@@ -1,3 +1,5 @@
+import { Logger } from 'traceability';
+import { ServiceUnavailableError } from '../../domain/errors/service-unavailable.error';
 import jwt from 'jsonwebtoken';
 import { BcryptPasswordHasher } from '../../infrastructure/providers/password-hasher/bcrypt.password-hasher';
 import { SystemClock } from '../../infrastructure/providers/clock/system.clock';
@@ -165,15 +167,47 @@ describe('When we store files in Cloudinary', () => {
     });
   });
 
-  it('should propagate storage failures', async () => {
-    upload.mockRejectedValue(new Error('Cloudinary down'));
+  describe('and Cloudinary fails', () => {
+    let warnSpy: jest.SpyInstance;
 
-    await expect(
-      storageProvider.upload({
-        buffer: Buffer.from('image'),
-        mimeType: 'image/webp',
-        folder: 'posters',
-      }),
-    ).rejects.toThrow('Cloudinary down');
+    beforeEach(() => {
+      warnSpy = jest.spyOn(Logger, 'warn').mockImplementation(() => Logger);
+    });
+
+    afterEach(() => {
+      warnSpy.mockRestore();
+    });
+
+    it('should turn its plain-object rejection into 503 STORAGE_UNAVAILABLE and log the details', async () => {
+      upload.mockRejectedValue({ message: 'Request Timeout', http_code: 499 });
+
+      await expect(
+        storageProvider.upload({
+          buffer: Buffer.from('image'),
+          mimeType: 'image/webp',
+          folder: 'posters',
+        }),
+      ).rejects.toMatchObject({ status: 503, code: 'STORAGE_UNAVAILABLE' });
+      expect(warnSpy).toHaveBeenCalledWith('Cloudinary request failed', {
+        eventName: 'cloudinary.request_failed',
+        operation: 'upload',
+        error: 'Request Timeout',
+        httpCode: 499,
+      });
+    });
+
+    it('should do the same for a failed delete, logging the file id', async () => {
+      destroy.mockRejectedValue(new Error('socket hang up'));
+
+      await expect(
+        storageProvider.delete('posters/old'),
+      ).rejects.toBeInstanceOf(ServiceUnavailableError);
+      expect(warnSpy).toHaveBeenCalledWith('Cloudinary request failed', {
+        eventName: 'cloudinary.request_failed',
+        operation: 'delete',
+        publicId: 'posters/old',
+        error: 'socket hang up',
+      });
+    });
   });
 });

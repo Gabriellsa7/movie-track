@@ -567,3 +567,124 @@ describe('When a user repository fails unexpectedly', () => {
     loggerErrorSpy.mockRestore();
   });
 });
+
+describe('When we upload an avatar', () => {
+  const uploadParams = {
+    id: A_USER._id,
+    buffer: Buffer.from('image'),
+    mimeType: 'image/png',
+  };
+
+  beforeEach(() => {
+    storageProvider.upload.mockResolvedValue({
+      url: 'https://cdn.example.com/avatars/new.png',
+      publicId: 'avatars/new',
+    });
+    userRepositoryWrite.updateUserById.mockImplementation(
+      async (id, userData) => ({ ...A_USER, ...userData }),
+    );
+  });
+
+  it('should store the image, save it and delete the previous avatar', async () => {
+    userRepositoryRead.findUserById.mockResolvedValue(A_USER);
+
+    const user = await userService.uploadAvatar(uploadParams);
+
+    expect(storageProvider.upload).toHaveBeenCalledWith({
+      buffer: uploadParams.buffer,
+      mimeType: 'image/png',
+      folder: 'avatars',
+    });
+    expect(userRepositoryWrite.updateUserById).toHaveBeenCalledWith(
+      A_USER._id,
+      {
+        avatarUrl: 'https://cdn.example.com/avatars/new.png',
+        avatarPublicId: 'avatars/new',
+        updatedAt: NOW,
+      },
+    );
+    expect(storageProvider.delete).toHaveBeenCalledWith(A_USER.avatarPublicId);
+    expect(user.avatarUrl).toBe('https://cdn.example.com/avatars/new.png');
+    expect(user).not.toHaveProperty('avatarPublicId');
+  });
+
+  it('should not delete anything when there was no previous avatar', async () => {
+    userRepositoryRead.findUserById.mockResolvedValue({
+      ...A_USER,
+      avatarUrl: undefined,
+      avatarPublicId: undefined,
+    });
+
+    await userService.uploadAvatar(uploadParams);
+
+    expect(storageProvider.delete).not.toHaveBeenCalled();
+  });
+
+  it('should reject a file that is not a JPEG, PNG or WebP image', async () => {
+    await expect(
+      userService.uploadAvatar({ ...uploadParams, mimeType: 'image/gif' }),
+    ).rejects.toMatchObject({ status: 422, code: 'INVALID_AVATAR_TYPE' });
+    expect(storageProvider.upload).not.toHaveBeenCalled();
+  });
+
+  it('should not upload anything when the user does not exist', async () => {
+    userRepositoryRead.findUserById.mockResolvedValue(null);
+
+    await expect(userService.uploadAvatar(uploadParams)).rejects.toThrow(
+      NotFoundError,
+    );
+    expect(storageProvider.upload).not.toHaveBeenCalled();
+  });
+
+  it('should delete the uploaded file when the user vanished before saving', async () => {
+    userRepositoryRead.findUserById.mockResolvedValue(A_USER);
+    userRepositoryWrite.updateUserById.mockResolvedValue(null);
+
+    await expect(userService.uploadAvatar(uploadParams)).rejects.toThrow(
+      NotFoundError,
+    );
+    expect(storageProvider.delete).toHaveBeenCalledWith('avatars/new');
+  });
+});
+
+describe('When we remove an avatar', () => {
+  it('should clear it and delete the stored file', async () => {
+    userRepositoryRead.findUserById.mockResolvedValue(A_USER);
+    userRepositoryWrite.updateUserById.mockImplementation(
+      async (id, userData) => ({ ...A_USER, ...userData }),
+    );
+
+    const user = await userService.removeAvatar(A_USER._id);
+
+    expect(userRepositoryWrite.updateUserById).toHaveBeenCalledWith(
+      A_USER._id,
+      { avatarUrl: undefined, avatarPublicId: undefined, updatedAt: NOW },
+    );
+    expect(storageProvider.delete).toHaveBeenCalledWith(A_USER.avatarPublicId);
+    expect(user.avatarUrl).toBeUndefined();
+  });
+
+  it('should change nothing when there is no avatar', async () => {
+    const withoutAvatar = {
+      ...A_USER,
+      avatarUrl: undefined,
+      avatarPublicId: undefined,
+    };
+    userRepositoryRead.findUserById.mockResolvedValue(withoutAvatar);
+
+    await userService.removeAvatar(A_USER._id);
+
+    expect(userRepositoryWrite.updateUserById).not.toHaveBeenCalled();
+    expect(storageProvider.delete).not.toHaveBeenCalled();
+  });
+
+  it('should throw NotFoundError when the user vanished before saving', async () => {
+    userRepositoryRead.findUserById.mockResolvedValue(A_USER);
+    userRepositoryWrite.updateUserById.mockResolvedValue(null);
+
+    await expect(userService.removeAvatar(A_USER._id)).rejects.toThrow(
+      NotFoundError,
+    );
+    expect(storageProvider.delete).not.toHaveBeenCalled();
+  });
+});

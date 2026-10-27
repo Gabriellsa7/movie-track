@@ -6,7 +6,7 @@ import { IUserRepositoryWrite } from '../../../domain/user/repository/user.repos
 import { Muser } from '../../db/mongo/models/user.model';
 import { HIDE_USER_INTERNAL_FIELDS } from '../../db/mongo/mongo.projection';
 import { isObjectId, toObjectId } from '../../db/mongo/object-id';
-import { IMUserDocument, toUser } from './user.mapper';
+import { IMUserDocument, toUser, toUserUpdate } from './user.mapper';
 
 export class UserRepositoryWrite implements IUserRepositoryWrite {
   async createUser(userData: IUserData): Promise<IUser> {
@@ -33,7 +33,7 @@ export class UserRepositoryWrite implements IUserRepositoryWrite {
     }
     const user = await Muser.findOneAndUpdate(
       { _id: toObjectId(id) },
-      updateData,
+      toUserUpdate(updateData),
       { new: true, projection: HIDE_USER_INTERNAL_FIELDS },
     ).lean<IMUserDocument>();
     return user && toUser(user);

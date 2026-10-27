@@ -8,9 +8,11 @@ import {
 import { IController } from './controller.interface';
 import { IUserService } from '../../../domain/user/interfaces/user.service.interface';
 import { authorizeSelf } from '../middlewares/auth.middleware';
+import { getUploadedFile } from './uploaded-file.helper';
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_PAGE_LIMIT = 20;
+const AVATAR_FIELD = 'avatar';
 
 export class UserController implements IController {
   router: Router;
@@ -45,6 +47,18 @@ export class UserController implements IController {
       this.authenticate,
       authorizeSelf,
       this.deleteUser,
+    );
+    this.router.put(
+      '/users/:id/avatar',
+      this.authenticate,
+      authorizeSelf,
+      this.uploadAvatar,
+    );
+    this.router.delete(
+      '/users/:id/avatar',
+      this.authenticate,
+      authorizeSelf,
+      this.removeAvatar,
     );
   }
 
@@ -147,6 +161,41 @@ export class UserController implements IController {
         password: req.body.password,
       });
       res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  uploadAvatar = async (
+    req: Request<{ id: string }>,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    const avatar = getUploadedFile(req, AVATAR_FIELD);
+    if (avatar instanceof Error) {
+      next(avatar);
+      return;
+    }
+    try {
+      const user = await this.userService.uploadAvatar({
+        id: req.params.id,
+        buffer: avatar.buffer,
+        mimeType: avatar.mimetype,
+      });
+      res.status(200).json(user);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  removeAvatar = async (
+    req: Request<{ id: string }>,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const user = await this.userService.removeAvatar(req.params.id);
+      res.status(200).json(user);
     } catch (error) {
       next(error);
     }

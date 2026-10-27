@@ -1,5 +1,6 @@
 import { Logger } from 'traceability';
 import { ErrorHandler } from '../../common/decorators/error-handler.decorator';
+import { IMAGE_MIME_TYPES } from '../../common/image.mime-types';
 import { IPaginatedResult } from '../../common/pagination.interface';
 import { IClock } from '../../common/providers/clock.provider';
 import { IStorageProvider } from '../../common/providers/storage.provider';
@@ -30,7 +31,6 @@ import { IMovieEntryRepositoryRead } from '../repository/movie-entry.repository.
 import { IMovieEntryRepositoryWrite } from '../repository/movie-entry.repository.write';
 
 const POSTER_FOLDER = 'posters';
-const POSTER_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const STATS_MONTHS = 12;
 const MIN_RATING = 1;
 const MAX_RATING = 10;
@@ -205,7 +205,7 @@ export class MovieEntryService implements IMovieEntryService {
 
   @ErrorHandler()
   async uploadPoster(params: IParamsUploadPoster): Promise<IMovieEntry> {
-    if (!POSTER_MIME_TYPES.includes(params.mimeType)) {
+    if (!IMAGE_MIME_TYPES.includes(params.mimeType)) {
       throw new UnprocessableEntityError(
         'poster must be a JPEG, PNG or WebP image',
         'INVALID_POSTER_TYPE',
