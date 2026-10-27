@@ -6,11 +6,16 @@ import {
   RequestHandler,
 } from 'express';
 import { IController } from './controller.interface';
+import { IPaginatedResult } from '../../../domain/common/pagination.interface';
 import {
   EMovieEntrySortField,
   ESortOrder,
+  IMovieEntry,
 } from '../../../domain/movie-entry/interfaces/movie-entry.interface';
-import { IMovieEntryService } from '../../../domain/movie-entry/interfaces/movie-entry.service.interface';
+import {
+  IMovieEntryService,
+  IParamsListMovieEntries,
+} from '../../../domain/movie-entry/interfaces/movie-entry.service.interface';
 import { MovieEntry } from '../../../domain/movie-entry/movie-entry.entity';
 import { authorizeSelf } from '../middlewares/auth.middleware';
 import { getUploadedFile } from './uploaded-file.helper';
@@ -74,6 +79,8 @@ export class MovieEntryController implements IController {
       this.authenticate,
       this.logWatchlistItem,
     );
+    this.router.get('/users/:id/movies', this.listUserMovieEntries);
+    this.router.get('/users/:id/movies/:movieId', this.getUserMovieEntry);
     // Under /users because /movies/stats would be taken by /movies/:id.
     this.router.get(
       '/users/:id/stats',
@@ -106,34 +113,42 @@ export class MovieEntryController implements IController {
     res: Response,
     next: NextFunction,
   ): Promise<void> => {
-    const {
-      search,
-      genreId,
-      minRating,
-      maxRating,
-      favorite,
-      sort = EMovieEntrySortField.WATCHED_AT,
-      order = ESortOrder.DESC,
-      page = DEFAULT_PAGE,
-      limit = DEFAULT_PAGE_LIMIT,
-    } = req.query as IListMovieEntriesQuery;
     try {
-      const result = await this.movieEntryService.listMovieEntries({
-        filter: {
-          userId: req.userId!,
-          search,
-          genreId,
-          minRating,
-          maxRating,
-          favorite,
-        },
-        sort: { field: sort, order },
-        pagination: { limit, offset: (page - 1) * limit },
-      });
-      res.status(200).json({
-        ...result,
-        items: result.items.map(MovieEntry.toMovieEntryResponse),
-      });
+      const result = await this.movieEntryService.listMovieEntries(
+        this.toListParams(req.query as IListMovieEntriesQuery, req.userId!),
+      );
+      res.status(200).json(this.toPageResponse(result));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  listUserMovieEntries = async (
+    req: Request<{ id: string }>,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const result = await this.movieEntryService.listUserMovieEntries(
+        this.toListParams(req.query as IListMovieEntriesQuery, req.params.id),
+      );
+      res.status(200).json(this.toPageResponse(result));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getUserMovieEntry = async (
+    req: Request<{ id: string; movieId: string }>,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const movieEntry = await this.movieEntryService.getMovieEntryById(
+        req.params.movieId,
+        req.params.id,
+      );
+      res.status(200).json(MovieEntry.toMovieEntryResponse(movieEntry));
     } catch (error) {
       next(error);
     }
@@ -294,6 +309,35 @@ export class MovieEntryController implements IController {
       next(error);
     }
   };
+
+  private toListParams(
+    query: IListMovieEntriesQuery,
+    userId: string,
+  ): IParamsListMovieEntries {
+    const {
+      search,
+      genreId,
+      minRating,
+      maxRating,
+      favorite,
+      sort = EMovieEntrySortField.WATCHED_AT,
+      order = ESortOrder.DESC,
+      page = DEFAULT_PAGE,
+      limit = DEFAULT_PAGE_LIMIT,
+    } = query;
+    return {
+      filter: { userId, search, genreId, minRating, maxRating, favorite },
+      sort: { field: sort, order },
+      pagination: { limit, offset: (page - 1) * limit },
+    };
+  }
+
+  private toPageResponse(result: IPaginatedResult<IMovieEntry>) {
+    return {
+      ...result,
+      items: result.items.map(MovieEntry.toMovieEntryResponse),
+    };
+  }
 
   public getRoutes(): Router {
     return this.router;

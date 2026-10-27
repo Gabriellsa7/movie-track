@@ -104,6 +104,9 @@ export interface IMovieEntryService {
   listMovieEntries(
     params: IParamsListMovieEntries,
   ): Promise<IPaginatedResult<IMovieEntry>>;
+  listUserMovieEntries(
+    params: IParamsListMovieEntries,
+  ): Promise<IPaginatedResult<IMovieEntry>>;
   updateMovieEntry(params: IParamsUpdateMovieEntry): Promise<IMovieEntry>;
   setFavorite(params: IParamsSetFavorite): Promise<IMovieEntry>;
   rewatchMovieEntry(params: IParamsRewatchMovieEntry): Promise<IMovieEntry>;

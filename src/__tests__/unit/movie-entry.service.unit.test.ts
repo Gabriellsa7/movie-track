@@ -304,6 +304,33 @@ describe('When we list movie entries', () => {
   });
 });
 
+describe("When we list a user's movie entries for their public profile", () => {
+  const params = {
+    filter: { userId: USER_ID },
+    sort: { field: EMovieEntrySortField.WATCHED_AT, order: ESortOrder.DESC },
+    pagination: { limit: 20, offset: 0 },
+  };
+
+  it('should return the page of that user', async () => {
+    movieEntryRepositoryRead.listMovieEntries.mockResolvedValue([A_MOVIE_ENTRY]);
+    movieEntryRepositoryRead.countMovieEntries.mockResolvedValue(1);
+
+    await expect(
+      movieEntryService.listUserMovieEntries(params),
+    ).resolves.toEqual({ items: [A_MOVIE_ENTRY], total: 1, page: 1, limit: 20 });
+    expect(userRepositoryRead.findUserById).toHaveBeenCalledWith(USER_ID);
+  });
+
+  it('should throw 404 USER_NOT_FOUND for an unknown user', async () => {
+    userRepositoryRead.findUserById.mockResolvedValue(null);
+
+    await expect(
+      movieEntryService.listUserMovieEntries(params),
+    ).rejects.toMatchObject({ status: 404, code: 'USER_NOT_FOUND' });
+    expect(movieEntryRepositoryRead.listMovieEntries).not.toHaveBeenCalled();
+  });
+});
+
 describe('When we list movie entries with invalid filters', () => {
   const sort = { field: EMovieEntrySortField.WATCHED_AT, order: ESortOrder.DESC };
   const pagination = { limit: 20, offset: 0 };
