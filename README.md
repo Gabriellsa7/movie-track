@@ -85,6 +85,7 @@ All `/movies`, `/watchlist` and `/tmdb` routes require `Authorization: Bearer <a
 | `POST` | `/users` | Create an account |
 | `GET` | `/users` | List users, each with movies logged, average rating and favorites |
 | `GET` / `PUT` / `DELETE` | `/users/{id}` | Get a public profile (with the same summary), update or delete a user |
+| `GET` | `/users/{id}/account` | My account (private user, with e-mail and `emailVerified`) |
 | `PATCH` | `/users/{id}/password` | Change the password |
 | `PUT` / `DELETE` | `/users/{id}/avatar` | Upload (`multipart/form-data`, field `avatar`) or remove my avatar |
 | `GET` | `/users/{id}/stats` | My movie stats (totals, ratings, months, top genres) |
