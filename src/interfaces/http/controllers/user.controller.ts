@@ -105,11 +105,12 @@ export class UserController implements IController {
     res: Response,
     next: NextFunction,
   ): Promise<void> => {
-    const { name, email } = req.body;
+    const { name, email, currentPassword } = req.body;
     try {
       const updatedUser = await this.userService.updateUserById({
         id: req.params.id,
         userData: { name, email },
+        currentPassword,
       });
       res.status(200).json(updatedUser);
     } catch (error) {

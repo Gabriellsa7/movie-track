@@ -26,6 +26,8 @@ export interface IParamsCreateUser {
 export interface IParamsUpdateUser {
   id: string;
   userData: Partial<Pick<IUser, 'name' | 'email'>>;
+  // Required only to change the e-mail.
+  currentPassword?: string;
 }
 
 export interface IParamsChangePassword {

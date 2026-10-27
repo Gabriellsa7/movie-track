@@ -21,6 +21,7 @@ import { ErrorHandler } from '../../common/decorators/error-handler.decorator';
 import { ConflictError } from '../../errors/conflict.error';
 import { NotFoundError } from '../../errors/not-found.error';
 import { UnauthorizedError } from '../../errors/unauthorized.error';
+import { UnprocessableEntityError } from '../../errors/unprocessable-entity.error';
 import { IPaginatedResult } from '../../common/pagination.interface';
 import { IClock } from '../../common/providers/clock.provider';
 import { IPasswordHasher } from '../../common/providers/password-hasher.provider';
@@ -103,8 +104,20 @@ export class UserService implements IUserService {
 
   @ErrorHandler()
   async updateUserById(params: IParamsUpdateUser): Promise<IUserPrivate> {
-    const user = new User(await this.findExistingUser(params.id));
+    const existingUser = await this.findExistingUser(params.id);
+    const user = new User(existingUser);
     user.updateProfile(params.userData, this.clock.now());
+
+    // The e-mail is the login, so a stolen access token must not be enough to take the account over.
+    if (user.email !== existingUser.email) {
+      if (!params.currentPassword) {
+        throw new UnprocessableEntityError(
+          'currentPassword is required to change the e-mail',
+          'CURRENT_PASSWORD_REQUIRED',
+        );
+      }
+      await this.ensurePasswordMatches(params.currentPassword, existingUser);
+    }
 
     if (params.userData.email !== undefined) {
       const userWithEmail = await this.userRepositoryRead.findUserByEmail(

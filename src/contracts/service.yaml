@@ -160,7 +160,10 @@ paths:
         - Users
       summary: Update a user
       operationId: updateUser
-      description: Update the name or e-mail of an existing user.
+      description: >
+        Update the name or e-mail of an existing user. Changing the e-mail requires
+        currentPassword (422 CURRENT_PASSWORD_REQUIRED without it, 401 INVALID_CREDENTIALS
+        when wrong), so a stolen access token cannot take the account over.
       security:
         - bearerAuth: []
       requestBody:
@@ -190,6 +193,12 @@ paths:
           $ref: '#/components/responses/UserNotFound'
         '409':
           description: A user with this email already exists (EMAIL_TAKEN)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: The e-mail changes but currentPassword is missing (CURRENT_PASSWORD_REQUIRED)
           content:
             application/json:
               schema:
@@ -1702,7 +1711,12 @@ components:
           type: string
           format: email
           maxLength: 254
-          description: The user's email address
+          description: The user's email address; changing it requires currentPassword
+        currentPassword:
+          type: string
+          minLength: 1
+          maxLength: 72
+          description: Required only to change the e-mail (else CURRENT_PASSWORD_REQUIRED)
     Error:
       type: object
       required:
