@@ -38,6 +38,12 @@ export class UserController implements IController {
   initRoutes() {
     this.router.get('/users', this.getUsers);
     this.router.get('/users/:id', this.getUserProfile);
+    this.router.get(
+      '/users/:id/account',
+      this.authenticate,
+      authorizeSelf,
+      this.getUserAccount,
+    );
     this.router.post('/users', this.signUpRateLimit, this.createUser);
     this.router.put(
       '/users/:id',
@@ -107,6 +113,19 @@ export class UserController implements IController {
     try {
       const profile = await this.userService.getPublicProfile(req.params.id);
       res.status(200).json(profile);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getUserAccount = async (
+    req: Request<{ id: string }>,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const user = await this.userService.getUserById(req.params.id);
+      res.status(200).json(user);
     } catch (error) {
       next(error);
     }

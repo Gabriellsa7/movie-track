@@ -468,6 +468,38 @@ paths:
         default:
           $ref: '#/components/responses/UnexpectedError'
 
+  /users/{id}/account:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+    get:
+      tags:
+        - Users
+      summary: Get my account
+      operationId: getUserAccount
+      description: >
+        Private: only the account owner can read it. Returns the private user (e-mail and
+        emailVerified included), which the front-end loads after logging in.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The logged user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/UserNotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
   /auth/login:
     post:
       tags:
