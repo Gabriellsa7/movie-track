@@ -26,7 +26,9 @@ import { UnprocessableEntityError } from '../../errors/unprocessable-entity.erro
 import { IMAGE_MIME_TYPES } from '../../common/image.mime-types';
 import { IPaginatedResult } from '../../common/pagination.interface';
 import { IClock } from '../../common/providers/clock.provider';
+import { IAccountMailer } from '../../common/providers/account-mailer.provider';
 import { IPasswordHasher } from '../../common/providers/password-hasher.provider';
+import { ISecureTokenProvider } from '../../common/providers/secure-token.provider';
 import { IStorageProvider } from '../../common/providers/storage.provider';
 import { IMovieEntryRepositoryRead } from '../../movie-entry/repository/movie-entry.repository.read';
 import { IMovieEntryRepositoryWrite } from '../../movie-entry/repository/movie-entry.repository.write';
@@ -34,6 +36,7 @@ import { IWatchlistRepositoryWrite } from '../../watchlist/repository/watchlist.
 import { User } from '../user.entity';
 
 const AVATAR_FOLDER = 'avatars';
+const EMAIL_VERIFICATION_TTL_MILLISECONDS = 24 * 60 * 60 * 1000;
 
 const NO_MOVIES: IUserMoviesSummary = {
   moviesCount: 0,
@@ -49,6 +52,8 @@ export class UserService implements IUserService {
   private watchlistRepositoryWrite: IWatchlistRepositoryWrite;
   private storageProvider: IStorageProvider;
   private passwordHasher: IPasswordHasher;
+  private secureTokenProvider: ISecureTokenProvider;
+  private accountMailer: IAccountMailer;
   private clock: IClock;
 
   constructor({
@@ -59,6 +64,8 @@ export class UserService implements IUserService {
     watchlistRepositoryWrite,
     storageProvider,
     passwordHasher,
+    secureTokenProvider,
+    accountMailer,
     clock,
   }: IParamsUserService) {
     this.userRepositoryRead = userRepositoryRead;
@@ -68,6 +75,8 @@ export class UserService implements IUserService {
     this.watchlistRepositoryWrite = watchlistRepositoryWrite;
     this.storageProvider = storageProvider;
     this.passwordHasher = passwordHasher;
+    this.secureTokenProvider = secureTokenProvider;
+    this.accountMailer = accountMailer;
     this.clock = clock;
   }
 
@@ -86,7 +95,10 @@ export class UserService implements IUserService {
       passwordHash: await this.passwordHasher.hash(params.password),
       createdAt: this.clock.now(),
     });
+    const verificationToken = this.startEmailVerification(user);
     const createdUser = await this.userRepositoryWrite.createUser(user);
+
+    await this.trySendEmailVerification(createdUser, verificationToken);
     return User.toUserPrivate(createdUser);
   }
 
@@ -132,14 +144,51 @@ export class UserService implements IUserService {
       }
     }
 
+    const emailChanged = user.email !== existingUser.email;
+    const verificationToken = emailChanged
+      ? this.startEmailVerification(user)
+      : undefined;
+
     const updatedUser = await this.userRepositoryWrite.updateUserById(
       params.id,
-      { name: user.name, email: user.email, updatedAt: user.updatedAt },
+      {
+        name: user.name,
+        email: user.email,
+        updatedAt: user.updatedAt,
+        ...(emailChanged && {
+          emailVerified: user.emailVerified,
+          emailVerificationTokenHash: user.emailVerificationTokenHash,
+          emailVerificationExpiresAt: user.emailVerificationExpiresAt,
+        }),
+      },
     );
     if (!updatedUser) {
       throw this.userNotFoundError();
     }
+    if (verificationToken) {
+      await this.trySendEmailVerification(updatedUser, verificationToken);
+    }
     return User.toUserPrivate(updatedUser);
+  }
+
+  @ErrorHandler()
+  async resendEmailVerification(id: string): Promise<void> {
+    const user = new User(await this.findExistingUser(id));
+    if (user.emailVerified) {
+      throw new ConflictError(
+        'The e-mail is already verified',
+        'EMAIL_ALREADY_VERIFIED',
+      );
+    }
+    const verificationToken = this.startEmailVerification(user);
+    const updatedUser = await this.userRepositoryWrite.updateUserById(id, {
+      emailVerificationTokenHash: user.emailVerificationTokenHash,
+      emailVerificationExpiresAt: user.emailVerificationExpiresAt,
+    });
+    if (!updatedUser) {
+      throw this.userNotFoundError();
+    }
+    await this.sendEmailVerification(updatedUser, verificationToken);
   }
 
   @ErrorHandler()
@@ -254,6 +303,40 @@ export class UserService implements IUserService {
       await this.deleteStoredFile(existingUser.avatarPublicId);
     }
     return User.toUserPrivate(updatedUser);
+  }
+
+  // Returns the plain token for the e-mail; the user only keeps its hash.
+  private startEmailVerification(user: User): string {
+    const { token, hash } = this.secureTokenProvider.generate();
+    user.startEmailVerification(
+      hash,
+      new Date(this.clock.now().getTime() + EMAIL_VERIFICATION_TTL_MILLISECONDS),
+    );
+    return token;
+  }
+
+  private sendEmailVerification(user: IUser, token: string): Promise<void> {
+    return this.accountMailer.sendEmailVerification({
+      to: user.email,
+      name: user.name,
+      token,
+    });
+  }
+
+  // The change is already saved; a failed e-mail can be sent again from POST /users/{id}/email-verification.
+  private async trySendEmailVerification(
+    user: IUser,
+    token: string,
+  ): Promise<void> {
+    try {
+      await this.sendEmailVerification(user, token);
+    } catch (error) {
+      Logger.warn('Failed to send the e-mail verification', {
+        eventName: 'user.email_verification.send_failed',
+        userId: user._id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 
   // One query for the whole page; users without movies are absent from the result.

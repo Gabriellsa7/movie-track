@@ -1,3 +1,5 @@
+import { ISecureTokenProvider } from '../../domain/common/providers/secure-token.provider';
+import { IAccountMailer } from '../../domain/common/providers/account-mailer.provider';
 import { Logger } from 'traceability';
 import { UserService } from '../../domain/user/service/user.service';
 import { IUserRepositoryRead } from '../../domain/user/repository/user.repository.read';
@@ -31,6 +33,7 @@ const A_USER_PRIVATE = {
   id: A_USER._id,
   name: A_USER.name,
   email: A_USER.email,
+  emailVerified: false,
   avatarUrl: A_USER.avatarUrl,
   createdAt: A_USER.createdAt,
   updatedAt: A_USER.updatedAt,
@@ -46,14 +49,26 @@ let watchlistRepositoryWrite: jest.Mocked<IWatchlistRepositoryWrite>;
 let storageProvider: jest.Mocked<IStorageProvider>;
 let passwordHasher: jest.Mocked<IPasswordHasher>;
 let clock: jest.Mocked<IClock>;
+let secureTokenProvider: jest.Mocked<ISecureTokenProvider>;
+let accountMailer: jest.Mocked<IAccountMailer>;
 let userService: UserService;
 
 beforeEach(() => {
   userRepositoryRead = {
     findUserById: jest.fn(),
     findUserByEmail: jest.fn(),
+    findUserByEmailVerificationTokenHash: jest.fn(),
+    findUserByPasswordResetTokenHash: jest.fn(),
     searchUsers: jest.fn(),
     countUsers: jest.fn(),
+  };
+  secureTokenProvider = {
+    generate: jest.fn(() => ({ token: 'plain-token', hash: 'hashed-token' })),
+    hash: jest.fn(),
+  };
+  accountMailer = {
+    sendEmailVerification: jest.fn(),
+    sendPasswordReset: jest.fn(),
   };
   userRepositoryWrite = {
     createUser: jest.fn(),
@@ -89,6 +104,8 @@ beforeEach(() => {
     watchlistRepositoryWrite,
     storageProvider,
     passwordHasher,
+    secureTokenProvider,
+    accountMailer,
     clock,
   });
 });
@@ -686,5 +703,160 @@ describe('When we remove an avatar', () => {
       NotFoundError,
     );
     expect(storageProvider.delete).not.toHaveBeenCalled();
+  });
+});
+
+const ONE_DAY = 24 * 60 * 60 * 1000;
+
+describe('When a user signs up', () => {
+  beforeEach(() => {
+    userRepositoryRead.findUserByEmail.mockResolvedValue(null);
+    userRepositoryWrite.createUser.mockImplementation(async (user) => ({
+      ...user,
+      _id: 'user-1',
+    }));
+  });
+
+  it('should start the e-mail verification for 24 hours and send the link', async () => {
+    const createdUser = await userService.createUser({
+      name: 'Whitebeard',
+      email: 'whitebeard@email.com',
+      password: 'secret123',
+    });
+
+    expect(userRepositoryWrite.createUser).toHaveBeenCalledWith(
+      expect.objectContaining({
+        emailVerified: false,
+        emailVerificationTokenHash: 'hashed-token',
+        emailVerificationExpiresAt: new Date(NOW.getTime() + ONE_DAY),
+      }),
+    );
+    expect(accountMailer.sendEmailVerification).toHaveBeenCalledWith({
+      to: 'whitebeard@email.com',
+      name: 'Whitebeard',
+      token: 'plain-token',
+    });
+    expect(createdUser.emailVerified).toBe(false);
+    expect(createdUser).not.toHaveProperty('emailVerificationTokenHash');
+  });
+
+  it('should still create the account when the e-mail fails, logging it', async () => {
+    accountMailer.sendEmailVerification.mockRejectedValue(new Error('Resend down'));
+    const warnSpy = jest.spyOn(Logger, 'warn').mockImplementation(() => Logger);
+
+    await expect(
+      userService.createUser({
+        name: 'Whitebeard',
+        email: 'whitebeard@email.com',
+        password: 'secret123',
+      }),
+    ).resolves.toMatchObject({ id: 'user-1' });
+    expect(warnSpy).toHaveBeenCalledWith(
+      'Failed to send the e-mail verification',
+      expect.objectContaining({
+        eventName: 'user.email_verification.send_failed',
+      }),
+    );
+    warnSpy.mockRestore();
+  });
+});
+
+describe('When a user changes the e-mail', () => {
+  it('should ask to confirm the new address', async () => {
+    userRepositoryRead.findUserById.mockResolvedValue({
+      ...A_USER,
+      emailVerified: true,
+    });
+    userRepositoryRead.findUserByEmail.mockResolvedValue(null);
+    passwordHasher.compare.mockResolvedValue(true);
+    userRepositoryWrite.updateUserById.mockImplementation(
+      async (id, userData) => ({ ...A_USER, ...userData }),
+    );
+
+    await userService.updateUserById({
+      id: A_USER._id,
+      userData: { email: 'new@email.com' },
+      currentPassword: 'secret123',
+    });
+
+    expect(userRepositoryWrite.updateUserById).toHaveBeenCalledWith(
+      A_USER._id,
+      expect.objectContaining({
+        email: 'new@email.com',
+        emailVerified: false,
+        emailVerificationTokenHash: 'hashed-token',
+      }),
+    );
+    expect(accountMailer.sendEmailVerification).toHaveBeenCalledWith({
+      to: 'new@email.com',
+      name: A_USER.name,
+      token: 'plain-token',
+    });
+  });
+
+  it('should not touch the verification when only the name changes', async () => {
+    userRepositoryRead.findUserById.mockResolvedValue(A_USER);
+    userRepositoryWrite.updateUserById.mockImplementation(
+      async (id, userData) => ({ ...A_USER, ...userData }),
+    );
+
+    await userService.updateUserById({
+      id: A_USER._id,
+      userData: { name: 'Edward' },
+    });
+
+    expect(userRepositoryWrite.updateUserById).toHaveBeenCalledWith(
+      A_USER._id,
+      expect.not.objectContaining({ emailVerified: expect.anything() }),
+    );
+    expect(accountMailer.sendEmailVerification).not.toHaveBeenCalled();
+  });
+});
+
+describe('When a user asks for the e-mail confirmation again', () => {
+  it('should replace the token and send a new link', async () => {
+    userRepositoryRead.findUserById.mockResolvedValue({
+      ...A_USER,
+      emailVerified: false,
+    });
+    userRepositoryWrite.updateUserById.mockImplementation(
+      async (id, userData) => ({ ...A_USER, ...userData }),
+    );
+
+    await userService.resendEmailVerification(A_USER._id);
+
+    expect(userRepositoryWrite.updateUserById).toHaveBeenCalledWith(A_USER._id, {
+      emailVerificationTokenHash: 'hashed-token',
+      emailVerificationExpiresAt: new Date(NOW.getTime() + ONE_DAY),
+    });
+    expect(accountMailer.sendEmailVerification).toHaveBeenCalledWith(
+      expect.objectContaining({ token: 'plain-token' }),
+    );
+  });
+
+  it('should reject an already verified e-mail with 409 EMAIL_ALREADY_VERIFIED', async () => {
+    userRepositoryRead.findUserById.mockResolvedValue({
+      ...A_USER,
+      emailVerified: true,
+    });
+
+    await expect(
+      userService.resendEmailVerification(A_USER._id),
+    ).rejects.toMatchObject({ status: 409, code: 'EMAIL_ALREADY_VERIFIED' });
+    expect(accountMailer.sendEmailVerification).not.toHaveBeenCalled();
+  });
+
+  it('should let the client know when the e-mail cannot be sent', async () => {
+    userRepositoryRead.findUserById.mockResolvedValue(A_USER);
+    userRepositoryWrite.updateUserById.mockImplementation(
+      async (id, userData) => ({ ...A_USER, ...userData }),
+    );
+    accountMailer.sendEmailVerification.mockRejectedValue(
+      new Error('Resend down'),
+    );
+
+    await expect(
+      userService.resendEmailVerification(A_USER._id),
+    ).rejects.toThrow('Resend down');
   });
 });

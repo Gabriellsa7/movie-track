@@ -25,6 +25,7 @@ const buildApp = (trustProxyHops = 0) =>
           maxFailuresPerAccount: 2,
           maxFailuresPerIp: 4,
         }),
+        (_req, _res, next) => next(),
       ),
     ],
     apiSpecLocation: path.resolve(__dirname, '../../contracts/service.yaml'),
