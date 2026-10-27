@@ -1079,7 +1079,7 @@ paths:
         - Watchlist
       summary: List my watchlist
       operationId: getWatchlist
-      description: Paginated list of the authenticated user's watchlist, most recently added first.
+      description: Paginated list of the authenticated user's watchlist, most recently added first by default.
       security:
         - bearerAuth: []
       parameters:
@@ -1090,6 +1090,21 @@ paths:
             type: string
             maxLength: 100
           description: Part of the title, ignoring case and accents
+        - name: priority
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [high, medium, low]
+          description: Only items with this priority
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [addedAt, priority]
+            default: addedAt
+          description: addedAt lists the newest first; priority lists high first, then the newest
         - name: page
           in: query
           required: false
@@ -1124,6 +1139,51 @@ paths:
   /watchlist/{id}:
     parameters:
       - $ref: '#/components/parameters/WatchlistItemId'
+    put:
+      tags:
+        - Watchlist
+      summary: Edit a movie in my watchlist
+      operationId: updateWatchlistItem
+      description: >
+        Changes only the fields sent. Changing the title, year or tmdbId runs the same checks as
+        adding: it cannot become a movie already in the watchlist or already watched.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateWatchlistItem'
+      responses:
+        '200':
+          description: Item updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WatchlistItem'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/WatchlistItemNotFound'
+        '409':
+          description: It would duplicate another item (ALREADY_IN_WATCHLIST) or a watched movie (MOVIE_ALREADY_LOGGED)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: releaseYear is after next year (INVALID_RELEASE_YEAR)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
     delete:
       tags:
         - Watchlist
@@ -1683,6 +1743,47 @@ components:
           maxLength: 2048
           pattern: '^https?://'
           description: An external poster URL
+        priority:
+          type: string
+          enum: [high, medium, low]
+          description: Defaults to medium
+        note:
+          type: string
+          maxLength: 500
+          description: A personal note, e.g. who recommended it
+    UpdateWatchlistItem:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      description: Only the fields sent change; null clears releaseYear, tmdbId or posterUrl, and an empty note clears it
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          pattern: '\S'
+        releaseYear:
+          type: integer
+          minimum: 1888
+          nullable: true
+          description: Up to next year (else INVALID_RELEASE_YEAR)
+        tmdbId:
+          type: integer
+          minimum: 1
+          nullable: true
+        posterUrl:
+          type: string
+          maxLength: 2048
+          pattern: '^https?://'
+          nullable: true
+        priority:
+          type: string
+          enum: [high, medium, low]
+          description: Defaults to medium
+        note:
+          type: string
+          maxLength: 500
+          description: A personal note, e.g. who recommended it
     WatchlistItem:
       type: object
       additionalProperties: false
@@ -1690,6 +1791,7 @@ components:
         - id
         - userId
         - title
+        - priority
         - addedAt
       properties:
         id:
@@ -1706,6 +1808,11 @@ components:
           type: string
         releaseYear:
           type: integer
+        priority:
+          type: string
+          enum: [high, medium, low]
+        note:
+          type: string
         addedAt:
           type: string
           format: date-time

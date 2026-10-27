@@ -1,3 +1,4 @@
+import { EWatchlistPriority } from '../../domain/watchlist/interfaces/watchlist.interface';
 import { IUserRepositoryRead } from '../../domain/user/repository/user.repository.read';
 import { Logger } from 'traceability';
 import { IClock } from '../../domain/common/providers/clock.provider';
@@ -96,6 +97,7 @@ beforeEach(() => {
   };
   watchlistRepositoryWrite = {
     createWatchlistItem: jest.fn(),
+    updateWatchlistItemById: jest.fn(),
     deleteWatchlistItemById: jest.fn(),
     deleteWatchlistItemsByUserId: jest.fn(),
   };
@@ -234,6 +236,7 @@ describe('When we create a movie entry', () => {
       title: 'The Matrix',
       normalizedTitle: 'the matrix',
       addedAt: NOW,
+      priority: EWatchlistPriority.MEDIUM,
     });
 
     await movieEntryService.createMovieEntry({

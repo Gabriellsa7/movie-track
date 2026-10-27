@@ -86,6 +86,7 @@ beforeEach(() => {
   };
   watchlistRepositoryWrite = {
     createWatchlistItem: jest.fn(),
+    updateWatchlistItemById: jest.fn(),
     deleteWatchlistItemById: jest.fn(),
     deleteWatchlistItemsByUserId: jest.fn(),
   };

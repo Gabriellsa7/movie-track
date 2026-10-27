@@ -29,8 +29,9 @@ runtime.
   rewatch adds one and moves the last watch date.
 - **Stats** — totals, average rating, rating distribution, movies per month
   and top genres of my own movie log.
-- **Watchlist** — save movies to watch later, search them, and move one to the
-  movie log once watched (`watchlistItemId` in `POST /movies`).
+- **Watchlist** — save movies to watch later with a priority and a personal
+  note, edit, filter and sort them, and move one to the movie log once watched
+  (`watchlistItemId` in `POST /movies`).
 - **Genres** — a fixed list of genres, seeded on startup and mapped to TMDB
   genre IDs.
 - **Movie search** — search TMDB by title to prefill a movie or a watchlist
@@ -100,7 +101,8 @@ All `/movies`, `/watchlist` and `/tmdb` routes require `Authorization: Bearer <a
 | `PUT` | `/movies/{id}/poster` | Upload a movie's poster (`multipart/form-data`, field `poster`) |
 | `DELETE` | `/movies/{id}/poster` | Remove a movie's poster |
 | `POST` | `/watchlist` | Add a movie to my watchlist |
-| `GET` | `/watchlist` | List my watchlist (search, pagination) |
+| `GET` | `/watchlist` | List my watchlist (search, priority filter, sort, pagination) |
+| `PUT` | `/watchlist/{id}` | Edit a movie in my watchlist (title, year, poster, priority, note) |
 | `DELETE` | `/watchlist/{id}` | Remove a movie from my watchlist |
 | `GET` | `/tmdb/search` | Search movies in TMDB to prefill a movie or watchlist item |
 | `GET` | `/genres` | List the genres |

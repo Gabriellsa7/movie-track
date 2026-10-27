@@ -5,6 +5,11 @@ import {
 
 export interface IWatchlistRepositoryWrite {
   createWatchlistItem(itemData: IWatchlistItemData): Promise<IWatchlistItem>;
+  updateWatchlistItemById(
+    id: string,
+    userId: string,
+    itemData: Partial<Omit<IWatchlistItemData, 'userId'>>,
+  ): Promise<IWatchlistItem | null>;
   deleteWatchlistItemById(
     id: string,
     userId: string,

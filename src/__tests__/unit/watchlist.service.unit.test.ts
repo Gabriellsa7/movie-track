@@ -3,7 +3,11 @@ import { Logger } from 'traceability';
 import { IClock } from '../../domain/common/providers/clock.provider';
 import { IMovieEntry } from '../../domain/movie-entry/interfaces/movie-entry.interface';
 import { IMovieEntryRepositoryRead } from '../../domain/movie-entry/repository/movie-entry.repository.read';
-import { IWatchlistItem } from '../../domain/watchlist/interfaces/watchlist.interface';
+import {
+  EWatchlistPriority,
+  EWatchlistSortField,
+  IWatchlistItem,
+} from '../../domain/watchlist/interfaces/watchlist.interface';
 import { IWatchlistRepositoryRead } from '../../domain/watchlist/repository/watchlist.repository.read';
 import { IWatchlistRepositoryWrite } from '../../domain/watchlist/repository/watchlist.repository.write';
 import { WatchlistService } from '../../domain/watchlist/service/watchlist.service';
@@ -17,6 +21,7 @@ const AN_ITEM: IWatchlistItem = {
   title: 'Seven',
   normalizedTitle: 'seven',
   releaseYear: 1995,
+  priority: EWatchlistPriority.MEDIUM,
   addedAt: NOW,
 };
 
@@ -40,8 +45,10 @@ beforeEach(() => {
   watchlistRepositoryWrite = {
     createWatchlistItem: jest.fn(async (itemData) => ({
       ...itemData,
+      priority: itemData.priority ?? EWatchlistPriority.MEDIUM,
       _id: 'item-1',
     })),
+    updateWatchlistItemById: jest.fn(),
     deleteWatchlistItemById: jest.fn(),
     deleteWatchlistItemsByUserId: jest.fn(),
   };
@@ -183,21 +190,26 @@ describe('When we list the watchlist', () => {
     watchlistRepositoryRead.listWatchlistItems.mockResolvedValue([AN_ITEM]);
     watchlistRepositoryRead.countWatchlistItems.mockResolvedValue(21);
 
-    const result = await watchlistService.listWatchlistItems({
+    const filter = {
       userId: USER_ID,
       search: 'sev',
+      priority: EWatchlistPriority.HIGH,
+    };
+
+    const result = await watchlistService.listWatchlistItems({
+      filter,
+      sort: EWatchlistSortField.PRIORITY,
       pagination: { limit: 10, offset: 20 },
     });
 
     expect(result).toEqual({ items: [AN_ITEM], total: 21, page: 3, limit: 10 });
     expect(watchlistRepositoryRead.listWatchlistItems).toHaveBeenCalledWith(
-      USER_ID,
-      'sev',
+      filter,
+      EWatchlistSortField.PRIORITY,
       { limit: 10, offset: 20 },
     );
     expect(watchlistRepositoryRead.countWatchlistItems).toHaveBeenCalledWith(
-      USER_ID,
-      'sev',
+      filter,
     );
   });
 });
@@ -234,7 +246,8 @@ describe('When a watchlist repository fails unexpectedly', () => {
 
     await expect(
       watchlistService.listWatchlistItems({
-        userId: USER_ID,
+        filter: { userId: USER_ID },
+        sort: EWatchlistSortField.ADDED_AT,
         pagination: { limit: 20, offset: 0 },
       }),
     ).rejects.toThrow('database down');
@@ -243,5 +256,76 @@ describe('When a watchlist repository fails unexpectedly', () => {
       expect.objectContaining({ eventName: 'service.unexpected_error' }),
     );
     errorSpy.mockRestore();
+  });
+});
+
+describe('When we edit a watchlist item', () => {
+  beforeEach(() => {
+    watchlistRepositoryRead.findWatchlistItemById.mockResolvedValue(AN_ITEM);
+    watchlistRepositoryWrite.updateWatchlistItemById.mockImplementation(
+      async (id, userId, itemData) => ({ ...AN_ITEM, ...itemData }),
+    );
+  });
+
+  it('should save the changed fields without the movie checks when it is the same movie', async () => {
+    const updated = await watchlistService.updateWatchlistItem({
+      id: 'item-1',
+      userId: USER_ID,
+      itemData: { priority: EWatchlistPriority.HIGH, note: 'Friday' },
+    });
+
+    expect(updated).toMatchObject({ priority: 'high', note: 'Friday' });
+    expect(
+      watchlistRepositoryRead.findDuplicateWatchlistItem,
+    ).not.toHaveBeenCalled();
+    expect(
+      movieEntryRepositoryRead.findDuplicateMovieEntry,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('should check the new movie, ignoring the item itself', async () => {
+    await watchlistService.updateWatchlistItem({
+      id: 'item-1',
+      userId: USER_ID,
+      itemData: { title: 'Se7en' },
+    });
+
+    expect(
+      watchlistRepositoryRead.findDuplicateWatchlistItem,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({ normalizedTitle: 'se7en', excludeId: 'item-1' }),
+    );
+    expect(movieEntryRepositoryRead.findDuplicateMovieEntry).toHaveBeenCalled();
+  });
+
+  it('should reject a release year after next year', async () => {
+    await expect(
+      watchlistService.updateWatchlistItem({
+        id: 'item-1',
+        userId: USER_ID,
+        itemData: { releaseYear: 2028 },
+      }),
+    ).rejects.toMatchObject({ status: 422, code: 'INVALID_RELEASE_YEAR' });
+    expect(watchlistRepositoryWrite.updateWatchlistItemById).not.toHaveBeenCalled();
+  });
+
+  it('should throw 404 when the item is missing or vanished before saving', async () => {
+    watchlistRepositoryRead.findWatchlistItemById.mockResolvedValueOnce(null);
+    await expect(
+      watchlistService.updateWatchlistItem({
+        id: 'item-1',
+        userId: USER_ID,
+        itemData: { note: 'x' },
+      }),
+    ).rejects.toMatchObject({ status: 404, code: 'WATCHLIST_ITEM_NOT_FOUND' });
+
+    watchlistRepositoryWrite.updateWatchlistItemById.mockResolvedValueOnce(null);
+    await expect(
+      watchlistService.updateWatchlistItem({
+        id: 'item-1',
+        userId: USER_ID,
+        itemData: { note: 'x' },
+      }),
+    ).rejects.toMatchObject({ status: 404 });
   });
 });

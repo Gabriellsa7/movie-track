@@ -11,6 +11,7 @@ import { IWatchlistItem } from '../interfaces/watchlist.interface';
 import {
   IParamsAddWatchlistItem,
   IParamsListWatchlistItems,
+  IParamsUpdateWatchlistItem,
   IParamsWatchlistService,
   IWatchlistService,
 } from '../interfaces/watchlist.service.interface';
@@ -50,10 +51,91 @@ export class WatchlistService implements IWatchlistService {
       tmdbId: params.tmdbId,
       posterUrl: params.posterUrl,
       releaseYear: params.releaseYear,
+      priority: params.priority,
+      note: params.note,
       addedAt: now,
     });
 
-    // The lower bound (1888) is in the contract; the upper one moves with the clock.
+    this.ensureValidReleaseYear(watchlistItem, now);
+    await ensureUserExists(this.userRepositoryRead, params.userId);
+    await this.ensureNotWatchedOrListed(watchlistItem);
+
+    return this.watchlistRepositoryWrite.createWatchlistItem(watchlistItem);
+  }
+
+  @ErrorHandler()
+  async updateWatchlistItem(
+    params: IParamsUpdateWatchlistItem,
+  ): Promise<IWatchlistItem> {
+    const existingItem = await this.watchlistRepositoryRead.findWatchlistItemById(
+      params.id,
+      params.userId,
+    );
+    if (!existingItem) {
+      throw this.watchlistItemNotFoundError();
+    }
+
+    const watchlistItem = new WatchlistItem(existingItem);
+    watchlistItem.updateDetails(params.itemData);
+    this.ensureValidReleaseYear(watchlistItem, this.clock.now());
+
+    // Only a change of title, year or tmdbId can turn the item into another movie.
+    const sameMovieAsBefore =
+      watchlistItem.normalizedTitle === existingItem.normalizedTitle &&
+      watchlistItem.releaseYear === existingItem.releaseYear &&
+      watchlistItem.tmdbId === existingItem.tmdbId;
+    if (!sameMovieAsBefore) {
+      await this.ensureNotWatchedOrListed(watchlistItem, params.id);
+    }
+
+    const updatedItem =
+      await this.watchlistRepositoryWrite.updateWatchlistItemById(
+        params.id,
+        params.userId,
+        {
+          title: watchlistItem.title,
+          normalizedTitle: watchlistItem.normalizedTitle,
+          releaseYear: watchlistItem.releaseYear,
+          tmdbId: watchlistItem.tmdbId,
+          posterUrl: watchlistItem.posterUrl,
+          priority: watchlistItem.priority,
+          note: watchlistItem.note,
+        },
+      );
+    if (!updatedItem) {
+      throw this.watchlistItemNotFoundError();
+    }
+    return updatedItem;
+  }
+
+  @ErrorHandler()
+  async listWatchlistItems(
+    params: IParamsListWatchlistItems,
+  ): Promise<IPaginatedResult<IWatchlistItem>> {
+    const { filter, sort, pagination } = params;
+    const [items, total] = await Promise.all([
+      this.watchlistRepositoryRead.listWatchlistItems(filter, sort, pagination),
+      this.watchlistRepositoryRead.countWatchlistItems(filter),
+    ]);
+    return {
+      items,
+      total,
+      page: Math.floor(pagination.offset / pagination.limit) + 1,
+      limit: pagination.limit,
+    };
+  }
+
+  @ErrorHandler()
+  async removeWatchlistItem(id: string, userId: string): Promise<void> {
+    const deletedItem =
+      await this.watchlistRepositoryWrite.deleteWatchlistItemById(id, userId);
+    if (!deletedItem) {
+      throw this.watchlistItemNotFoundError();
+    }
+  }
+
+  // The lower bound (1888) is in the contract; the upper one moves with the clock.
+  private ensureValidReleaseYear(watchlistItem: WatchlistItem, now: Date): void {
     if (
       watchlistItem.releaseYear !== undefined &&
       watchlistItem.releaseYear > now.getUTCFullYear() + 1
@@ -63,9 +145,12 @@ export class WatchlistService implements IWatchlistService {
         'INVALID_RELEASE_YEAR',
       );
     }
+  }
 
-    await ensureUserExists(this.userRepositoryRead, params.userId);
-
+  private async ensureNotWatchedOrListed(
+    watchlistItem: WatchlistItem,
+    excludeId?: string,
+  ): Promise<void> {
     const sameMovie = {
       userId: watchlistItem.userId,
       tmdbId: watchlistItem.tmdbId,
@@ -82,47 +167,22 @@ export class WatchlistService implements IWatchlistService {
     }
 
     const duplicate =
-      await this.watchlistRepositoryRead.findDuplicateWatchlistItem(sameMovie);
+      await this.watchlistRepositoryRead.findDuplicateWatchlistItem({
+        ...sameMovie,
+        excludeId,
+      });
     if (duplicate) {
       throw new ConflictError(
         'This movie is already in your watchlist',
         'ALREADY_IN_WATCHLIST',
       );
     }
-
-    return this.watchlistRepositoryWrite.createWatchlistItem(watchlistItem);
   }
 
-  @ErrorHandler()
-  async listWatchlistItems(
-    params: IParamsListWatchlistItems,
-  ): Promise<IPaginatedResult<IWatchlistItem>> {
-    const { userId, search, pagination } = params;
-    const [items, total] = await Promise.all([
-      this.watchlistRepositoryRead.listWatchlistItems(
-        userId,
-        search,
-        pagination,
-      ),
-      this.watchlistRepositoryRead.countWatchlistItems(userId, search),
-    ]);
-    return {
-      items,
-      total,
-      page: Math.floor(pagination.offset / pagination.limit) + 1,
-      limit: pagination.limit,
-    };
-  }
-
-  @ErrorHandler()
-  async removeWatchlistItem(id: string, userId: string): Promise<void> {
-    const deletedItem =
-      await this.watchlistRepositoryWrite.deleteWatchlistItemById(id, userId);
-    if (!deletedItem) {
-      throw new NotFoundError(
-        'Watchlist item not found',
-        'WATCHLIST_ITEM_NOT_FOUND',
-      );
-    }
+  private watchlistItemNotFoundError(): NotFoundError {
+    return new NotFoundError(
+      'Watchlist item not found',
+      'WATCHLIST_ITEM_NOT_FOUND',
+    );
   }
 }

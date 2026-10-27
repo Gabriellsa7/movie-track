@@ -1,5 +1,8 @@
 import mongoose, { Types } from 'mongoose';
-import { IWatchlistItem } from '../../../../domain/watchlist/interfaces/watchlist.interface';
+import {
+  EWatchlistPriority,
+  IWatchlistItem,
+} from '../../../../domain/watchlist/interfaces/watchlist.interface';
 
 export interface IMWatchlistItem
   extends Omit<IWatchlistItem, '_id' | 'userId'> {
@@ -29,6 +32,14 @@ export const watchlistSchema = new mongoose.Schema<IMWatchlistItem>(
     },
     releaseYear: {
       type: Number,
+    },
+    // Not required: items saved before priorities existed read as medium.
+    priority: {
+      type: String,
+      enum: Object.values(EWatchlistPriority),
+    },
+    note: {
+      type: String,
     },
     addedAt: {
       type: Date,
