@@ -10,6 +10,7 @@ describe('When we read the movie entry list enums', () => {
       'rating',
       'title',
       'releaseYear',
+      'watchCount',
     ]);
   });
 

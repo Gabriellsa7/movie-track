@@ -13,7 +13,9 @@ export interface IMovieEntry {
   durationMinutes?: number;
   rating: number;
   review?: string;
+  // The last time it was watched; watchCount counts every time.
   watchedAt: Date;
+  watchCount: number;
   isFavorite: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -34,6 +36,7 @@ export interface IParamsMovieEntry {
   rating: number;
   review?: string;
   watchedAt?: Date;
+  watchCount?: number;
   isFavorite?: boolean;
   createdAt?: Date;
   updatedAt?: Date;
@@ -52,6 +55,7 @@ export type IMovieEntryDetailsData = Partial<
     | 'rating'
     | 'review'
     | 'watchedAt'
+    | 'watchCount'
     | 'isFavorite'
   >
 >;
@@ -70,6 +74,7 @@ export enum EMovieEntrySortField {
   RATING = 'rating',
   TITLE = 'title',
   RELEASE_YEAR = 'releaseYear',
+  WATCH_COUNT = 'watchCount',
 }
 
 export enum ESortOrder {
@@ -98,5 +103,6 @@ export interface IUserStats {
   ratingDistribution: { rating: number; count: number }[];
   moviesPerMonth: { month: string; count: number }[];
   topGenres: { genreId: string; name: string; count: number }[];
+  totalWatches: number;
   totalMinutes: number;
 }

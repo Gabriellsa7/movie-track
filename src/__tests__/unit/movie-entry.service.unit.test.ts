@@ -28,6 +28,7 @@ const A_MOVIE_ENTRY: IMovieEntry = {
   rating: 5,
   watchedAt: new Date('2026-01-01T00:00:00.000Z'),
   isFavorite: false,
+  watchCount: 1,
   createdAt: new Date('2026-01-01T00:00:00.000Z'),
   updatedAt: new Date('2026-01-01T00:00:00.000Z'),
 };
@@ -423,6 +424,45 @@ describe('When we update a movie entry', () => {
   });
 });
 
+describe('When we watch a movie entry again', () => {
+  it('should add one and use today as the last watch by default', async () => {
+    movieEntryRepositoryRead.findMovieEntryById.mockResolvedValue(A_MOVIE_ENTRY);
+
+    const updated = await movieEntryService.rewatchMovieEntry({
+      id: 'entry-1',
+      userId: USER_ID,
+    });
+
+    expect(movieEntryRepositoryWrite.updateMovieEntryById).toHaveBeenCalledWith(
+      'entry-1',
+      USER_ID,
+      expect.objectContaining({ watchCount: 2, watchedAt: NOW, updatedAt: NOW }),
+    );
+    expect(updated.watchCount).toBe(2);
+  });
+
+  it('should reject a rewatch in the future with INVALID_WATCHED_AT', async () => {
+    movieEntryRepositoryRead.findMovieEntryById.mockResolvedValue(A_MOVIE_ENTRY);
+
+    await expect(
+      movieEntryService.rewatchMovieEntry({
+        id: 'entry-1',
+        userId: USER_ID,
+        watchedAt: new Date(NOW.getTime() + 1000),
+      }),
+    ).rejects.toMatchObject({ status: 422, code: 'INVALID_WATCHED_AT' });
+    expect(movieEntryRepositoryWrite.updateMovieEntryById).not.toHaveBeenCalled();
+  });
+
+  it('should throw 404 when the entry is not ours', async () => {
+    movieEntryRepositoryRead.findMovieEntryById.mockResolvedValue(null);
+
+    await expect(
+      movieEntryService.rewatchMovieEntry({ id: 'entry-1', userId: USER_ID }),
+    ).rejects.toMatchObject({ status: 404, code: 'MOVIE_NOT_FOUND' });
+  });
+});
+
 describe('When we set a movie entry as favorite', () => {
   it('should save the flag and the update date', async () => {
     movieEntryRepositoryRead.findMovieEntryById.mockResolvedValue(A_MOVIE_ENTRY);
@@ -564,6 +604,7 @@ describe('When we get the stats of a user', () => {
       ratingDistribution: [],
       moviesPerMonth: [],
       topGenres: [],
+      totalWatches: 0,
       totalMinutes: 0,
     });
 

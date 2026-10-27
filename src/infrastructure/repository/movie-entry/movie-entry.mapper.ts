@@ -12,6 +12,7 @@ export function toMovieEntry(document: IMMovieEntry): IMovieEntry {
     _id: document._id.toString(),
     userId: document.userId.toString(),
     genreIds: document.genreIds.map((genreId) => genreId.toString()),
+    watchCount: document.watchCount ?? 1,
   };
 }
 
