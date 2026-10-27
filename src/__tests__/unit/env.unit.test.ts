@@ -87,6 +87,31 @@ describe('When we load the environment configuration', () => {
     });
   });
 
+  it('should log e-mails when RESEND_API_KEY is not set and use the default sender', () => {
+    process.env = { ...ORIGINAL_ENV, DATABASE_URI: 'mongodb://localhost/test' };
+    delete process.env.RESEND_API_KEY;
+    delete process.env.EMAIL_FROM;
+
+    jest.isolateModules(() => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { env } = require('../../infrastructure/config/env');
+      expect(env.resendApiKey).toBeUndefined();
+      expect(env.emailFrom).toBe('Movie Track <onboarding@resend.dev>');
+    });
+  });
+
+  it('should throw when APP_URL is missing', () => {
+    process.env = { ...ORIGINAL_ENV, DATABASE_URI: 'mongodb://localhost/test' };
+    delete process.env.APP_URL;
+
+    jest.isolateModules(() => {
+      expect(() =>
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        require('../../infrastructure/config/env'),
+      ).toThrow('Missing required environment variable: APP_URL');
+    });
+  });
+
   it('should throw naming the missing required variable', () => {
     process.env = { ...ORIGINAL_ENV };
     delete process.env.DATABASE_URI;

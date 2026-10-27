@@ -23,6 +23,26 @@ export class UserRepositoryRead implements IUserRepositoryRead {
     return user && toUser(user);
   }
 
+  async findUserByEmailVerificationTokenHash(
+    tokenHash: string,
+  ): Promise<IUser | null> {
+    const user = await Muser.findOne(
+      { emailVerificationTokenHash: tokenHash },
+      HIDE_USER_INTERNAL_FIELDS,
+    ).lean<IMUserDocument>();
+    return user && toUser(user);
+  }
+
+  async findUserByPasswordResetTokenHash(
+    tokenHash: string,
+  ): Promise<IUser | null> {
+    const user = await Muser.findOne(
+      { passwordResetTokenHash: tokenHash },
+      HIDE_USER_INTERNAL_FIELDS,
+    ).lean<IMUserDocument>();
+    return user && toUser(user);
+  }
+
   async findUserByEmail(email: string): Promise<IUser | null> {
     const user = await Muser.findOne(
       { email },

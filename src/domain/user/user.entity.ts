@@ -24,6 +24,16 @@ export class User implements IUserData {
 
   sessionVersion?: number;
 
+  emailVerified?: boolean;
+
+  emailVerificationTokenHash?: string;
+
+  emailVerificationExpiresAt?: Date;
+
+  passwordResetTokenHash?: string;
+
+  passwordResetExpiresAt?: Date;
+
   createdAt: Date;
 
   updatedAt: Date;
@@ -50,6 +60,20 @@ export class User implements IUserData {
     if (params.sessionVersion !== undefined) {
       this.sessionVersion = params.sessionVersion;
     }
+
+    if (params.emailVerified !== undefined) {
+      this.emailVerified = params.emailVerified;
+    }
+
+    if (params.emailVerificationTokenHash) {
+      this.emailVerificationTokenHash = params.emailVerificationTokenHash;
+      this.emailVerificationExpiresAt = params.emailVerificationExpiresAt;
+    }
+
+    if (params.passwordResetTokenHash) {
+      this.passwordResetTokenHash = params.passwordResetTokenHash;
+      this.passwordResetExpiresAt = params.passwordResetExpiresAt;
+    }
   }
 
   updateProfile(profileData: IUserProfileData, updatedAt: Date): void {
@@ -69,6 +93,33 @@ export class User implements IUserData {
     this.passwordHash = passwordHash;
     this.sessionVersion = (this.sessionVersion ?? 0) + 1;
     this.updatedAt = updatedAt;
+  }
+
+  // A new token replaces any pending one, so only the latest e-mail's link works.
+  startEmailVerification(tokenHash: string, expiresAt: Date): void {
+    this.emailVerified = false;
+    this.emailVerificationTokenHash = tokenHash;
+    this.emailVerificationExpiresAt = expiresAt;
+  }
+
+  confirmEmail(updatedAt: Date): void {
+    this.emailVerified = true;
+    this.emailVerificationTokenHash = undefined;
+    this.emailVerificationExpiresAt = undefined;
+    this.updatedAt = updatedAt;
+  }
+
+  startPasswordReset(tokenHash: string, expiresAt: Date): void {
+    this.passwordResetTokenHash = tokenHash;
+    this.passwordResetExpiresAt = expiresAt;
+  }
+
+  // Following the link proves access to the inbox, so it also confirms the e-mail.
+  resetPassword(passwordHash: string, updatedAt: Date): void {
+    this.changePasswordHash(passwordHash, updatedAt);
+    this.passwordResetTokenHash = undefined;
+    this.passwordResetExpiresAt = undefined;
+    this.confirmEmail(updatedAt);
   }
 
   changeAvatar(avatarUrl: string, avatarPublicId: string, updatedAt: Date): void {
@@ -92,6 +143,7 @@ export class User implements IUserData {
       id: data._id,
       name: data.name,
       email: data.email,
+      emailVerified: data.emailVerified ?? false,
       createdAt: data.createdAt,
       updatedAt: data.updatedAt,
     };

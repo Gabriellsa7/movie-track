@@ -1,5 +1,7 @@
 import path from 'path';
+import { IAccountMailer } from '../domain/common/providers/account-mailer.provider';
 import { IStorageProvider } from '../domain/common/providers/storage.provider';
+import { CryptoSecureTokenProvider } from '../infrastructure/providers/secure-token/crypto.secure-token-provider';
 import { UserService } from '../domain/user/service/user.service';
 import { TokenProviderFactory } from '../infrastructure/config/factories/token.provider.factory';
 import { SystemClock } from '../infrastructure/providers/clock/system.clock';
@@ -16,6 +18,11 @@ import { Server } from '../interfaces/http/server';
 const LOW_COST_ROUNDS = 4;
 
 // configApp.ts wires the real Cloudinary provider; uploads in tests must not reach it.
+export const fakeAccountMailer: jest.Mocked<IAccountMailer> = {
+  sendEmailVerification: jest.fn(),
+  sendPasswordReset: jest.fn(),
+};
+
 export const fakeUserStorageProvider: jest.Mocked<IStorageProvider> = {
   upload: jest.fn(),
   delete: jest.fn(),
@@ -38,9 +45,12 @@ export const userApp = new Server({
         watchlistRepositoryWrite: new WatchlistRepositoryWrite(),
         storageProvider: fakeUserStorageProvider,
         passwordHasher: new BcryptPasswordHasher(LOW_COST_ROUNDS),
+        secureTokenProvider: new CryptoSecureTokenProvider(),
+        accountMailer: fakeAccountMailer,
         clock: new SystemClock(),
       }),
       authenticate(TokenProviderFactory.create()),
+      (_req, _res, next) => next(),
     ),
   ],
   apiSpecLocation: OPEN_API_SPEC_FILE_LOCATION,

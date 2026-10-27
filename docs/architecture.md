@@ -189,6 +189,21 @@ tokens from before it existed) reads as 0. Access tokens are not checked against
 the database, so one issued before the change stays valid until it expires
 (`JWT_EXPIRES_IN`); keep that lifetime short.
 
+**E-mail confirmation and password reset:** both use one-time tokens: 256
+random bits sent only in the e-mail link, with just their SHA-256 hash stored on
+the user (`ISecureTokenProvider`, `CryptoSecureTokenProvider`), so a database
+leak cannot use them. A new token replaces the pending one, and using it clears
+it. Sign-up and e-mail changes start a verification (24 h, `emailVerified:
+false`); unverified users can still use the app. `POST /auth/forgot-password`
+always answers 204, so it cannot reveal which e-mails exist; resetting (1 h)
+bumps `sessionVersion` and confirms the e-mail. E-mails go through
+`IAccountMailer`: `ResendAccountMailer` when `RESEND_API_KEY` is set, otherwise
+`LogAccountMailer`, which writes the link to the log (local development and
+tests). Links point to `APP_URL`. Sending after a save (sign-up, e-mail change,
+reset request) only logs a failure; an explicit resend answers 503
+`EMAIL_UNAVAILABLE`. Reset requests are limited to 5 per IP every 15 minutes and
+resends to 3 per user per hour.
+
 **Account takeover and deleted accounts:** changing the e-mail (the login)
 requires `currentPassword`, like changing the password or deleting the account,
 so a stolen access token alone cannot take the account over. Because access

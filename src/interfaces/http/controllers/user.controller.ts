@@ -18,10 +18,16 @@ export class UserController implements IController {
   router: Router;
   private readonly userService: IUserService;
   private readonly authenticate: RequestHandler;
+  private readonly emailVerificationRateLimit: RequestHandler;
 
-  constructor(userService: IUserService, authenticate: RequestHandler) {
+  constructor(
+    userService: IUserService,
+    authenticate: RequestHandler,
+    emailVerificationRateLimit: RequestHandler,
+  ) {
     this.userService = userService;
     this.authenticate = authenticate;
+    this.emailVerificationRateLimit = emailVerificationRateLimit;
     this.router = Router();
     this.initRoutes();
   }
@@ -47,6 +53,13 @@ export class UserController implements IController {
       this.authenticate,
       authorizeSelf,
       this.deleteUser,
+    );
+    this.router.post(
+      '/users/:id/email-verification',
+      this.authenticate,
+      authorizeSelf,
+      this.emailVerificationRateLimit,
+      this.resendEmailVerification,
     );
     this.router.put(
       '/users/:id/avatar',
@@ -160,6 +173,19 @@ export class UserController implements IController {
         id: req.params.id,
         password: req.body.password,
       });
+      res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  resendEmailVerification = async (
+    req: Request<{ id: string }>,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      await this.userService.resendEmailVerification(req.params.id);
       res.status(204).send();
     } catch (error) {
       next(error);

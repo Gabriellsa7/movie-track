@@ -4,6 +4,13 @@ import { IUser } from '../../domain/user/interfaces/user.interface';
 import { IPasswordHasher } from '../../domain/common/providers/password-hasher.provider';
 import { ITokenProvider } from '../../domain/common/providers/token.provider';
 import { UnauthorizedError } from '../../domain/errors/unauthorized.error';
+import { IUserRepositoryWrite } from '../../domain/user/repository/user.repository.write';
+import { ISecureTokenProvider } from '../../domain/common/providers/secure-token.provider';
+import { IAccountMailer } from '../../domain/common/providers/account-mailer.provider';
+import { Logger } from 'traceability';
+
+const NOW = new Date('2026-02-01T12:00:00.000Z');
+const ONE_HOUR = 60 * 60 * 1000;
 
 const A_USER: IUser = {
   _id: 'user-1',
@@ -17,14 +24,32 @@ const A_USER: IUser = {
 let userRepositoryRead: jest.Mocked<IUserRepositoryRead>;
 let passwordHasher: jest.Mocked<IPasswordHasher>;
 let tokenProvider: jest.Mocked<ITokenProvider>;
+let userRepositoryWrite: jest.Mocked<IUserRepositoryWrite>;
+let secureTokenProvider: jest.Mocked<ISecureTokenProvider>;
+let accountMailer: jest.Mocked<IAccountMailer>;
 let authService: AuthService;
 
 beforeEach(() => {
   userRepositoryRead = {
     findUserById: jest.fn(),
     findUserByEmail: jest.fn(),
+    findUserByEmailVerificationTokenHash: jest.fn(),
+    findUserByPasswordResetTokenHash: jest.fn(),
     searchUsers: jest.fn(),
     countUsers: jest.fn(),
+  };
+  userRepositoryWrite = {
+    createUser: jest.fn(),
+    updateUserById: jest.fn(async (id, userData) => ({ ...A_USER, ...userData })),
+    deleteUserById: jest.fn(),
+  };
+  secureTokenProvider = {
+    generate: jest.fn(() => ({ token: 'plain-token', hash: 'hashed-token' })),
+    hash: jest.fn((token: string) => `hashed-${token}`),
+  };
+  accountMailer = {
+    sendEmailVerification: jest.fn(),
+    sendPasswordReset: jest.fn(),
   };
   passwordHasher = { hash: jest.fn(), compare: jest.fn() };
   tokenProvider = {
@@ -37,8 +62,12 @@ beforeEach(() => {
   };
   authService = new AuthService({
     userRepositoryRead,
+    userRepositoryWrite,
     passwordHasher,
     tokenProvider,
+    secureTokenProvider,
+    accountMailer,
+    clock: { now: () => NOW },
   });
 });
 
@@ -176,5 +205,153 @@ describe('When we refresh the tokens', () => {
       authService.refresh({ refreshToken: 'expired-refresh' }),
     ).rejects.toMatchObject({ code: 'TOKEN_EXPIRED' });
     expect(userRepositoryRead.findUserById).not.toHaveBeenCalled();
+  });
+});
+
+describe('When we confirm an e-mail', () => {
+  it('should mark it verified and clear the token', async () => {
+    userRepositoryRead.findUserByEmailVerificationTokenHash.mockResolvedValue({
+      ...A_USER,
+      emailVerified: false,
+      emailVerificationTokenHash: 'hashed-plain-token',
+      emailVerificationExpiresAt: new Date(NOW.getTime() + ONE_HOUR),
+    });
+
+    await authService.verifyEmail('plain-token');
+
+    expect(
+      userRepositoryRead.findUserByEmailVerificationTokenHash,
+    ).toHaveBeenCalledWith('hashed-plain-token');
+    expect(userRepositoryWrite.updateUserById).toHaveBeenCalledWith(A_USER._id, {
+      emailVerified: true,
+      emailVerificationTokenHash: undefined,
+      emailVerificationExpiresAt: undefined,
+      updatedAt: NOW,
+    });
+  });
+
+  it('should reject an unknown token with INVALID_VERIFICATION_TOKEN', async () => {
+    userRepositoryRead.findUserByEmailVerificationTokenHash.mockResolvedValue(
+      null,
+    );
+
+    await expect(authService.verifyEmail('unknown')).rejects.toMatchObject({
+      status: 422,
+      code: 'INVALID_VERIFICATION_TOKEN',
+    });
+    expect(userRepositoryWrite.updateUserById).not.toHaveBeenCalled();
+  });
+
+  it('should reject an expired token', async () => {
+    userRepositoryRead.findUserByEmailVerificationTokenHash.mockResolvedValue({
+      ...A_USER,
+      emailVerificationTokenHash: 'hashed-plain-token',
+      emailVerificationExpiresAt: NOW,
+    });
+
+    await expect(authService.verifyEmail('plain-token')).rejects.toMatchObject({
+      code: 'INVALID_VERIFICATION_TOKEN',
+    });
+  });
+});
+
+describe('When we ask for a password reset', () => {
+  it('should save the token hash for 1 hour and e-mail the plain token', async () => {
+    userRepositoryRead.findUserByEmail.mockResolvedValue(A_USER);
+
+    await authService.requestPasswordReset(' WhiteBeard@Email.com ');
+
+    expect(userRepositoryRead.findUserByEmail).toHaveBeenCalledWith(
+      'whitebeard@email.com',
+    );
+    expect(userRepositoryWrite.updateUserById).toHaveBeenCalledWith(A_USER._id, {
+      passwordResetTokenHash: 'hashed-token',
+      passwordResetExpiresAt: new Date(NOW.getTime() + ONE_HOUR),
+    });
+    expect(accountMailer.sendPasswordReset).toHaveBeenCalledWith({
+      to: A_USER.email,
+      name: A_USER.name,
+      token: 'plain-token',
+    });
+  });
+
+  it('should do nothing, without failing, for an unknown e-mail', async () => {
+    userRepositoryRead.findUserByEmail.mockResolvedValue(null);
+
+    await expect(
+      authService.requestPasswordReset('nobody@email.com'),
+    ).resolves.toBeUndefined();
+    expect(accountMailer.sendPasswordReset).not.toHaveBeenCalled();
+  });
+
+  it('should only log when the e-mail cannot be sent', async () => {
+    userRepositoryRead.findUserByEmail.mockResolvedValue(A_USER);
+    accountMailer.sendPasswordReset.mockRejectedValue(new Error('Resend down'));
+    const warnSpy = jest.spyOn(Logger, 'warn').mockImplementation(() => Logger);
+
+    await expect(
+      authService.requestPasswordReset(A_USER.email),
+    ).resolves.toBeUndefined();
+    expect(warnSpy).toHaveBeenCalledWith(
+      'Failed to send the password reset e-mail',
+      expect.objectContaining({ eventName: 'auth.password_reset.send_failed' }),
+    );
+    warnSpy.mockRestore();
+  });
+});
+
+describe('When we reset the password with a token', () => {
+  const WITH_RESET_TOKEN: IUser = {
+    ...A_USER,
+    sessionVersion: 2,
+    emailVerified: false,
+    emailVerificationTokenHash: 'pending-verification',
+    emailVerificationExpiresAt: new Date(NOW.getTime() + ONE_HOUR),
+    passwordResetTokenHash: 'hashed-plain-token',
+    passwordResetExpiresAt: new Date(NOW.getTime() + ONE_HOUR),
+  };
+
+  it('should save the new hash, revoke sessions, clear the token and confirm the e-mail', async () => {
+    userRepositoryRead.findUserByPasswordResetTokenHash.mockResolvedValue(
+      WITH_RESET_TOKEN,
+    );
+    passwordHasher.hash.mockResolvedValue('hashed-newSecret456');
+
+    await authService.resetPassword({
+      token: 'plain-token',
+      newPassword: 'newSecret456',
+    });
+
+    expect(passwordHasher.hash).toHaveBeenCalledWith('newSecret456');
+    expect(userRepositoryWrite.updateUserById).toHaveBeenCalledWith(A_USER._id, {
+      passwordHash: 'hashed-newSecret456',
+      sessionVersion: 3,
+      passwordResetTokenHash: undefined,
+      passwordResetExpiresAt: undefined,
+      emailVerified: true,
+      emailVerificationTokenHash: undefined,
+      emailVerificationExpiresAt: undefined,
+      updatedAt: NOW,
+    });
+  });
+
+  it('should reject an unknown or expired token with INVALID_RESET_TOKEN', async () => {
+    userRepositoryRead.findUserByPasswordResetTokenHash.mockResolvedValueOnce(
+      null,
+    );
+    userRepositoryRead.findUserByPasswordResetTokenHash.mockResolvedValueOnce({
+      ...WITH_RESET_TOKEN,
+      passwordResetExpiresAt: new Date(NOW.getTime() - 1),
+    });
+    const params = { token: 'plain-token', newPassword: 'newSecret456' };
+
+    await expect(authService.resetPassword(params)).rejects.toMatchObject({
+      status: 422,
+      code: 'INVALID_RESET_TOKEN',
+    });
+    await expect(authService.resetPassword(params)).rejects.toMatchObject({
+      code: 'INVALID_RESET_TOKEN',
+    });
+    expect(userRepositoryWrite.updateUserById).not.toHaveBeenCalled();
   });
 });

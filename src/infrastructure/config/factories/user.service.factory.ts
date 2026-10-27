@@ -6,6 +6,8 @@ import { SystemClock } from '../../providers/clock/system.clock';
 import { MovieEntryRepositoryRead } from '../../repository/movie-entry/movie-entry.repository.read';
 import { MovieEntryRepositoryWrite } from '../../repository/movie-entry/movie-entry.repository.write';
 import { WatchlistRepositoryWrite } from '../../repository/watchlist/watchlist.repository.write';
+import { CryptoSecureTokenProvider } from '../../providers/secure-token/crypto.secure-token-provider';
+import { AccountMailerFactory } from './account-mailer.factory';
 import { StorageProviderFactory } from './storage.provider.factory';
 import { env } from '../env';
 
@@ -22,6 +24,8 @@ export class UserServiceFactory {
       watchlistRepositoryWrite: new WatchlistRepositoryWrite(),
       storageProvider: StorageProviderFactory.create(),
       passwordHasher: new BcryptPasswordHasher(env.bcryptRounds),
+      secureTokenProvider: new CryptoSecureTokenProvider(),
+      accountMailer: AccountMailerFactory.create(),
       clock: new SystemClock(),
     });
   }

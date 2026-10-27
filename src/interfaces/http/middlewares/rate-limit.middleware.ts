@@ -1,4 +1,4 @@
-import { RequestHandler } from 'express';
+import { Request, RequestHandler } from 'express';
 import { ipKeyGenerator, rateLimit } from 'express-rate-limit';
 import { TooManyRequestsError } from '../../../domain/errors/too-many-requests.error';
 
@@ -50,3 +50,36 @@ export function loginRateLimit({
     }),
   ];
 }
+
+export interface IParamsRequestRateLimit {
+  windowMilliseconds: number;
+  limit: number;
+  identifier: string;
+  key: (req: Request) => string;
+}
+
+// Every request counts: used on routes that send e-mails, so they cannot flood an inbox.
+export function requestRateLimit({
+  windowMilliseconds,
+  limit,
+  identifier,
+  key,
+}: IParamsRequestRateLimit): RequestHandler {
+  return rateLimit({
+    windowMs: windowMilliseconds,
+    limit,
+    identifier,
+    standardHeaders: 'draft-8',
+    legacyHeaders: false,
+    keyGenerator: key,
+    handler: (_req, _res, next) =>
+      next(
+        new TooManyRequestsError(
+          'Too many requests, try again later',
+          'TOO_MANY_REQUESTS',
+        ),
+      ),
+  });
+}
+
+export const byIp = (req: Request): string => ipKeyGenerator(req.ip ?? '');
