@@ -1,3 +1,4 @@
+import { IGenreRepositoryRead } from '../../domain/genre/repository/genre.repository.read';
 import { IUserRepositoryRead } from '../../domain/user/repository/user.repository.read';
 import { Logger } from 'traceability';
 import { IClock } from '../../domain/common/providers/clock.provider';
@@ -25,6 +26,7 @@ const AN_ITEM: IWatchlistItem = {
   addedAt: NOW,
 };
 
+let genreRepositoryRead: jest.Mocked<IGenreRepositoryRead>;
 let userRepositoryRead: jest.Mocked<
   Pick<IUserRepositoryRead, 'findUserById'>
 >;
@@ -55,6 +57,13 @@ beforeEach(() => {
   movieEntryRepositoryRead = {
     findDuplicateMovieEntry: jest.fn().mockResolvedValue(null),
   };
+  genreRepositoryRead = {
+    listGenres: jest.fn(),
+    findGenresByIds: jest.fn(async (ids: string[]) =>
+      ids.map((id) => ({ _id: id, name: id, tmdbGenreId: 1 })),
+    ),
+    findGenresByTmdbIds: jest.fn(),
+  };
   userRepositoryRead = {
     findUserById: jest.fn().mockResolvedValue({ _id: 'user-1' }),
   };
@@ -66,6 +75,7 @@ beforeEach(() => {
       movieEntryRepositoryRead as unknown as IMovieEntryRepositoryRead,
     userRepositoryRead:
       userRepositoryRead as unknown as IUserRepositoryRead,
+    genreRepositoryRead,
     clock,
   });
 });
@@ -327,5 +337,40 @@ describe('When we edit a watchlist item', () => {
         itemData: { note: 'x' },
       }),
     ).rejects.toMatchObject({ status: 404 });
+  });
+});
+
+describe('When a watchlist item has genres', () => {
+  it('should save known genres', async () => {
+    await watchlistService.addWatchlistItem({
+      userId: USER_ID,
+      title: 'Seven',
+      genreIds: ['genre-1'],
+    });
+
+    expect(genreRepositoryRead.findGenresByIds).toHaveBeenCalledWith([
+      'genre-1',
+    ]);
+    expect(watchlistRepositoryWrite.createWatchlistItem).toHaveBeenCalled();
+  });
+
+  it('should reject unknown genres or more than 5 with INVALID_GENRE', async () => {
+    genreRepositoryRead.findGenresByIds.mockResolvedValueOnce([]);
+
+    await expect(
+      watchlistService.addWatchlistItem({
+        userId: USER_ID,
+        title: 'Seven',
+        genreIds: ['unknown'],
+      }),
+    ).rejects.toMatchObject({ status: 422, code: 'INVALID_GENRE' });
+    await expect(
+      watchlistService.addWatchlistItem({
+        userId: USER_ID,
+        title: 'Seven',
+        genreIds: ['a', 'b', 'c', 'd', 'e', 'f'],
+      }),
+    ).rejects.toMatchObject({ code: 'INVALID_GENRE' });
+    expect(watchlistRepositoryWrite.createWatchlistItem).not.toHaveBeenCalled();
   });
 });

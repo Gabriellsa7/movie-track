@@ -619,3 +619,115 @@ describe('When we get the stats of a user', () => {
     );
   });
 });
+
+describe('When we mark a watchlist item as watched', () => {
+  const FULL_ITEM = {
+    _id: 'item-1',
+    userId: USER_ID,
+    title: 'The Matrix',
+    normalizedTitle: 'the matrix',
+    tmdbId: 603,
+    posterUrl: 'https://cdn.example.com/matrix.png',
+    releaseYear: 1999,
+    synopsis: 'A hacker learns the truth.',
+    genreIds: ['genre-1'],
+    director: 'Wachowski',
+    durationMinutes: 136,
+    priority: EWatchlistPriority.HIGH,
+    addedAt: NOW,
+  };
+
+  it('should log the movie with the item data and the rating, then remove the item', async () => {
+    watchlistRepositoryRead.findWatchlistItemById.mockResolvedValue(FULL_ITEM);
+
+    await movieEntryService.logWatchlistItem({
+      userId: USER_ID,
+      watchlistItemId: 'item-1',
+      rating: 9,
+      review: 'Great',
+    });
+
+    expect(movieEntryRepositoryWrite.createMovieEntry).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'The Matrix',
+        tmdbId: 603,
+        posterUrl: 'https://cdn.example.com/matrix.png',
+        releaseYear: 1999,
+        synopsis: 'A hacker learns the truth.',
+        genreIds: ['genre-1'],
+        director: 'Wachowski',
+        durationMinutes: 136,
+        rating: 9,
+        review: 'Great',
+      }),
+    );
+    expect(watchlistRepositoryWrite.deleteWatchlistItemById).toHaveBeenCalledWith(
+      'item-1',
+      USER_ID,
+    );
+  });
+
+  it('should take the missing movie fields from the request', async () => {
+    watchlistRepositoryRead.findWatchlistItemById.mockResolvedValue({
+      _id: 'item-1',
+      userId: USER_ID,
+      title: 'The Matrix',
+      normalizedTitle: 'the matrix',
+      priority: EWatchlistPriority.MEDIUM,
+      addedAt: NOW,
+    });
+
+    await movieEntryService.logWatchlistItem({
+      userId: USER_ID,
+      watchlistItemId: 'item-1',
+      rating: 9,
+      synopsis: 'From the request',
+      releaseYear: 1999,
+      genreIds: ['genre-1'],
+    });
+
+    expect(movieEntryRepositoryWrite.createMovieEntry).toHaveBeenCalledWith(
+      expect.objectContaining({
+        synopsis: 'From the request',
+        releaseYear: 1999,
+      }),
+    );
+  });
+
+  it('should name what is missing with INCOMPLETE_MOVIE', async () => {
+    watchlistRepositoryRead.findWatchlistItemById.mockResolvedValue({
+      _id: 'item-1',
+      userId: USER_ID,
+      title: 'The Matrix',
+      normalizedTitle: 'the matrix',
+      releaseYear: 1999,
+      priority: EWatchlistPriority.MEDIUM,
+      addedAt: NOW,
+    });
+
+    await expect(
+      movieEntryService.logWatchlistItem({
+        userId: USER_ID,
+        watchlistItemId: 'item-1',
+        rating: 9,
+      }),
+    ).rejects.toMatchObject({
+      status: 422,
+      code: 'INCOMPLETE_MOVIE',
+      message: 'Send synopsis, genreIds: the watchlist item does not have them',
+    });
+    expect(movieEntryRepositoryWrite.createMovieEntry).not.toHaveBeenCalled();
+  });
+
+  it('should throw 404 WATCHLIST_ITEM_NOT_FOUND for an item that is not ours', async () => {
+    watchlistRepositoryRead.findWatchlistItemById.mockResolvedValue(null);
+
+    await expect(
+      movieEntryService.logWatchlistItem({
+        userId: USER_ID,
+        watchlistItemId: 'item-1',
+        rating: 9,
+      }),
+    ).rejects.toMatchObject({ status: 404, code: 'WATCHLIST_ITEM_NOT_FOUND' });
+  });
+});

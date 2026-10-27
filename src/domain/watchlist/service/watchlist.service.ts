@@ -6,6 +6,7 @@ import { NotFoundError } from '../../errors/not-found.error';
 import { UnprocessableEntityError } from '../../errors/unprocessable-entity.error';
 import { IMovieEntryRepositoryRead } from '../../movie-entry/repository/movie-entry.repository.read';
 import { ensureUserExists } from '../../user/ensure-user-exists';
+import { IGenreRepositoryRead } from '../../genre/repository/genre.repository.read';
 import { IUserRepositoryRead } from '../../user/repository/user.repository.read';
 import { IWatchlistItem } from '../interfaces/watchlist.interface';
 import {
@@ -19,11 +20,14 @@ import { IWatchlistRepositoryRead } from '../repository/watchlist.repository.rea
 import { IWatchlistRepositoryWrite } from '../repository/watchlist.repository.write';
 import { WatchlistItem } from '../watchlist.entity';
 
+const MAX_GENRES = 5;
+
 export class WatchlistService implements IWatchlistService {
   private watchlistRepositoryRead: IWatchlistRepositoryRead;
   private watchlistRepositoryWrite: IWatchlistRepositoryWrite;
   private movieEntryRepositoryRead: IMovieEntryRepositoryRead;
   private userRepositoryRead: IUserRepositoryRead;
+  private genreRepositoryRead: IGenreRepositoryRead;
   private clock: IClock;
 
   constructor({
@@ -31,12 +35,14 @@ export class WatchlistService implements IWatchlistService {
     watchlistRepositoryWrite,
     movieEntryRepositoryRead,
     userRepositoryRead,
+    genreRepositoryRead,
     clock,
   }: IParamsWatchlistService) {
     this.watchlistRepositoryRead = watchlistRepositoryRead;
     this.watchlistRepositoryWrite = watchlistRepositoryWrite;
     this.movieEntryRepositoryRead = movieEntryRepositoryRead;
     this.userRepositoryRead = userRepositoryRead;
+    this.genreRepositoryRead = genreRepositoryRead;
     this.clock = clock;
   }
 
@@ -53,11 +59,17 @@ export class WatchlistService implements IWatchlistService {
       releaseYear: params.releaseYear,
       priority: params.priority,
       note: params.note,
+      synopsis: params.synopsis,
+      genreIds: params.genreIds,
+      director: params.director,
+      durationMinutes: params.durationMinutes,
+      plannedFor: params.plannedFor,
       addedAt: now,
     });
 
     this.ensureValidReleaseYear(watchlistItem, now);
     await ensureUserExists(this.userRepositoryRead, params.userId);
+    await this.ensureGenresExist(watchlistItem.genreIds);
     await this.ensureNotWatchedOrListed(watchlistItem);
 
     return this.watchlistRepositoryWrite.createWatchlistItem(watchlistItem);
@@ -78,6 +90,7 @@ export class WatchlistService implements IWatchlistService {
     const watchlistItem = new WatchlistItem(existingItem);
     watchlistItem.updateDetails(params.itemData);
     this.ensureValidReleaseYear(watchlistItem, this.clock.now());
+    await this.ensureGenresExist(watchlistItem.genreIds);
 
     // Only a change of title, year or tmdbId can turn the item into another movie.
     const sameMovieAsBefore =
@@ -100,6 +113,11 @@ export class WatchlistService implements IWatchlistService {
           posterUrl: watchlistItem.posterUrl,
           priority: watchlistItem.priority,
           note: watchlistItem.note,
+          synopsis: watchlistItem.synopsis,
+          genreIds: watchlistItem.genreIds,
+          director: watchlistItem.director,
+          durationMinutes: watchlistItem.durationMinutes,
+          plannedFor: watchlistItem.plannedFor,
         },
       );
     if (!updatedItem) {
@@ -143,6 +161,20 @@ export class WatchlistService implements IWatchlistService {
       throw new UnprocessableEntityError(
         'releaseYear cannot be after next year',
         'INVALID_RELEASE_YEAR',
+      );
+    }
+  }
+
+  // Same rule as movies (1 to 5 from the list), so the item can later become a movie as is.
+  private async ensureGenresExist(genreIds: string[] | undefined): Promise<void> {
+    if (!genreIds) {
+      return;
+    }
+    const genres = await this.genreRepositoryRead.findGenresByIds(genreIds);
+    if (genreIds.length > MAX_GENRES || genres.length !== genreIds.length) {
+      throw new UnprocessableEntityError(
+        'Send from 1 to 5 genres from the genre list',
+        'INVALID_GENRE',
       );
     }
   }

@@ -5,9 +5,10 @@ import {
 } from '../../../../domain/watchlist/interfaces/watchlist.interface';
 
 export interface IMWatchlistItem
-  extends Omit<IWatchlistItem, '_id' | 'userId'> {
+  extends Omit<IWatchlistItem, '_id' | 'userId' | 'genreIds'> {
   _id: Types.ObjectId;
   userId: Types.ObjectId;
+  genreIds?: Types.ObjectId[];
 }
 
 export const watchlistSchema = new mongoose.Schema<IMWatchlistItem>(
@@ -41,6 +42,22 @@ export const watchlistSchema = new mongoose.Schema<IMWatchlistItem>(
     note: {
       type: String,
     },
+    synopsis: {
+      type: String,
+    },
+    genreIds: {
+      type: [mongoose.Schema.Types.ObjectId],
+      default: undefined,
+    },
+    director: {
+      type: String,
+    },
+    durationMinutes: {
+      type: Number,
+    },
+    plannedFor: {
+      type: Date,
+    },
     addedAt: {
       type: Date,
       required: true,
@@ -52,3 +69,4 @@ export const watchlistSchema = new mongoose.Schema<IMWatchlistItem>(
 watchlistSchema.index({ userId: 1, addedAt: -1, _id: -1 });
 watchlistSchema.index({ userId: 1, normalizedTitle: 1, releaseYear: 1 });
 watchlistSchema.index({ userId: 1, tmdbId: 1 });
+watchlistSchema.index({ userId: 1, plannedFor: 1 });

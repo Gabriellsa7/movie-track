@@ -7,6 +7,7 @@ export enum EWatchlistPriority {
 export enum EWatchlistSortField {
   ADDED_AT = 'addedAt',
   PRIORITY = 'priority',
+  PLANNED_FOR = 'plannedFor',
 }
 
 export interface IWatchlistItem {
@@ -19,6 +20,12 @@ export interface IWatchlistItem {
   releaseYear?: number;
   priority: EWatchlistPriority;
   note?: string;
+  synopsis?: string;
+  genreIds?: string[];
+  director?: string;
+  durationMinutes?: number;
+  // When the user plans to watch it ("next movies"); absent for "some day".
+  plannedFor?: Date;
   addedAt: Date;
 }
 
@@ -31,6 +38,11 @@ export interface IParamsWatchlistItem {
   releaseYear?: number;
   priority?: EWatchlistPriority;
   note?: string;
+  synopsis?: string;
+  genreIds?: string[];
+  director?: string;
+  durationMinutes?: number;
+  plannedFor?: Date;
   addedAt?: Date;
 }
 
@@ -42,12 +54,19 @@ export interface IWatchlistItemDetailsData {
   posterUrl?: string | null;
   priority?: EWatchlistPriority;
   note?: string;
+  synopsis?: string;
+  genreIds?: string[] | null;
+  director?: string;
+  durationMinutes?: number | null;
+  plannedFor?: Date | null;
 }
 
 export interface IWatchlistFilter {
   userId: string;
   search?: string;
   priority?: EWatchlistPriority;
+  // true: only items with plannedFor ("next movies"); false: only items without it.
+  planned?: boolean;
 }
 
 // priority is optional on write: a missing one reads as medium.

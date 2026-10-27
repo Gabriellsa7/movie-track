@@ -27,6 +27,16 @@ export class WatchlistItem implements IWatchlistItemData {
 
   note?: string;
 
+  synopsis?: string;
+
+  genreIds?: string[];
+
+  director?: string;
+
+  durationMinutes?: number;
+
+  plannedFor?: Date;
+
   addedAt: Date;
 
   constructor(params: IParamsWatchlistItem) {
@@ -56,6 +66,26 @@ export class WatchlistItem implements IWatchlistItemData {
     if (params.note?.trim()) {
       this.note = params.note.trim();
     }
+
+    if (params.synopsis?.trim()) {
+      this.synopsis = params.synopsis.trim();
+    }
+
+    if (params.genreIds?.length) {
+      this.genreIds = [...new Set(params.genreIds)];
+    }
+
+    if (params.director?.trim()) {
+      this.director = params.director.trim();
+    }
+
+    if (params.durationMinutes !== undefined) {
+      this.durationMinutes = params.durationMinutes;
+    }
+
+    if (params.plannedFor) {
+      this.plannedFor = params.plannedFor;
+    }
   }
 
   updateDetails(detailsData: IWatchlistItemDetailsData): void {
@@ -82,6 +112,28 @@ export class WatchlistItem implements IWatchlistItemData {
 
     if (detailsData.note !== undefined) {
       this.note = detailsData.note.trim() || undefined;
+    }
+
+    if (detailsData.synopsis !== undefined) {
+      this.synopsis = detailsData.synopsis.trim() || undefined;
+    }
+
+    if (detailsData.genreIds !== undefined) {
+      this.genreIds = detailsData.genreIds?.length
+        ? [...new Set(detailsData.genreIds)]
+        : undefined;
+    }
+
+    if (detailsData.director !== undefined) {
+      this.director = detailsData.director.trim() || undefined;
+    }
+
+    if (detailsData.durationMinutes !== undefined) {
+      this.durationMinutes = detailsData.durationMinutes ?? undefined;
+    }
+
+    if (detailsData.plannedFor !== undefined) {
+      this.plannedFor = detailsData.plannedFor ?? undefined;
     }
   }
 

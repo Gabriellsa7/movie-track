@@ -117,3 +117,53 @@ describe('When we edit a watchlist item', () => {
     expect(item.note).toBeUndefined();
   });
 });
+
+describe('When a watchlist item keeps the movie data for later', () => {
+  const PLANNED = new Date('2026-11-01T00:00:00.000Z');
+
+  it('should keep synopsis, unique genres, director, duration and the planned date', () => {
+    const item = new WatchlistItem({
+      userId: 'user-1',
+      title: 'Seven',
+      synopsis: ' Two detectives. ',
+      genreIds: ['g1', 'g1', 'g2'],
+      director: ' Fincher ',
+      durationMinutes: 127,
+      plannedFor: PLANNED,
+    });
+
+    expect(item).toMatchObject({
+      synopsis: 'Two detectives.',
+      genreIds: ['g1', 'g2'],
+      director: 'Fincher',
+      durationMinutes: 127,
+      plannedFor: PLANNED,
+    });
+  });
+
+  it('should clear them with null or an empty text', () => {
+    const item = new WatchlistItem({
+      userId: 'user-1',
+      title: 'Seven',
+      synopsis: 'Two detectives.',
+      genreIds: ['g1'],
+      director: 'Fincher',
+      durationMinutes: 127,
+      plannedFor: PLANNED,
+    });
+
+    item.updateDetails({
+      synopsis: '',
+      genreIds: null,
+      director: ' ',
+      durationMinutes: null,
+      plannedFor: null,
+    });
+
+    expect(item.synopsis).toBeUndefined();
+    expect(item.genreIds).toBeUndefined();
+    expect(item.director).toBeUndefined();
+    expect(item.durationMinutes).toBeUndefined();
+    expect(item.plannedFor).toBeUndefined();
+  });
+});

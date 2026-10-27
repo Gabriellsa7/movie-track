@@ -21,6 +21,7 @@ import {
   IMovieEntryService,
   IParamsCreateMovieEntry,
   IParamsListMovieEntries,
+  IParamsLogWatchlistItem,
   IParamsMovieEntryService,
   IParamsRewatchMovieEntry,
   IParamsSetFavorite,
@@ -114,6 +115,49 @@ export class MovieEntryService implements IMovieEntryService {
     }
 
     return createdMovieEntry;
+  }
+
+  @ErrorHandler()
+  async logWatchlistItem(params: IParamsLogWatchlistItem): Promise<IMovieEntry> {
+    const item = await this.watchlistRepositoryRead.findWatchlistItemById(
+      params.watchlistItemId,
+      params.userId,
+    );
+    if (!item) {
+      throw this.watchlistItemNotFoundError();
+    }
+
+    const synopsis = params.synopsis ?? item.synopsis;
+    const releaseYear = params.releaseYear ?? item.releaseYear;
+    const genreIds = params.genreIds ?? item.genreIds;
+    const missing = [
+      !synopsis && 'synopsis',
+      releaseYear === undefined && 'releaseYear',
+      !genreIds?.length && 'genreIds',
+    ].filter((field): field is string => Boolean(field));
+    if (!synopsis || releaseYear === undefined || !genreIds?.length) {
+      throw new UnprocessableEntityError(
+        `Send ${missing.join(', ')}: the watchlist item does not have them`,
+        'INCOMPLETE_MOVIE',
+      );
+    }
+
+    return this.createMovieEntry({
+      userId: params.userId,
+      watchlistItemId: params.watchlistItemId,
+      title: item.title,
+      tmdbId: item.tmdbId,
+      posterUrl: item.posterUrl,
+      synopsis,
+      releaseYear,
+      genreIds,
+      director: params.director ?? item.director,
+      durationMinutes: params.durationMinutes ?? item.durationMinutes,
+      rating: params.rating,
+      review: params.review,
+      watchedAt: params.watchedAt,
+      isFavorite: params.isFavorite,
+    });
   }
 
   @ErrorHandler()
@@ -412,11 +456,15 @@ export class MovieEntryService implements IMovieEntryService {
         userId,
       );
     if (!watchlistItem) {
-      throw new NotFoundError(
-        'Watchlist item not found',
-        'WATCHLIST_ITEM_NOT_FOUND',
-      );
+      throw this.watchlistItemNotFoundError();
     }
+  }
+
+  private watchlistItemNotFoundError(): NotFoundError {
+    return new NotFoundError(
+      'Watchlist item not found',
+      'WATCHLIST_ITEM_NOT_FOUND',
+    );
   }
 
   private async deleteReplacedPoster(
