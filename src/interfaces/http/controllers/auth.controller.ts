@@ -29,6 +29,7 @@ export class AuthController implements IController {
   initRoutes() {
     this.router.post('/auth/login', ...this.loginRateLimit, this.login);
     this.router.post('/auth/refresh', this.refresh);
+    this.router.post('/auth/logout', this.logout);
     this.router.post('/auth/verify-email', this.verifyEmail);
     this.router.post(
       '/auth/forgot-password',
@@ -61,6 +62,19 @@ export class AuthController implements IController {
     try {
       const tokens = await this.authService.refresh({ refreshToken });
       res.status(200).json(tokens);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  logout = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      await this.authService.logout({ refreshToken: req.body.refreshToken });
+      res.status(204).send();
     } catch (error) {
       next(error);
     }

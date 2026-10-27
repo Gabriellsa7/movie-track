@@ -7,10 +7,18 @@ import { UnauthorizedError } from '../../domain/errors/unauthorized.error';
 import { IUserRepositoryWrite } from '../../domain/user/repository/user.repository.write';
 import { ISecureTokenProvider } from '../../domain/common/providers/secure-token.provider';
 import { IAccountMailer } from '../../domain/common/providers/account-mailer.provider';
+import { IRevokedTokenRepositoryRead } from '../../domain/auth/repository/revoked-token.repository.read';
+import { IRevokedTokenRepositoryWrite } from '../../domain/auth/repository/revoked-token.repository.write';
 import { Logger } from 'traceability';
 
 const NOW = new Date('2026-02-01T12:00:00.000Z');
 const ONE_HOUR = 60 * 60 * 1000;
+
+const REFRESH_TOKEN_EXPIRES_AT = new Date('2026-02-08T12:00:00.000Z');
+const REFRESH_CLAIMS = {
+  tokenId: 'token-id-1',
+  expiresAt: REFRESH_TOKEN_EXPIRES_AT,
+};
 
 const A_USER: IUser = {
   _id: 'user-1',
@@ -27,6 +35,8 @@ let tokenProvider: jest.Mocked<ITokenProvider>;
 let userRepositoryWrite: jest.Mocked<IUserRepositoryWrite>;
 let secureTokenProvider: jest.Mocked<ISecureTokenProvider>;
 let accountMailer: jest.Mocked<IAccountMailer>;
+let revokedTokenRepositoryRead: jest.Mocked<IRevokedTokenRepositoryRead>;
+let revokedTokenRepositoryWrite: jest.Mocked<IRevokedTokenRepositoryWrite>;
 let authService: AuthService;
 
 beforeEach(() => {
@@ -51,6 +61,10 @@ beforeEach(() => {
     sendEmailVerification: jest.fn(),
     sendPasswordReset: jest.fn(),
   };
+  revokedTokenRepositoryRead = {
+    isTokenRevoked: jest.fn().mockResolvedValue(false),
+  };
+  revokedTokenRepositoryWrite = { revokeToken: jest.fn() };
   passwordHasher = { hash: jest.fn(), compare: jest.fn() };
   tokenProvider = {
     generateAccessToken: jest.fn(({ sub }) => `access-${sub}`),
@@ -63,6 +77,8 @@ beforeEach(() => {
   authService = new AuthService({
     userRepositoryRead,
     userRepositoryWrite,
+    revokedTokenRepositoryRead,
+    revokedTokenRepositoryWrite,
     passwordHasher,
     tokenProvider,
     secureTokenProvider,
@@ -130,7 +146,7 @@ describe('When we log in', () => {
 
 describe('When we refresh the tokens', () => {
   it('should issue new tokens for an existing user', async () => {
-    tokenProvider.verifyRefreshToken.mockReturnValue({ sub: A_USER._id });
+    tokenProvider.verifyRefreshToken.mockReturnValue({ ...REFRESH_CLAIMS, sub: A_USER._id });
     userRepositoryRead.findUserById.mockResolvedValue(A_USER);
 
     const tokens = await authService.refresh({ refreshToken: 'valid-refresh' });
@@ -146,6 +162,7 @@ describe('When we refresh the tokens', () => {
 
   it('should accept a token with the current session version', async () => {
     tokenProvider.verifyRefreshToken.mockReturnValue({
+      ...REFRESH_CLAIMS,
       sub: A_USER._id,
       sessionVersion: 2,
     });
@@ -161,6 +178,7 @@ describe('When we refresh the tokens', () => {
 
   it('should reject a token issued before a password change with TOKEN_REVOKED', async () => {
     tokenProvider.verifyRefreshToken.mockReturnValue({
+      ...REFRESH_CLAIMS,
       sub: A_USER._id,
       sessionVersion: 1,
     });
@@ -176,7 +194,7 @@ describe('When we refresh the tokens', () => {
   });
 
   it('should reject a token without a version once the password changed', async () => {
-    tokenProvider.verifyRefreshToken.mockReturnValue({ sub: A_USER._id });
+    tokenProvider.verifyRefreshToken.mockReturnValue({ ...REFRESH_CLAIMS, sub: A_USER._id });
     userRepositoryRead.findUserById.mockResolvedValue({
       ...A_USER,
       sessionVersion: 1,
@@ -188,7 +206,7 @@ describe('When we refresh the tokens', () => {
   });
 
   it('should reject a refresh token of a deleted user', async () => {
-    tokenProvider.verifyRefreshToken.mockReturnValue({ sub: 'deleted-user' });
+    tokenProvider.verifyRefreshToken.mockReturnValue({ ...REFRESH_CLAIMS, sub: 'deleted-user' });
     userRepositoryRead.findUserById.mockResolvedValue(null);
 
     await expect(
@@ -205,6 +223,63 @@ describe('When we refresh the tokens', () => {
       authService.refresh({ refreshToken: 'expired-refresh' }),
     ).rejects.toMatchObject({ code: 'TOKEN_EXPIRED' });
     expect(userRepositoryRead.findUserById).not.toHaveBeenCalled();
+  });
+
+  it('should reject a token revoked by a logout with TOKEN_REVOKED', async () => {
+    tokenProvider.verifyRefreshToken.mockReturnValue({
+      ...REFRESH_CLAIMS,
+      sub: A_USER._id,
+    });
+    revokedTokenRepositoryRead.isTokenRevoked.mockResolvedValue(true);
+
+    await expect(
+      authService.refresh({ refreshToken: 'logged-out-refresh' }),
+    ).rejects.toMatchObject({ status: 401, code: 'TOKEN_REVOKED' });
+    expect(revokedTokenRepositoryRead.isTokenRevoked).toHaveBeenCalledWith(
+      'token-id-1',
+    );
+    expect(tokenProvider.generateRefreshToken).not.toHaveBeenCalled();
+  });
+});
+
+describe('When we log out', () => {
+  it('should revoke the refresh token until it would expire', async () => {
+    tokenProvider.verifyRefreshToken.mockReturnValue({
+      ...REFRESH_CLAIMS,
+      sub: A_USER._id,
+    });
+
+    await authService.logout({ refreshToken: 'valid-refresh' });
+
+    expect(tokenProvider.verifyRefreshToken).toHaveBeenCalledWith(
+      'valid-refresh',
+    );
+    expect(revokedTokenRepositoryWrite.revokeToken).toHaveBeenCalledWith({
+      tokenId: 'token-id-1',
+      expiresAt: REFRESH_TOKEN_EXPIRES_AT,
+    });
+  });
+
+  it('should do nothing for an expired refresh token', async () => {
+    tokenProvider.verifyRefreshToken.mockImplementation(() => {
+      throw new UnauthorizedError('Token expired', 'TOKEN_EXPIRED');
+    });
+
+    await expect(
+      authService.logout({ refreshToken: 'expired-refresh' }),
+    ).resolves.toBeUndefined();
+    expect(revokedTokenRepositoryWrite.revokeToken).not.toHaveBeenCalled();
+  });
+
+  it('should reject an invalid refresh token with INVALID_TOKEN', async () => {
+    tokenProvider.verifyRefreshToken.mockImplementation(() => {
+      throw new UnauthorizedError('Invalid token', 'INVALID_TOKEN');
+    });
+
+    await expect(
+      authService.logout({ refreshToken: 'forged-refresh' }),
+    ).rejects.toMatchObject({ status: 401, code: 'INVALID_TOKEN' });
+    expect(revokedTokenRepositoryWrite.revokeToken).not.toHaveBeenCalled();
   });
 });
 

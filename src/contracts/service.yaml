@@ -588,6 +588,35 @@ paths:
         default:
           $ref: '#/components/responses/UnexpectedError'
 
+  /auth/logout:
+    post:
+      tags:
+        - Auth
+      summary: Log out
+      operationId: logout
+      description: >
+        Revokes the refresh token sent, so it can no longer be refreshed (other devices stay
+        logged in). The access token keeps working until it expires. An expired refresh token
+        is accepted, since there is nothing left to revoke.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshToken'
+      responses:
+        '204':
+          description: Logged out
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/InvalidToken'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+
   /auth/verify-email:
     post:
       tags:
@@ -1530,7 +1559,7 @@ components:
             status: 401
             code: 'INVALID_CREDENTIALS'
     InvalidToken:
-      description: The token is missing, invalid or expired (INVALID_TOKEN, TOKEN_EXPIRED), or a refresh token was revoked by a password change (TOKEN_REVOKED)
+      description: The token is missing, invalid or expired (INVALID_TOKEN, TOKEN_EXPIRED), or a refresh token was revoked by a password change or a logout (TOKEN_REVOKED)
       content:
         application/json:
           schema:

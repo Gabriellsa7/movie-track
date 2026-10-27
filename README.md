@@ -91,6 +91,7 @@ All `/movies`, `/watchlist` and `/tmdb` routes require `Authorization: Bearer <a
 | `GET` | `/users/{id}/stats` | My movie stats (totals, ratings, months, top genres) |
 | `POST` | `/auth/login` | Log in with email and password |
 | `POST` | `/auth/refresh` | Refresh the tokens |
+| `POST` | `/auth/logout` | Log out: revoke the refresh token sent (other devices stay logged in) |
 | `POST` | `/auth/verify-email` | Confirm the e-mail with the link token |
 | `POST` | `/auth/forgot-password` | Ask for a password reset link |
 | `POST` | `/auth/reset-password` | Set a new password with the link token |
