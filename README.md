@@ -13,6 +13,9 @@ runtime.
   refresh tokens, bcrypt password hashing, failed logins rate limited).
   Changing the password revokes every refresh token issued before. Every movie
   route is scoped to the authenticated user.
+- **E-mail confirmation and password reset** — sign-up and e-mail changes send a
+  confirmation link; a forgotten password is reset through an e-mail link
+  (Resend). Links are single-use and expire (24 h and 1 h).
 - **Movie log** — log a watched movie with rating (1–10, half steps), review,
   genres, release year, director, duration, poster and watch date.
 - **Posters and avatars** — upload a JPEG, PNG or WebP image (up to 5 MB)
@@ -82,6 +85,10 @@ All `/movies`, `/watchlist` and `/tmdb` routes require `Authorization: Bearer <a
 | `GET` | `/users/{id}/stats` | My movie stats (totals, ratings, months, top genres) |
 | `POST` | `/auth/login` | Log in with email and password |
 | `POST` | `/auth/refresh` | Refresh the tokens |
+| `POST` | `/auth/verify-email` | Confirm the e-mail with the link token |
+| `POST` | `/auth/forgot-password` | Ask for a password reset link |
+| `POST` | `/auth/reset-password` | Set a new password with the link token |
+| `POST` | `/users/{id}/email-verification` | Send the confirmation e-mail again |
 | `POST` | `/movies` | Log a watched movie |
 | `GET` | `/movies` | List my movies (search, filters, sorting, pagination) |
 | `GET` / `PUT` / `DELETE` | `/movies/{id}` | Get, update or delete one of my movies |
@@ -123,6 +130,13 @@ For poster uploads, copy the cloud name, API key and API secret from
 
 Behind a reverse proxy (Render, Railway, Fly.io…), set `TRUST_PROXY_HOPS=1` so
 the login rate limit sees each client's IP instead of the proxy's.
+
+E-mails: set `APP_URL` to the front-end URL (links go to its `/verify-email`
+and `/reset-password` pages) and `RESEND_API_KEY` to an API key from
+[resend.com](https://resend.com). Without the key, e-mails are only written to
+the log, which is handy locally. The default sender
+`onboarding@resend.dev` only delivers to the address that owns the Resend
+account; to e-mail real users, verify a domain in Resend and set `EMAIL_FROM`.
 
 Then:
 
