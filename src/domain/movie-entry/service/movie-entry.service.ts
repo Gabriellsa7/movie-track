@@ -22,6 +22,7 @@ import {
   IParamsCreateMovieEntry,
   IParamsListMovieEntries,
   IParamsMovieEntryService,
+  IParamsRewatchMovieEntry,
   IParamsSetFavorite,
   IParamsUpdateMovieEntry,
   IParamsUploadPoster,
@@ -84,6 +85,7 @@ export class MovieEntryService implements IMovieEntryService {
       director: params.director,
       durationMinutes: params.durationMinutes,
       watchedAt: params.watchedAt,
+      watchCount: params.watchCount,
       isFavorite: params.isFavorite,
       tmdbId: params.tmdbId,
       createdAt: this.clock.now(),
@@ -181,6 +183,25 @@ export class MovieEntryService implements IMovieEntryService {
     );
     await this.deleteReplacedPoster(existingMovieEntry, updatedMovieEntry);
     return updatedMovieEntry;
+  }
+
+  @ErrorHandler()
+  async rewatchMovieEntry(
+    params: IParamsRewatchMovieEntry,
+  ): Promise<IMovieEntry> {
+    const existingMovieEntry = await this.findExistingMovieEntry(
+      params.id,
+      params.userId,
+    );
+    const now = this.clock.now();
+    const watchedAt = params.watchedAt ?? now;
+    if (watchedAt > now) {
+      throw this.watchedAtInFutureError();
+    }
+
+    const movieEntry = new MovieEntry(existingMovieEntry);
+    movieEntry.rewatch(watchedAt, now);
+    return this.saveMovieEntry(params.id, params.userId, movieEntry);
   }
 
   @ErrorHandler()
@@ -317,6 +338,7 @@ export class MovieEntryService implements IMovieEntryService {
       rating: movieEntry.rating,
       review: movieEntry.review,
       watchedAt: movieEntry.watchedAt,
+      watchCount: movieEntry.watchCount,
       isFavorite: movieEntry.isFavorite,
       updatedAt: movieEntry.updatedAt,
     };
@@ -342,10 +364,7 @@ export class MovieEntryService implements IMovieEntryService {
       );
     }
     if (movieEntry.watchedAt > now) {
-      throw new UnprocessableEntityError(
-        'watchedAt cannot be in the future',
-        'INVALID_WATCHED_AT',
-      );
+      throw this.watchedAtInFutureError();
     }
     if (
       movieEntry.genreIds.length < MIN_GENRES ||
@@ -430,6 +449,13 @@ export class MovieEntryService implements IMovieEntryService {
 
   private movieEntryNotFoundError(): NotFoundError {
     return new NotFoundError('Movie not found', 'MOVIE_NOT_FOUND');
+  }
+
+  private watchedAtInFutureError(): UnprocessableEntityError {
+    return new UnprocessableEntityError(
+      'watchedAt cannot be in the future',
+      'INVALID_WATCHED_AT',
+    );
   }
 
   private invalidGenreError(): UnprocessableEntityError {

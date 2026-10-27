@@ -274,6 +274,7 @@ describe('When we compute the stats of a user', () => {
       totalMovies: 2,
       averageRating: 3.8,
       favoritesCount: 1,
+      totalWatches: 2,
       totalMinutes: 120,
       ratingDistribution: [
         { rating: 2.5, count: 1 },

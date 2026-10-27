@@ -29,6 +29,7 @@ export interface IParamsCreateMovieEntry {
   director?: string;
   durationMinutes?: number;
   watchedAt?: Date;
+  watchCount?: number;
   isFavorite?: boolean;
   tmdbId?: number;
   watchlistItemId?: string;
@@ -43,6 +44,12 @@ export interface IParamsUpdateMovieEntry {
   > & {
     posterUrl?: string | null;
   };
+}
+
+export interface IParamsRewatchMovieEntry {
+  id: string;
+  userId: string;
+  watchedAt?: Date;
 }
 
 export interface IParamsSetFavorite {
@@ -83,6 +90,7 @@ export interface IMovieEntryService {
   ): Promise<IPaginatedResult<IMovieEntry>>;
   updateMovieEntry(params: IParamsUpdateMovieEntry): Promise<IMovieEntry>;
   setFavorite(params: IParamsSetFavorite): Promise<IMovieEntry>;
+  rewatchMovieEntry(params: IParamsRewatchMovieEntry): Promise<IMovieEntry>;
   deleteMovieEntry(id: string, userId: string): Promise<void>;
   uploadPoster(params: IParamsUploadPoster): Promise<IMovieEntry>;
   removePoster(id: string, userId: string): Promise<IMovieEntry>;

@@ -27,6 +27,7 @@ describe('When we get our own stats', () => {
       totalMovies: 3,
       averageRating: 7.5,
       favoritesCount: 1,
+      totalWatches: 3,
       totalMinutes: 210,
       ratingDistribution: [
         { rating: 6.5, count: 1 },
@@ -49,6 +50,7 @@ describe('When we get our own stats', () => {
       totalMovies: 0,
       averageRating: null,
       favoritesCount: 0,
+      totalWatches: 0,
       totalMinutes: 0,
       ratingDistribution: [],
       moviesPerMonth: [],

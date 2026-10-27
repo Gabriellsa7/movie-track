@@ -19,6 +19,7 @@ const A_MOVIE_ENTRY: IMovieEntry = {
   review: 'Great',
   watchedAt: CREATED_AT,
   isFavorite: false,
+  watchCount: 1,
   createdAt: CREATED_AT,
   updatedAt: CREATED_AT,
 };
@@ -107,5 +108,51 @@ describe('When we map a movie entry to its response', () => {
     expect(response).not.toHaveProperty('_id');
     expect(response).not.toHaveProperty('normalizedTitle');
     expect(response).not.toHaveProperty('posterPublicId');
+  });
+});
+
+describe('When we count how many times a movie was watched', () => {
+  const FIRST_WATCH = new Date('2026-01-10T00:00:00.000Z');
+  const LATER = new Date('2026-02-20T00:00:00.000Z');
+  const params = {
+    userId: 'user-1',
+    title: 'Seven',
+    synopsis: 'Two detectives.',
+    releaseYear: 1995,
+    genreIds: ['genre-1'],
+    rating: 9,
+    watchedAt: FIRST_WATCH,
+  };
+
+  it('should start at 1 unless a count is given', () => {
+    expect(new MovieEntry(params).watchCount).toBe(1);
+    expect(new MovieEntry({ ...params, watchCount: 3 }).watchCount).toBe(3);
+  });
+
+  it('should add one and move watchedAt to a later rewatch', () => {
+    const movieEntry = new MovieEntry(params);
+
+    movieEntry.rewatch(LATER, LATER);
+
+    expect(movieEntry.watchCount).toBe(2);
+    expect(movieEntry.watchedAt).toBe(LATER);
+    expect(movieEntry.updatedAt).toBe(LATER);
+  });
+
+  it('should keep the latest watchedAt for an older, forgotten rewatch', () => {
+    const movieEntry = new MovieEntry({ ...params, watchedAt: LATER });
+
+    movieEntry.rewatch(FIRST_WATCH, LATER);
+
+    expect(movieEntry.watchCount).toBe(2);
+    expect(movieEntry.watchedAt).toBe(LATER);
+  });
+
+  it('should let the count be corrected through the details', () => {
+    const movieEntry = new MovieEntry(params);
+
+    movieEntry.updateDetails({ watchCount: 5 }, LATER);
+
+    expect(movieEntry.watchCount).toBe(5);
   });
 });

@@ -60,6 +60,10 @@ export const movieEntrySchema = new mongoose.Schema<IMMovieEntry>(
       type: Date,
       required: true,
     },
+    // Not required: entries logged before it existed read as 1 (see toMovieEntry).
+    watchCount: {
+      type: Number,
+    },
     isFavorite: {
       type: Boolean,
       required: true,

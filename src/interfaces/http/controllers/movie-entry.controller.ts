@@ -51,6 +51,11 @@ export class MovieEntryController implements IController {
     this.router.get('/movies', this.authenticate, this.listMovieEntries);
     this.router.get('/movies/:id', this.authenticate, this.getMovieEntry);
     this.router.put('/movies/:id', this.authenticate, this.updateMovieEntry);
+    this.router.post(
+      '/movies/:id/rewatch',
+      this.authenticate,
+      this.rewatchMovieEntry,
+    );
     this.router.patch(
       '/movies/:id/favorite',
       this.authenticate,
@@ -158,6 +163,24 @@ export class MovieEntryController implements IController {
           ...movieData,
           watchedAt: watchedAt ? new Date(watchedAt) : undefined,
         },
+      });
+      res.status(200).json(MovieEntry.toMovieEntryResponse(movieEntry));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  rewatchMovieEntry = async (
+    req: Request<{ id: string }>,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    const watchedAt = req.body?.watchedAt;
+    try {
+      const movieEntry = await this.movieEntryService.rewatchMovieEntry({
+        id: req.params.id,
+        userId: req.userId!,
+        watchedAt: watchedAt ? new Date(watchedAt) : undefined,
       });
       res.status(200).json(MovieEntry.toMovieEntryResponse(movieEntry));
     } catch (error) {

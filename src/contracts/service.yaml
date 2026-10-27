@@ -738,8 +738,9 @@ paths:
           required: false
           schema:
             type: string
-            enum: [watchedAt, rating, title, releaseYear]
+            enum: [watchedAt, rating, title, releaseYear, watchCount]
             default: watchedAt
+          description: watchCount lists the most rewatched first with order=desc
         - name: order
           in: query
           required: false
@@ -866,6 +867,49 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/MovieNotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+
+  /movies/{id}/rewatch:
+    parameters:
+      - $ref: '#/components/parameters/MovieId'
+    post:
+      tags:
+        - Movies
+      summary: Log that I watched one of my movies again
+      operationId: rewatchMovie
+      description: >
+        Adds 1 to watchCount. watchedAt (default today, never in the future) becomes the last
+        watch date unless it is older than the current one, which then stays.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MovieRewatch'
+      responses:
+        '200':
+          description: Rewatch logged
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Movie'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/MovieNotFound'
+        '422':
+          description: watchedAt is in the future (INVALID_WATCHED_AT)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '500':
           $ref: '#/components/responses/ServerError'
         default:
@@ -1397,6 +1441,11 @@ components:
           type: string
           format: date
           description: Defaults to today; cannot be in the future (else INVALID_WATCHED_AT)
+        watchCount:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          description: How many times it was watched (defaults to 1); POST /movies/{id}/rewatch adds one
         isFavorite:
           type: boolean
           default: false
@@ -1459,6 +1508,11 @@ components:
           type: string
           format: date
           description: Defaults to today; cannot be in the future (else INVALID_WATCHED_AT)
+        watchCount:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          description: How many times it was watched (defaults to 1); POST /movies/{id}/rewatch adds one
         isFavorite:
           type: boolean
           default: false
@@ -1491,6 +1545,14 @@ components:
           type: string
           format: binary
           description: The image file (JPEG, PNG or WebP, up to 5 MB)
+    MovieRewatch:
+      type: object
+      additionalProperties: false
+      properties:
+        watchedAt:
+          type: string
+          format: date
+          description: When it was watched again; defaults to today, cannot be in the future
     MovieFavorite:
       type: object
       additionalProperties: false
@@ -1516,6 +1578,7 @@ components:
         - genreIds
         - rating
         - watchedAt
+        - watchCount
         - isFavorite
         - createdAt
         - updatedAt
@@ -1551,6 +1614,10 @@ components:
         watchedAt:
           type: string
           format: date-time
+          description: The last time it was watched
+        watchCount:
+          type: integer
+          minimum: 1
         isFavorite:
           type: boolean
         createdAt:
@@ -1709,6 +1776,7 @@ components:
         - totalMovies
         - averageRating
         - favoritesCount
+        - totalWatches
         - totalMinutes
         - ratingDistribution
         - moviesPerMonth
@@ -1724,10 +1792,14 @@ components:
         favoritesCount:
           type: integer
           minimum: 0
+        totalWatches:
+          type: integer
+          minimum: 0
+          description: Every time a movie was watched (the sum of watchCount)
         totalMinutes:
           type: integer
           minimum: 0
-          description: Sum of durationMinutes; movies without a duration count as 0
+          description: Sum of durationMinutes times watchCount; movies without a duration count as 0
         ratingDistribution:
           type: array
           description: How many movies got each rating, by rating ascending

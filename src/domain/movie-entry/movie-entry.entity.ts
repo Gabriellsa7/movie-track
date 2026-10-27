@@ -38,6 +38,8 @@ export class MovieEntry implements IMovieEntryData {
 
   watchedAt: Date;
 
+  watchCount: number;
+
   isFavorite: boolean;
 
   createdAt: Date;
@@ -55,6 +57,8 @@ export class MovieEntry implements IMovieEntryData {
     this.createdAt = params.createdAt ?? new Date();
     this.updatedAt = params.updatedAt ?? this.createdAt;
     this.watchedAt = params.watchedAt ?? this.createdAt;
+    // Entries logged before the counter existed were watched once.
+    this.watchCount = params.watchCount ?? 1;
     this.isFavorite = params.isFavorite ?? false;
 
     if (params._id) {
@@ -132,6 +136,19 @@ export class MovieEntry implements IMovieEntryData {
       this.isFavorite = detailsData.isFavorite;
     }
 
+    if (detailsData.watchCount !== undefined) {
+      this.watchCount = detailsData.watchCount;
+    }
+
+    this.updatedAt = updatedAt;
+  }
+
+  // A forgotten older session still counts, but watchedAt keeps the most recent date.
+  rewatch(watchedAt: Date, updatedAt: Date): void {
+    this.watchCount += 1;
+    if (watchedAt > this.watchedAt) {
+      this.watchedAt = watchedAt;
+    }
     this.updatedAt = updatedAt;
   }
 

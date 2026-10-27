@@ -20,6 +20,8 @@ import { toMovieEntry } from './movie-entry.mapper';
 const REGEX_SPECIAL_CHARACTERS = /[.*+?^${}()|[\]\\]/g;
 const TOP_GENRES_LIMIT = 5;
 const GENRE_COLLECTION = 'genres';
+// Entries logged before the counter existed have no watchCount and were watched once.
+const WATCH_COUNT = { $ifNull: ['$watchCount', 1] };
 
 // $round rounds half to even (7.25 -> 7.2); ratings move in 0.5 steps, so averages
 // ending in 5 are common and must round half up like people expect (7.25 -> 7.3).
@@ -39,10 +41,11 @@ const SORT_FIELDS: Record<EMovieEntrySortField, keyof IMMovieEntry> = {
   [EMovieEntrySortField.RATING]: 'rating',
   [EMovieEntrySortField.TITLE]: 'normalizedTitle',
   [EMovieEntrySortField.RELEASE_YEAR]: 'releaseYear',
+  [EMovieEntrySortField.WATCH_COUNT]: 'watchCount',
 };
 
 interface IStatsFacet {
-  totals: { totalMovies: number; averageRating: number | null; favoritesCount: number; totalMinutes: number }[];
+  totals: { totalMovies: number; averageRating: number | null; favoritesCount: number; totalWatches: number; totalMinutes: number }[];
   ratingDistribution: { rating: number; count: number }[];
   moviesPerMonth: { month: string; count: number }[];
   topGenres: { genreId: string; name: string; count: number }[];
@@ -137,6 +140,7 @@ export class MovieEntryRepositoryRead implements IMovieEntryRepositoryRead {
       ratingDistribution: [],
       moviesPerMonth: [],
       topGenres: [],
+      totalWatches: 0,
       totalMinutes: 0,
     };
     if (!isObjectId(userId)) {
@@ -154,7 +158,12 @@ export class MovieEntryRepositoryRead implements IMovieEntryRepositoryRead {
                 totalMovies: { $sum: 1 },
                 averageRating: { $avg: '$rating' },
                 favoritesCount: { $sum: { $cond: ['$isFavorite', 1, 0] } },
-                totalMinutes: { $sum: { $ifNull: ['$durationMinutes', 0] } },
+                totalWatches: { $sum: WATCH_COUNT },
+                totalMinutes: {
+                  $sum: {
+                    $multiply: [{ $ifNull: ['$durationMinutes', 0] }, WATCH_COUNT],
+                  },
+                },
               },
             },
             {
@@ -163,6 +172,7 @@ export class MovieEntryRepositoryRead implements IMovieEntryRepositoryRead {
                 totalMovies: 1,
                 averageRating: roundToOneDecimal('$averageRating'),
                 favoritesCount: 1,
+                totalWatches: 1,
                 totalMinutes: 1,
               },
             },

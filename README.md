@@ -24,6 +24,8 @@ runtime.
   filter by genre, rating range and favorites, sort by watch date, rating,
   title or release year, with pagination.
 - **Favorites** — mark or unmark any logged movie.
+- **Rewatches** — each movie counts how many times it was watched; logging a
+  rewatch adds one and moves the last watch date.
 - **Stats** — totals, average rating, rating distribution, movies per month
   and top genres of my own movie log.
 - **Watchlist** — save movies to watch later, search them, and move one to the
@@ -92,6 +94,7 @@ All `/movies`, `/watchlist` and `/tmdb` routes require `Authorization: Bearer <a
 | `POST` | `/movies` | Log a watched movie |
 | `GET` | `/movies` | List my movies (search, filters, sorting, pagination) |
 | `GET` / `PUT` / `DELETE` | `/movies/{id}` | Get, update or delete one of my movies |
+| `POST` | `/movies/{id}/rewatch` | Log that I watched one of my movies again |
 | `PATCH` | `/movies/{id}/favorite` | Mark or unmark a movie as favorite |
 | `PUT` | `/movies/{id}/poster` | Upload a movie's poster (`multipart/form-data`, field `poster`) |
 | `DELETE` | `/movies/{id}/poster` | Remove a movie's poster |
