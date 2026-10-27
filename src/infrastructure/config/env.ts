@@ -1,6 +1,8 @@
 const DEFAULT_BCRYPT_ROUNDS = 10;
 const DEFAULT_JWT_EXPIRES_IN = '1h';
 const DEFAULT_REFRESH_TOKEN_EXPIRES_IN = '7d';
+// Resend's shared sender works without a domain, but only delivers to the account owner's address.
+const DEFAULT_EMAIL_FROM = 'Movie Track <onboarding@resend.dev>';
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -25,4 +27,9 @@ export const env = {
   cloudinaryApiKey: requireEnv('CLOUDINARY_API_KEY'),
   cloudinaryApiSecret: requireEnv('CLOUDINARY_API_SECRET'),
   tmdbAccessToken: requireEnv('TMDB_ACCESS_TOKEN'),
+  // Where the front-end runs; e-mail links point to its /verify-email and /reset-password pages.
+  appUrl: requireEnv('APP_URL'),
+  // Optional: without it e-mails are logged instead of sent (see LogAccountMailer).
+  resendApiKey: process.env.RESEND_API_KEY || undefined,
+  emailFrom: process.env.EMAIL_FROM || DEFAULT_EMAIL_FROM,
 };

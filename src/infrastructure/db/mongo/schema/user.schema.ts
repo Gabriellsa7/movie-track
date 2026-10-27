@@ -41,6 +41,21 @@ export const userSchema = new mongoose.Schema<IMUser>(
   sessionVersion: {
     type: Number,
   },
+  emailVerified: {
+    type: Boolean,
+  },
+  emailVerificationTokenHash: {
+    type: String,
+  },
+  emailVerificationExpiresAt: {
+    type: Date,
+  },
+  passwordResetTokenHash: {
+    type: String,
+  },
+  passwordResetExpiresAt: {
+    type: Date,
+  },
   createdAt: {
     type: Date,
     required: true,
@@ -54,6 +69,8 @@ export const userSchema = new mongoose.Schema<IMUser>(
 );
 
 userSchema.index({ normalizedName: 1, _id: 1 });
+userSchema.index({ emailVerificationTokenHash: 1 }, { sparse: true });
+userSchema.index({ passwordResetTokenHash: 1 }, { sparse: true });
 
 userSchema.pre('validate', function () {
   if (this.isModified('name')) {

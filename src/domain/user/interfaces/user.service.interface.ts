@@ -1,3 +1,5 @@
+import { IAccountMailer } from '../../common/providers/account-mailer.provider';
+import { ISecureTokenProvider } from '../../common/providers/secure-token.provider';
 import {
   IPaginatedResult,
   IPagination,
@@ -54,6 +56,8 @@ export interface IParamsUserService {
   watchlistRepositoryWrite: IWatchlistRepositoryWrite;
   storageProvider: IStorageProvider;
   passwordHasher: IPasswordHasher;
+  secureTokenProvider: ISecureTokenProvider;
+  accountMailer: IAccountMailer;
   clock: IClock;
 }
 
@@ -76,4 +80,5 @@ export interface IUserService {
   getPublicProfile(id: string): Promise<IUserPublicProfile>;
   uploadAvatar(params: IParamsUploadAvatar): Promise<IUserPrivate>;
   removeAvatar(id: string): Promise<IUserPrivate>;
+  resendEmailVerification(id: string): Promise<void>;
 }

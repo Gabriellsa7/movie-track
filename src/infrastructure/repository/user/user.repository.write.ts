@@ -19,6 +19,9 @@ export class UserRepositoryWrite implements IUserRepositoryWrite {
       avatarUrl: createdUser.avatarUrl,
       avatarPublicId: createdUser.avatarPublicId,
       sessionVersion: createdUser.sessionVersion,
+      emailVerified: createdUser.emailVerified,
+      emailVerificationTokenHash: createdUser.emailVerificationTokenHash,
+      emailVerificationExpiresAt: createdUser.emailVerificationExpiresAt,
       createdAt: createdUser.createdAt,
       updatedAt: createdUser.updatedAt,
     };

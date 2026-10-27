@@ -293,6 +293,63 @@ paths:
         default:
           $ref: '#/components/responses/UnexpectedError'
 
+  /users/{id}/email-verification:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+    post:
+      tags:
+        - Users
+      summary: Send my e-mail confirmation again
+      operationId: resendEmailVerification
+      description: >
+        Sends a new confirmation link; older links stop working. Limited to 3 requests per hour.
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Confirmation e-mail sent
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/UserNotFound'
+        '409':
+          description: The e-mail is already confirmed (EMAIL_ALREADY_VERIFIED)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: 'The e-mail is already verified'
+                status: 409
+                code: 'EMAIL_ALREADY_VERIFIED'
+        '429':
+          description: Too many requests (TOO_MANY_REQUESTS)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: 'Too many requests, try again later'
+                status: 429
+                code: 'TOO_MANY_REQUESTS'
+        '503':
+          description: The e-mail service failed (EMAIL_UNAVAILABLE)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: 'E-mail service unavailable'
+                status: 503
+                code: 'EMAIL_UNAVAILABLE'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+
+
   /users/{id}/avatar:
     parameters:
       - $ref: '#/components/parameters/UserId'
@@ -488,6 +545,117 @@ paths:
                 $ref: '#/components/schemas/Error'
         default:
           $ref: '#/components/responses/UnexpectedError'
+
+  /auth/verify-email:
+    post:
+      tags:
+        - Auth
+      summary: Confirm my e-mail
+      operationId: verifyEmail
+      description: >
+        Confirms the e-mail with the token from the link sent on sign-up or e-mail change
+        (APP_URL/verify-email?token=...). Each link works once and expires after 24 hours.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailToken'
+      responses:
+        '204':
+          description: E-mail confirmed
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '422':
+          description: The link is invalid, already used or expired (INVALID_VERIFICATION_TOKEN)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: 'The verification link is invalid or expired'
+                status: 422
+                code: 'INVALID_VERIFICATION_TOKEN'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+
+  /auth/forgot-password:
+    post:
+      tags:
+        - Auth
+      summary: Ask for a password reset link
+      operationId: forgotPassword
+      description: >
+        Sends a reset link (APP_URL/reset-password?token=..., valid for 1 hour) when an account
+        uses this e-mail. Always answers 204, so it cannot reveal which e-mails have accounts.
+        Limited to 5 requests per IP every 15 minutes.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgotPassword'
+      responses:
+        '204':
+          description: If the account exists, the e-mail is on its way
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          description: Too many requests from this IP (TOO_MANY_REQUESTS)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: 'Too many requests, try again later'
+                status: 429
+                code: 'TOO_MANY_REQUESTS'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+
+  /auth/reset-password:
+    post:
+      tags:
+        - Auth
+      summary: Set a new password with a reset link
+      operationId: resetPassword
+      description: >
+        Sets the new password with the token from the reset e-mail. The link works once. It also
+        revokes every refresh token (log in again) and confirms the e-mail, since the link proves
+        access to the inbox.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPassword'
+      responses:
+        '204':
+          description: Password changed
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '422':
+          description: The link is invalid, already used or expired (INVALID_RESET_TOKEN)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: 'The password reset link is invalid or expired'
+                status: 422
+                code: 'INVALID_RESET_TOKEN'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+
 
   /movies:
     post:
@@ -1104,7 +1272,8 @@ components:
       description: >
         Any other error, in the same shape: 405 METHOD_NOT_ALLOWED, 413 PAYLOAD_TOO_LARGE,
         415 UNSUPPORTED_MEDIA_TYPE, 503 SERVICE_UNAVAILABLE (database down),
-        503 STORAGE_UNAVAILABLE (Cloudinary failed an upload) or
+        503 STORAGE_UNAVAILABLE (Cloudinary failed an upload),
+        503 EMAIL_UNAVAILABLE (Resend failed to send) or
         500 INTERNAL_ERROR (unexpected, logged with the trace id)
       content:
         application/json:
@@ -1701,6 +1870,7 @@ components:
         - id
         - name
         - email
+        - emailVerified
         - createdAt
         - updatedAt
       properties:
@@ -1715,6 +1885,9 @@ components:
           type: string
           format: email
           description: The user's email address (lowercase)
+        emailVerified:
+          type: boolean
+          description: Whether the e-mail was confirmed through the link sent to it
         avatarUrl:
           type: string
           format: uri
@@ -1755,6 +1928,45 @@ components:
           pattern: '^(?=.*[A-Za-z])(?=.*\d).+$'
           description: Plain-text password with at least one letter and one number; stored only as a hash
           example: 'secret123'
+    EmailToken:
+      type: object
+      additionalProperties: false
+      required:
+        - token
+      properties:
+        token:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: The token from the e-mail link
+    ForgotPassword:
+      type: object
+      additionalProperties: false
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+    ResetPassword:
+      type: object
+      additionalProperties: false
+      required:
+        - token
+        - newPassword
+      properties:
+        token:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: The token from the reset e-mail link
+        newPassword:
+          type: string
+          minLength: 8
+          maxLength: 72
+          pattern: '^(?=.*[A-Za-z])(?=.*\d).+$'
+          description: New password with at least one letter and one number
     ChangePassword:
       type: object
       additionalProperties: false

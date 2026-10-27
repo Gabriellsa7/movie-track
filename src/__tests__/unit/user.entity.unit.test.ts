@@ -122,16 +122,80 @@ describe('When we change the avatar of a user', () => {
   });
 });
 
+describe('When we verify the e-mail or reset the password of a user', () => {
+  it('should keep a pending verification and reset only with their token', () => {
+    const user = new User({
+      ...A_USER,
+      emailVerified: false,
+      emailVerificationTokenHash: 'verification-hash',
+      emailVerificationExpiresAt: LATER,
+      passwordResetTokenHash: 'reset-hash',
+      passwordResetExpiresAt: LATER,
+    });
+
+    expect(user).toMatchObject({
+      emailVerified: false,
+      emailVerificationTokenHash: 'verification-hash',
+      passwordResetTokenHash: 'reset-hash',
+    });
+    expect(new User(A_USER)).not.toHaveProperty('emailVerificationTokenHash');
+  });
+
+  it('should start a verification as not verified and confirm it clearing the token', () => {
+    const user = new User({ ...A_USER, emailVerified: true });
+
+    user.startEmailVerification('verification-hash', LATER);
+    expect(user.emailVerified).toBe(false);
+    expect(user.emailVerificationTokenHash).toBe('verification-hash');
+
+    user.confirmEmail(LATER);
+    expect(user.emailVerified).toBe(true);
+    expect(user.emailVerificationTokenHash).toBeUndefined();
+    expect(user.emailVerificationExpiresAt).toBeUndefined();
+  });
+
+  it('should reset the password, revoking sessions and confirming the e-mail', () => {
+    const user = new User({ ...A_USER, sessionVersion: 1 });
+    user.startPasswordReset('reset-hash', LATER);
+
+    user.resetPassword('hashed-new', LATER);
+
+    expect(user).toMatchObject({
+      passwordHash: 'hashed-new',
+      sessionVersion: 2,
+      emailVerified: true,
+      updatedAt: LATER,
+    });
+    expect(user.passwordResetTokenHash).toBeUndefined();
+    expect(user.passwordResetExpiresAt).toBeUndefined();
+  });
+});
+
 describe('When we map a user to its responses', () => {
-  it('should hide the password hash, avatar public id and session version from the private view', () => {
-    expect(User.toUserPrivate({ ...A_USER, sessionVersion: 1 })).toEqual({
+  it('should hide the password hash, avatar public id, session version and tokens from the private view', () => {
+    expect(
+      User.toUserPrivate({
+        ...A_USER,
+        sessionVersion: 1,
+        emailVerified: true,
+        emailVerificationTokenHash: 'verification-hash',
+        emailVerificationExpiresAt: LATER,
+        passwordResetTokenHash: 'reset-hash',
+        passwordResetExpiresAt: LATER,
+      }),
+    ).toEqual({
       id: A_USER._id,
       name: A_USER.name,
       email: A_USER.email,
+      emailVerified: true,
       avatarUrl: A_USER.avatarUrl,
       createdAt: A_USER.createdAt,
       updatedAt: A_USER.updatedAt,
     });
+  });
+
+  it('should read a missing verification as not verified', () => {
+    expect(User.toUserPrivate(A_USER).emailVerified).toBe(false);
   });
 
   it('should expose only public fields and the movies summary in the summary and profile', () => {
