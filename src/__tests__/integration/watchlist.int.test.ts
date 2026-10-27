@@ -48,6 +48,7 @@ describe('When we add a movie to our watchlist', () => {
       releaseYear: 2000,
       tmdbId: 37165,
       posterUrl: 'https://cdn.example.com/auto.png',
+      priority: 'medium',
       addedAt: expect.any(String),
     });
   });
@@ -234,5 +235,160 @@ describe('When we use the watchlist without a token', () => {
     const { statusCode } = await supertest(app.app).get('/watchlist');
 
     expect(statusCode).toBe(401);
+  });
+});
+
+const updateItem = (userId: string, id: string, body: object) =>
+  supertest(app.app)
+    .put(`/watchlist/${id}`)
+    .set('Authorization', authHeaderFor(userId))
+    .send(body);
+
+describe('When we add a movie with a priority and a note', () => {
+  it('should keep both', async () => {
+    const { body } = await addItem(newObjectId(), {
+      title: 'Seven',
+      priority: 'high',
+      note: '  Recommended by Ana  ',
+    });
+
+    expect(body).toMatchObject({ priority: 'high', note: 'Recommended by Ana' });
+  });
+});
+
+describe('When we edit a movie in our watchlist', () => {
+  it('should change only the fields sent', async () => {
+    const userId = newObjectId();
+    const { body: item } = await addItem(userId, {
+      title: 'Sevn',
+      releaseYear: 1995,
+      note: 'Typo in the title',
+    });
+
+    const { body, statusCode } = await updateItem(userId, item.id, {
+      title: 'Seven',
+      priority: 'low',
+    });
+
+    expect(statusCode).toBe(200);
+    expect(body).toMatchObject({
+      id: item.id,
+      title: 'Seven',
+      releaseYear: 1995,
+      priority: 'low',
+      note: 'Typo in the title',
+    });
+  });
+
+  it('should clear the year and poster with null and the note with an empty text', async () => {
+    const userId = newObjectId();
+    const { body: item } = await addItem(userId, {
+      title: 'Seven',
+      releaseYear: 1995,
+      posterUrl: 'https://cdn.example.com/seven.png',
+      note: 'Some note',
+    });
+
+    const { body } = await updateItem(userId, item.id, {
+      releaseYear: null,
+      posterUrl: null,
+      note: '',
+    });
+
+    expect(body).not.toHaveProperty('releaseYear');
+    expect(body).not.toHaveProperty('posterUrl');
+    expect(body).not.toHaveProperty('note');
+    const inDb = await Mwatchlist.findById(item.id).lean();
+    expect(inDb).not.toHaveProperty('note');
+  });
+
+  it('should return 409 ALREADY_IN_WATCHLIST when it becomes another item', async () => {
+    const userId = newObjectId();
+    await addItem(userId, { title: 'Seven', releaseYear: 1995 });
+    const { body: other } = await addItem(userId, { title: 'Alien' });
+
+    const { body, statusCode } = await updateItem(userId, other.id, {
+      title: 'seven',
+      releaseYear: 1995,
+    });
+
+    expect(statusCode).toBe(409);
+    expect(body.code).toBe('ALREADY_IN_WATCHLIST');
+  });
+
+  it('should return 409 MOVIE_ALREADY_LOGGED when it becomes a watched movie', async () => {
+    const userId = newObjectId();
+    await createMovieFor(userId, { title: 'Alien', releaseYear: 1979 });
+    const { body: item } = await addItem(userId, { title: 'Aliens' });
+
+    const { body, statusCode } = await updateItem(userId, item.id, {
+      title: 'Alien',
+      releaseYear: 1979,
+    });
+
+    expect(statusCode).toBe(409);
+    expect(body.code).toBe('MOVIE_ALREADY_LOGGED');
+  });
+
+  it('should not compare the item with itself when the movie stays the same', async () => {
+    const userId = newObjectId();
+    const { body: item } = await addItem(userId, {
+      title: 'Seven',
+      releaseYear: 1995,
+    });
+
+    const { statusCode } = await updateItem(userId, item.id, {
+      title: 'Seven',
+      note: 'Watch on Friday',
+    });
+
+    expect(statusCode).toBe(200);
+  });
+
+  it('should return 404 for an item that is not ours and 400 for an empty body', async () => {
+    const { body: item } = await addItem(newObjectId(), { title: 'Seven' });
+
+    const notOurs = await updateItem(newObjectId(), item.id, {
+      priority: 'high',
+    });
+    const empty = await updateItem(newObjectId(), item.id, {});
+
+    expect(notOurs.statusCode).toBe(404);
+    expect(notOurs.body.code).toBe('WATCHLIST_ITEM_NOT_FOUND');
+    expect(empty.statusCode).toBe(400);
+  });
+});
+
+describe('When we list our watchlist by priority', () => {
+  const userId = newObjectId();
+
+  beforeAll(async () => {
+    await addItem(userId, { title: 'Low one', priority: 'low' });
+    await addItem(userId, { title: 'High one', priority: 'high' });
+    const { body: legacy } = await addItem(userId, { title: 'Old item' });
+    await Mwatchlist.updateOne(
+      { _id: legacy.id },
+      { $unset: { priority: '' } },
+    );
+    await addItem(userId, { title: 'Medium one', priority: 'medium' });
+  });
+
+  it('should list high first, then medium (old items included), then low', async () => {
+    const { body } = await listItems(userId, { sort: 'priority' });
+
+    expect(titlesOf(body)).toEqual([
+      'High one',
+      'Medium one',
+      'Old item',
+      'Low one',
+    ]);
+    expect(body.items[2].priority).toBe('medium');
+  });
+
+  it('should filter by priority, counting items without one as medium', async () => {
+    const { body } = await listItems(userId, { priority: 'medium' });
+
+    expect(titlesOf(body)).toEqual(['Medium one', 'Old item']);
+    expect(body.total).toBe(2);
   });
 });

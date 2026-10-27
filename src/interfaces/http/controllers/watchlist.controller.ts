@@ -8,12 +8,18 @@ import {
 import { IController } from './controller.interface';
 import { IWatchlistService } from '../../../domain/watchlist/interfaces/watchlist.service.interface';
 import { WatchlistItem } from '../../../domain/watchlist/watchlist.entity';
+import {
+  EWatchlistPriority,
+  EWatchlistSortField,
+} from '../../../domain/watchlist/interfaces/watchlist.interface';
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_PAGE_LIMIT = 20;
 
 interface IListWatchlistQuery {
   search?: string;
+  priority?: EWatchlistPriority;
+  sort?: EWatchlistSortField;
   page?: number;
   limit?: number;
 }
@@ -36,6 +42,11 @@ export class WatchlistController implements IController {
   initRoutes() {
     this.router.post('/watchlist', this.authenticate, this.addWatchlistItem);
     this.router.get('/watchlist', this.authenticate, this.listWatchlistItems);
+    this.router.put(
+      '/watchlist/:id',
+      this.authenticate,
+      this.updateWatchlistItem,
+    );
     this.router.delete(
       '/watchlist/:id',
       this.authenticate,
@@ -68,19 +79,40 @@ export class WatchlistController implements IController {
   ): Promise<void> => {
     const {
       search,
+      priority,
+      sort = EWatchlistSortField.ADDED_AT,
       page = DEFAULT_PAGE,
       limit = DEFAULT_PAGE_LIMIT,
     } = req.query as IListWatchlistQuery;
     try {
       const result = await this.watchlistService.listWatchlistItems({
-        userId: req.userId!,
-        search,
+        filter: { userId: req.userId!, search, priority },
+        sort,
         pagination: { limit, offset: (page - 1) * limit },
       });
       res.status(200).json({
         ...result,
         items: result.items.map(WatchlistItem.toWatchlistItemResponse),
       });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  updateWatchlistItem = async (
+    req: Request<{ id: string }>,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const watchlistItem = await this.watchlistService.updateWatchlistItem({
+        id: req.params.id,
+        userId: req.userId!,
+        itemData: req.body,
+      });
+      res
+        .status(200)
+        .json(WatchlistItem.toWatchlistItemResponse(watchlistItem));
     } catch (error) {
       next(error);
     }

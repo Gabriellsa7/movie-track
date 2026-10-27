@@ -7,7 +7,13 @@ import { IMovieEntryRepositoryRead } from '../../movie-entry/repository/movie-en
 import { IUserRepositoryRead } from '../../user/repository/user.repository.read';
 import { IWatchlistRepositoryRead } from '../repository/watchlist.repository.read';
 import { IWatchlistRepositoryWrite } from '../repository/watchlist.repository.write';
-import { IWatchlistItem } from './watchlist.interface';
+import {
+  EWatchlistPriority,
+  EWatchlistSortField,
+  IWatchlistFilter,
+  IWatchlistItem,
+  IWatchlistItemDetailsData,
+} from './watchlist.interface';
 
 export interface IParamsAddWatchlistItem {
   userId: string;
@@ -15,11 +21,19 @@ export interface IParamsAddWatchlistItem {
   tmdbId?: number;
   posterUrl?: string;
   releaseYear?: number;
+  priority?: EWatchlistPriority;
+  note?: string;
+}
+
+export interface IParamsUpdateWatchlistItem {
+  id: string;
+  userId: string;
+  itemData: IWatchlistItemDetailsData;
 }
 
 export interface IParamsListWatchlistItems {
-  userId: string;
-  search?: string;
+  filter: IWatchlistFilter;
+  sort: EWatchlistSortField;
   pagination: IPagination;
 }
 
@@ -36,5 +50,8 @@ export interface IWatchlistService {
   listWatchlistItems(
     params: IParamsListWatchlistItems,
   ): Promise<IPaginatedResult<IWatchlistItem>>;
+  updateWatchlistItem(
+    params: IParamsUpdateWatchlistItem,
+  ): Promise<IWatchlistItem>;
   removeWatchlistItem(id: string, userId: string): Promise<void>;
 }

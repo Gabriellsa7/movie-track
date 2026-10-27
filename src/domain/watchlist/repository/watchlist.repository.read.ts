@@ -1,5 +1,9 @@
 import { IPagination } from '../../common/pagination.interface';
-import { IWatchlistItem } from '../interfaces/watchlist.interface';
+import {
+  EWatchlistSortField,
+  IWatchlistFilter,
+  IWatchlistItem,
+} from '../interfaces/watchlist.interface';
 
 export interface IWatchlistRepositoryRead {
   findWatchlistItemById(
@@ -11,14 +15,12 @@ export interface IWatchlistRepositoryRead {
     tmdbId?: number;
     normalizedTitle: string;
     releaseYear?: number;
+    excludeId?: string;
   }): Promise<IWatchlistItem | null>;
   listWatchlistItems(
-    userId: string,
-    search: string | undefined,
+    filter: IWatchlistFilter,
+    sort: EWatchlistSortField,
     pagination: IPagination,
   ): Promise<IWatchlistItem[]>;
-  countWatchlistItems(
-    userId: string,
-    search: string | undefined,
-  ): Promise<number>;
+  countWatchlistItems(filter: IWatchlistFilter): Promise<number>;
 }

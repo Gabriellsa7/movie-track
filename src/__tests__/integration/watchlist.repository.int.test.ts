@@ -1,3 +1,4 @@
+import { EWatchlistSortField } from '../../domain/watchlist/interfaces/watchlist.interface';
 import mongoose from 'mongoose';
 import '../../../jest/setup-integration-tests';
 import { IWatchlistItemData } from '../../domain/watchlist/interfaces/watchlist.interface';
@@ -93,23 +94,23 @@ describe('When we list watchlist items', () => {
     );
 
     const page = await watchlistRepositoryRead.listWatchlistItems(
-      userId,
-      undefined,
+      { userId },
+      EWatchlistSortField.ADDED_AT,
       { limit: 1, offset: 0 },
     );
     const searched = await watchlistRepositoryRead.listWatchlistItems(
-      userId,
-      'AÇÃ',
+      { userId, search: 'AÇÃ' },
+      EWatchlistSortField.ADDED_AT,
       { limit: 10, offset: 0 },
     );
 
     expect(page.map((item) => item.title)).toEqual(['Ação']);
     expect(searched.map((item) => item.title)).toEqual(['Ação']);
     await expect(
-      watchlistRepositoryRead.countWatchlistItems(userId, undefined),
+      watchlistRepositoryRead.countWatchlistItems({ userId }),
     ).resolves.toBe(2);
     await expect(
-      watchlistRepositoryRead.countWatchlistItems(userId, '.*'),
+      watchlistRepositoryRead.countWatchlistItems({ userId, search: '.*' }),
     ).resolves.toBe(0);
   });
 });
@@ -136,7 +137,7 @@ describe('When we delete watchlist items', () => {
 
     await watchlistRepositoryWrite.deleteWatchlistItemsByUserId(userId);
     await expect(
-      watchlistRepositoryRead.countWatchlistItems(userId, undefined),
+      watchlistRepositoryRead.countWatchlistItems({ userId }),
     ).resolves.toBe(0);
   });
 
@@ -145,7 +146,7 @@ describe('When we delete watchlist items', () => {
       watchlistRepositoryRead.findWatchlistItemById('bad', newObjectId()),
     ).resolves.toBeNull();
     await expect(
-      watchlistRepositoryRead.listWatchlistItems('bad', undefined, {
+      watchlistRepositoryRead.listWatchlistItems({ userId: 'bad' }, EWatchlistSortField.ADDED_AT, {
         limit: 10,
         offset: 0,
       }),

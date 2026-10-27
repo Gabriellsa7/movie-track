@@ -1,3 +1,4 @@
+import { EWatchlistPriority } from '../../domain/watchlist/interfaces/watchlist.interface';
 import { WatchlistItem } from '../../domain/watchlist/watchlist.entity';
 
 const ADDED_AT = new Date('2026-02-01T00:00:00.000Z');
@@ -52,6 +53,8 @@ describe('When we map a watchlist item to the response', () => {
       title: 'Seven',
       normalizedTitle: 'seven',
       releaseYear: 1995,
+      priority: EWatchlistPriority.HIGH,
+      note: 'Recommended by Ana',
       addedAt: ADDED_AT,
     });
 
@@ -60,7 +63,57 @@ describe('When we map a watchlist item to the response', () => {
       userId: 'user-1',
       title: 'Seven',
       releaseYear: 1995,
+      priority: EWatchlistPriority.HIGH,
+      note: 'Recommended by Ana',
       addedAt: ADDED_AT,
     });
+  });
+});
+
+describe('When we edit a watchlist item', () => {
+  const ITEM = {
+    userId: 'user-1',
+    title: 'Sevn',
+    releaseYear: 1995,
+    tmdbId: 807,
+    posterUrl: 'https://cdn.example.com/seven.png',
+    note: 'A note',
+  };
+
+  it('should default the priority to medium and drop a blank note', () => {
+    const item = new WatchlistItem({ userId: 'user-1', title: 'Seven', note: '  ' });
+
+    expect(item.priority).toBe(EWatchlistPriority.MEDIUM);
+    expect(item).not.toHaveProperty('note');
+  });
+
+  it('should change only the fields given, renormalizing the title', () => {
+    const item = new WatchlistItem(ITEM);
+
+    item.updateDetails({ title: ' Séven ', priority: EWatchlistPriority.HIGH });
+
+    expect(item).toMatchObject({
+      title: 'Séven',
+      normalizedTitle: 'seven',
+      releaseYear: 1995,
+      priority: EWatchlistPriority.HIGH,
+      note: 'A note',
+    });
+  });
+
+  it('should clear fields with null and the note with an empty text', () => {
+    const item = new WatchlistItem(ITEM);
+
+    item.updateDetails({
+      releaseYear: null,
+      tmdbId: null,
+      posterUrl: null,
+      note: '   ',
+    });
+
+    expect(item.releaseYear).toBeUndefined();
+    expect(item.tmdbId).toBeUndefined();
+    expect(item.posterUrl).toBeUndefined();
+    expect(item.note).toBeUndefined();
   });
 });

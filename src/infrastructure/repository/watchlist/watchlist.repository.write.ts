@@ -7,7 +7,7 @@ import { Mwatchlist } from '../../db/mongo/models/watchlist.model';
 import { HIDE_MONGO_INTERNAL_FIELDS } from '../../db/mongo/mongo.projection';
 import { isObjectId, toObjectId } from '../../db/mongo/object-id';
 import { IMWatchlistItem } from '../../db/mongo/schema/watchlist.schema';
-import { toWatchlistItem } from './watchlist.mapper';
+import { toWatchlistItem, toWatchlistItemUpdate } from './watchlist.mapper';
 
 export class WatchlistRepositoryWrite implements IWatchlistRepositoryWrite {
   async createWatchlistItem(
@@ -18,6 +18,22 @@ export class WatchlistRepositoryWrite implements IWatchlistRepositoryWrite {
       userId: toObjectId(itemData.userId),
     });
     return toWatchlistItem(createdItem.toObject());
+  }
+
+  async updateWatchlistItemById(
+    id: string,
+    userId: string,
+    itemData: Partial<Omit<IWatchlistItemData, 'userId'>>,
+  ): Promise<IWatchlistItem | null> {
+    if (!isObjectId(id) || !isObjectId(userId)) {
+      return null;
+    }
+    const item = await Mwatchlist.findOneAndUpdate(
+      { _id: toObjectId(id), userId: toObjectId(userId) },
+      toWatchlistItemUpdate(itemData),
+      { new: true, projection: HIDE_MONGO_INTERNAL_FIELDS },
+    ).lean<IMWatchlistItem>();
+    return item && toWatchlistItem(item);
   }
 
   async deleteWatchlistItemById(
