@@ -202,7 +202,9 @@ bumps `sessionVersion` and confirms the e-mail. E-mails go through
 tests). Links point to `APP_URL`. Sending after a save (sign-up, e-mail change,
 reset request) only logs a failure; an explicit resend answers 503
 `EMAIL_UNAVAILABLE`. Reset requests are limited to 5 per IP every 15 minutes and
-resends to 3 per user per hour.
+resends to 3 per user per hour. Sign-ups are limited to 5 accounts per IP per
+hour, counting only the ones that succeeded (`requestRateLimit` with
+`onlySuccessful`), so a form with mistakes does not use up the limit.
 
 **Account takeover and deleted accounts:** changing the e-mail (the login)
 requires `currentPassword`, like changing the password or deleting the account,

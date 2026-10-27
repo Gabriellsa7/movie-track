@@ -10,7 +10,8 @@ runtime.
 ## Features
 
 - **Accounts and auth** — sign up, log in and refresh tokens (JWT access +
-  refresh tokens, bcrypt password hashing, failed logins rate limited).
+  refresh tokens, bcrypt password hashing, failed logins and sign-ups rate
+  limited).
   Changing the password revokes every refresh token issued before. Every movie
   route is scoped to the authenticated user.
 - **E-mail confirmation and password reset** — sign-up and e-mail changes send a

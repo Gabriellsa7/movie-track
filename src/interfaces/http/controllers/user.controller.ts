@@ -19,15 +19,18 @@ export class UserController implements IController {
   private readonly userService: IUserService;
   private readonly authenticate: RequestHandler;
   private readonly emailVerificationRateLimit: RequestHandler;
+  private readonly signUpRateLimit: RequestHandler;
 
   constructor(
     userService: IUserService,
     authenticate: RequestHandler,
     emailVerificationRateLimit: RequestHandler,
+    signUpRateLimit: RequestHandler,
   ) {
     this.userService = userService;
     this.authenticate = authenticate;
     this.emailVerificationRateLimit = emailVerificationRateLimit;
+    this.signUpRateLimit = signUpRateLimit;
     this.router = Router();
     this.initRoutes();
   }
@@ -35,7 +38,7 @@ export class UserController implements IController {
   initRoutes() {
     this.router.get('/users', this.getUsers);
     this.router.get('/users/:id', this.getUserProfile);
-    this.router.post('/users', this.createUser);
+    this.router.post('/users', this.signUpRateLimit, this.createUser);
     this.router.put(
       '/users/:id',
       this.authenticate,
