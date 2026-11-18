@@ -88,6 +88,7 @@ describe('When we list users', () => {
     expect(body.total).toBeGreaterThanOrEqual(1);
     expect(body.items[0]).not.toHaveProperty('email');
     expect(body.items[0]).not.toHaveProperty('createdAt');
+    expect(body.items[0]).toHaveProperty('memberSince');
   });
 
   it('should include each user movies summary', async () => {

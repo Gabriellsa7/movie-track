@@ -459,6 +459,7 @@ describe('When we list public users', () => {
           id: A_USER._id,
           name: A_USER.name,
           avatarUrl: A_USER.avatarUrl,
+          memberSince: A_USER.createdAt,
           ...NO_MOVIES,
         },
       ],

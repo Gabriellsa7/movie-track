@@ -162,6 +162,7 @@ export class User implements IUserData {
     const user: IUserPublicSummary = {
       id: data._id,
       name: data.name,
+      memberSince: data.createdAt,
       ...moviesSummary,
     };
 
@@ -176,9 +177,6 @@ export class User implements IUserData {
     data: IUser,
     moviesSummary: IUserMoviesSummary,
   ): IUserPublicProfile {
-    return {
-      ...User.toUserPublicSummary(data, moviesSummary),
-      memberSince: data.createdAt,
-    };
+    return User.toUserPublicSummary(data, moviesSummary);
   }
 }

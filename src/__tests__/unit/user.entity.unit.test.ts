@@ -209,6 +209,7 @@ describe('When we map a user to its responses', () => {
       id: A_USER._id,
       name: A_USER.name,
       avatarUrl: A_USER.avatarUrl,
+      memberSince: A_USER.createdAt,
       ...moviesSummary,
     });
     expect(User.toUserPublicProfile(A_USER, moviesSummary)).toEqual({
