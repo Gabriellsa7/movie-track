@@ -10,6 +10,7 @@ import { GenreControllerFactory } from './infrastructure/config/factories/genre.
 import { GenreSeedFactory } from './infrastructure/config/factories/genre.seed.factory';
 import { MovieEntryControllerFactory } from './infrastructure/config/factories/movie-entry.controller.factory';
 import { WatchlistControllerFactory } from './infrastructure/config/factories/watchlist.controller.factory';
+import { AppLinkControllerFactory } from './infrastructure/config/factories/app-link.controller.factory';
 import { MovieSearchControllerFactory } from './infrastructure/config/factories/movie-search.controller.factory';
 import { syncMongoIndexes } from './infrastructure/db/mongo/mongo.indexes';
 
@@ -29,6 +30,7 @@ const app = new Server({
     MovieEntryControllerFactory.create(),
     WatchlistControllerFactory.create(),
     MovieSearchControllerFactory.create(),
+    AppLinkControllerFactory.create(),
   ],
   databaseURI: env.databaseUri,
   trustProxyHops: env.trustProxyHops,

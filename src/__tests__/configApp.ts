@@ -4,6 +4,7 @@ import { UserControllerFactory } from '../infrastructure/config/factories/user.c
 import { AuthControllerFactory } from '../infrastructure/config/factories/auth.controller.factory';
 import { GenreControllerFactory } from '../infrastructure/config/factories/genre.controller.factory';
 import { WatchlistControllerFactory } from '../infrastructure/config/factories/watchlist.controller.factory';
+import { AppLinkControllerFactory } from '../infrastructure/config/factories/app-link.controller.factory';
 import { MovieSearchControllerFactory } from '../infrastructure/config/factories/movie-search.controller.factory';
 
 const OPEN_API_SPEC_FILE_LOCATION = path.resolve(
@@ -19,6 +20,7 @@ export const app = new Server({
     GenreControllerFactory.create(),
     WatchlistControllerFactory.create(),
     MovieSearchControllerFactory.create(),
+    AppLinkControllerFactory.create(),
   ],
   databaseURI: process.env.DATABASE_URI,
   apiSpecLocation: OPEN_API_SPEC_FILE_LOCATION,
