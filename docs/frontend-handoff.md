@@ -149,6 +149,10 @@ watched (409 `MOVIE_ALREADY_LOGGED`) cannot be added again.
 `POST /movies` or `POST /watchlist`. Pages hold 20 results. 503
 `MOVIE_CATALOG_UNAVAILABLE` when TMDB is down: let the user type the data.
 
+After the user picks a result, `GET /tmdb/movies/{tmdbId}` returns its
+`director` and `durationMinutes` (each left out when TMDB lacks it), which the
+search does not have.
+
 `GET /genres` (public) lists the 19 genres (`id`, `name` in English) for pickers
 and filters.
 

@@ -39,6 +39,7 @@ let movieSearchService: MovieSearchService;
 beforeEach(() => {
   movieCatalogProvider = {
     searchMovies: jest.fn().mockResolvedValue(A_CATALOG_PAGE),
+    getMovieDetails: jest.fn(),
   };
   genreRepositoryRead = {
     listGenres: jest.fn(),
@@ -136,5 +137,31 @@ describe('When the genre repository fails unexpectedly', () => {
       expect.objectContaining({ eventName: 'service.unexpected_error' }),
     );
     errorSpy.mockRestore();
+  });
+});
+
+describe('When we get the details of a TMDB movie', () => {
+  it('should return the director and runtime from the catalog', async () => {
+    movieCatalogProvider.getMovieDetails.mockResolvedValue({
+      tmdbId: 598,
+      director: 'Fernando Meirelles',
+      durationMinutes: 130,
+    });
+
+    await expect(movieSearchService.getMovieDetails(598)).resolves.toEqual({
+      tmdbId: 598,
+      director: 'Fernando Meirelles',
+      durationMinutes: 130,
+    });
+    expect(movieCatalogProvider.getMovieDetails).toHaveBeenCalledWith(598);
+  });
+
+  it('should throw 404 TMDB_MOVIE_NOT_FOUND when TMDB does not know it', async () => {
+    movieCatalogProvider.getMovieDetails.mockResolvedValue(null);
+
+    await expect(movieSearchService.getMovieDetails(1)).rejects.toMatchObject({
+      status: 404,
+      code: 'TMDB_MOVIE_NOT_FOUND',
+    });
   });
 });

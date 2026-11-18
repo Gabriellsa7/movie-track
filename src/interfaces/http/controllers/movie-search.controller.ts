@@ -32,7 +32,27 @@ export class MovieSearchController implements IController {
 
   initRoutes() {
     this.router.get('/tmdb/search', this.authenticate, this.searchMovies);
+    this.router.get(
+      '/tmdb/movies/:tmdbId',
+      this.authenticate,
+      this.getMovieDetails,
+    );
   }
+
+  getMovieDetails = async (
+    req: Request<{ tmdbId: string }>,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const details = await this.movieSearchService.getMovieDetails(
+        Number(req.params.tmdbId),
+      );
+      res.status(200).json(details);
+    } catch (error) {
+      next(error);
+    }
+  };
 
   searchMovies = async (
     req: Request,

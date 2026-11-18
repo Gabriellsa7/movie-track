@@ -113,6 +113,7 @@ All `/movies`, `/watchlist` and `/tmdb` routes require `Authorization: Bearer <a
 | `PUT` | `/watchlist/{id}/poster` | Upload a watchlist movie's poster (`multipart/form-data`, field `poster`); the movie keeps it once watched |
 | `DELETE` | `/watchlist/{id}/poster` | Remove a watchlist movie's poster |
 | `GET` | `/tmdb/search` | Search movies in TMDB to prefill a movie or watchlist item |
+| `GET` | `/tmdb/movies/{tmdbId}` | Director and runtime of a TMDB movie, to finish the prefill |
 | `GET` | `/genres` | List the genres |
 | `GET` | `/health` | Health check |
 | `GET` | `/docs` | Swagger UI |
