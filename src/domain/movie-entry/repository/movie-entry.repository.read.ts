@@ -24,6 +24,7 @@ export interface IMovieEntryRepositoryRead {
   ): Promise<IMovieEntry[]>;
   countMovieEntries(filter: IMovieEntryFilter): Promise<number>;
   getUserStats(userId: string, since: Date): Promise<IUserStats>;
+  findUserIdsWithMovies(): Promise<string[]>;
   getSummariesByUserIds(
     userIds: string[],
   ): Promise<(IUserMoviesSummary & { userId: string })[]>;

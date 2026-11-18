@@ -64,8 +64,15 @@ export interface IUserPublicSummary extends IUserMoviesSummary {
   id: string;
   name: string;
   avatarUrl?: string;
+  memberSince: Date;
 }
 
 export interface IUserPublicProfile extends IUserPublicSummary {
   memberSince: Date;
+}
+
+export interface IUserSearchFilter {
+  search?: string;
+  // Only these users; an empty list matches no one.
+  ids?: string[];
 }

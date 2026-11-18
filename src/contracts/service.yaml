@@ -32,7 +32,7 @@ paths:
         - Users
       summary: List users
       operationId: getUsers
-      description: Public, paginated list of users sorted by name. The search matches the name ignoring case and accents. Never returns e-mails.
+      description: Public, paginated list of the users who logged at least one movie, sorted by name. The search matches the name ignoring case and accents. Never returns e-mails.
       parameters:
         - name: search
           in: query
@@ -2415,6 +2415,7 @@ components:
         - moviesCount
         - averageRating
         - favoritesCount
+        - memberSince
       properties:
         id:
           type: string
@@ -2438,6 +2439,10 @@ components:
         favoritesCount:
           type: integer
           minimum: 0
+        memberSince:
+          type: string
+          format: date-time
+          description: When the user signed up
     UserProfile:
       type: object
       additionalProperties: false

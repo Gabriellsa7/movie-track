@@ -68,6 +68,7 @@ beforeEach(() => {
     listMovieEntries: jest.fn(),
     countMovieEntries: jest.fn(),
     getUserStats: jest.fn(),
+    findUserIdsWithMovies: jest.fn(),
     getSummariesByUserIds: jest.fn(),
   };
   movieEntryRepositoryWrite = {

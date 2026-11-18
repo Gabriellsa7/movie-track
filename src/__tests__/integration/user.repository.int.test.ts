@@ -87,7 +87,7 @@ describe('When we search users by name', () => {
 
   it('should match ignoring case and accents, sorted by name', async () => {
     const users = await userRepositoryRead.searchUsers(
-      `${SEARCH_PREFIX}-SEARCH A`,
+      { search: `${SEARCH_PREFIX}-SEARCH A` },
       { limit: 10, offset: 0 },
     );
 
@@ -101,11 +101,11 @@ describe('When we search users by name', () => {
   it('should paginate and count the matches', async () => {
     const search = `${SEARCH_PREFIX}-search`;
 
-    const users = await userRepositoryRead.searchUsers(search, {
+    const users = await userRepositoryRead.searchUsers({ search }, {
       limit: 1,
       offset: 2,
     });
-    const total = await userRepositoryRead.countUsers(search);
+    const total = await userRepositoryRead.countUsers({ search });
 
     expect(users.map((user) => user.name)).toEqual([
       `${SEARCH_PREFIX}-search Zoë`,
@@ -113,18 +113,34 @@ describe('When we search users by name', () => {
     expect(total).toBe(3);
   });
 
+  it('should keep only the given users', async () => {
+    const search = `${SEARCH_PREFIX}-search`;
+    const [ana] = await userRepositoryRead.searchUsers(
+      { search },
+      { limit: 1, offset: 0 },
+    );
+
+    const users = await userRepositoryRead.searchUsers(
+      { search, ids: [ana!._id, 'not-an-id'] },
+      { limit: 10, offset: 0 },
+    );
+
+    expect(users.map((user) => user._id)).toEqual([ana!._id]);
+    await expect(userRepositoryRead.countUsers({ ids: [] })).resolves.toBe(0);
+  });
+
   it('should treat regex characters in the search as plain text', async () => {
-    const total = await userRepositoryRead.countUsers('.*');
+    const total = await userRepositoryRead.countUsers({ search: '.*' });
 
     expect(total).toBe(0);
   });
 
   it('should return everyone when the search is blank', async () => {
-    const total = await userRepositoryRead.countUsers('   ');
+    const total = await userRepositoryRead.countUsers({ search: '   ' });
     const allUsers = await Muser.countDocuments();
 
     expect(total).toBe(allUsers);
-    await expect(userRepositoryRead.countUsers(undefined)).resolves.toBe(
+    await expect(userRepositoryRead.countUsers({})).resolves.toBe(
       allUsers,
     );
   });
