@@ -1,3 +1,4 @@
+import { randomBytes } from 'crypto';
 import { Router, Request, Response } from 'express';
 import { IController } from './controller.interface';
 import { appDeepLink, appLinkPage } from './app-link.page';
@@ -23,7 +24,16 @@ export class AppLinkController implements IController {
   openApp = (req: Request<{ action: string }>, res: Response): void => {
     const { token } = req.query as unknown as IAppLinkQuery;
     const deepLink = appDeepLink(this.appDeepLinkUrl, req.params.action, token);
-    res.status(200).type('html').send(appLinkPage(deepLink));
+    const nonce = randomBytes(16).toString('base64');
+    // The API-wide CSP blocks inline scripts; this page only needs its own redirect script.
+    res
+      .status(200)
+      .set(
+        'Content-Security-Policy',
+        `default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}'`,
+      )
+      .type('html')
+      .send(appLinkPage(deepLink, nonce));
   };
 
   public getRoutes(): Router {

@@ -11,6 +11,10 @@ describe('When we open a link from an account e-mail', () => {
     expect(headers['content-type']).toContain('text/html');
     expect(text).toContain('href="movietrack://reset-password?token=abc-DEF_123"');
     expect(text).toContain('window.location.replace');
+    const nonce = /nonce="([^"]+)"/.exec(text)?.[1];
+    expect(headers['content-security-policy']).toContain(
+      `script-src 'nonce-${nonce}'`,
+    );
   });
 
   it('should only accept the known actions', async () => {

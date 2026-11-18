@@ -23,7 +23,7 @@ export function appDeepLink(
 
 // E-mail clients rarely make custom-scheme links clickable, so the e-mail points here (https)
 // and this page hands the link over to the app.
-export function appLinkPage(deepLink: string): string {
+export function appLinkPage(deepLink: string, scriptNonce: string): string {
   const link = escapeHtml(deepLink);
   return `<!doctype html>
 <html lang="en">
@@ -45,7 +45,7 @@ a{display:block;padding:16px;border-radius:12px;background:#F5B83D;color:#0F1115
 <p>If the app does not open, tap the button on the phone where it is installed.</p>
 <a href="${link}">Open Movie Track</a>
 </main>
-<script>window.location.replace(${JSON.stringify(deepLink).replace(/</g, '\\u003c')});</script>
+<script nonce="${scriptNonce}">window.location.replace(${JSON.stringify(deepLink).replace(/</g, '\\u003c')});</script>
 </body>
 </html>`;
 }

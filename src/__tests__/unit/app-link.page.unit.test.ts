@@ -14,9 +14,10 @@ describe('When we build the link that opens the app', () => {
   });
 
   it('should escape the link inside the page', () => {
-    const page = appLinkPage('movietrack://x?token="<b>');
+    const page = appLinkPage('movietrack://x?token="<b>', 'n0nce');
 
     expect(page).toContain('href="movietrack://x?token=&quot;&lt;b&gt;"');
     expect(page).not.toContain('"<b>"');
+    expect(page).toContain('<script nonce="n0nce">');
   });
 });
