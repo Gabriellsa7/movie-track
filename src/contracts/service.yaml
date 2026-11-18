@@ -1354,6 +1354,71 @@ paths:
         default:
           $ref: '#/components/responses/UnexpectedError'
 
+  /watchlist/{id}/poster:
+    parameters:
+      - $ref: '#/components/parameters/WatchlistItemId'
+    put:
+      tags:
+        - Watchlist
+      summary: Upload the poster of a movie in my watchlist
+      operationId: uploadWatchlistItemPoster
+      description: >
+        Stores the image in Cloudinary and sets it as the poster, replacing (and deleting)
+        any previous uploaded poster. JPEG, PNG or WebP, up to 5 MB. When the item is marked
+        as watched, the movie keeps this poster.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PosterUpload'
+      responses:
+        '200':
+          description: Poster uploaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WatchlistItem'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/WatchlistItemNotFound'
+        '422':
+          $ref: '#/components/responses/InvalidPoster'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+    delete:
+      tags:
+        - Watchlist
+      summary: Remove the poster of a movie in my watchlist
+      operationId: removeWatchlistItemPoster
+      description: Clears the poster and deletes the uploaded file. A no-op when there is no poster.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Poster removed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WatchlistItem'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/WatchlistItemNotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+
   /watchlist/{id}/watched:
     parameters:
       - $ref: '#/components/parameters/WatchlistItemId'

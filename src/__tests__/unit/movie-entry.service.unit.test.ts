@@ -250,6 +250,32 @@ describe('When we create a movie entry', () => {
     );
   });
 
+  it('should delete the poster the item uploaded when the movie does not use it', async () => {
+    const uploadedItem = {
+      _id: 'item-1',
+      userId: USER_ID,
+      title: 'The Matrix',
+      normalizedTitle: 'the matrix',
+      posterUrl: 'https://cdn.example.com/posters/item.png',
+      posterPublicId: 'posters/item',
+      addedAt: NOW,
+      priority: EWatchlistPriority.MEDIUM,
+    };
+    watchlistRepositoryRead.findWatchlistItemById.mockResolvedValue(
+      uploadedItem,
+    );
+    watchlistRepositoryWrite.deleteWatchlistItemById.mockResolvedValue(
+      uploadedItem,
+    );
+
+    await movieEntryService.createMovieEntry({
+      ...CREATE_PARAMS,
+      watchlistItemId: 'item-1',
+    });
+
+    expect(storageProvider.delete).toHaveBeenCalledWith('posters/item');
+  });
+
   it('should throw NotFoundError when the watchlist item does not exist', async () => {
     watchlistRepositoryRead.findWatchlistItemById.mockResolvedValue(null);
 
@@ -692,6 +718,30 @@ describe('When we mark a watchlist item as watched', () => {
       'item-1',
       USER_ID,
     );
+  });
+
+  it('should keep the poster the item uploaded instead of deleting it', async () => {
+    const uploadedItem = { ...FULL_ITEM, posterPublicId: 'posters/item' };
+    watchlistRepositoryRead.findWatchlistItemById.mockResolvedValue(
+      uploadedItem,
+    );
+    watchlistRepositoryWrite.deleteWatchlistItemById.mockResolvedValue(
+      uploadedItem,
+    );
+    movieEntryRepositoryWrite.createMovieEntry.mockImplementation(
+      async (movieEntry) => ({ ...movieEntry, _id: 'movie-1' }) as IMovieEntry,
+    );
+
+    await movieEntryService.logWatchlistItem({
+      userId: USER_ID,
+      watchlistItemId: 'item-1',
+      rating: 9,
+    });
+
+    expect(movieEntryRepositoryWrite.createMovieEntry).toHaveBeenCalledWith(
+      expect.objectContaining({ posterPublicId: 'posters/item' }),
+    );
+    expect(storageProvider.delete).not.toHaveBeenCalled();
   });
 
   it('should take the missing movie fields from the request', async () => {

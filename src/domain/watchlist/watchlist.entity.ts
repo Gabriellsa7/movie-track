@@ -21,6 +21,8 @@ export class WatchlistItem implements IWatchlistItemData {
 
   posterUrl?: string;
 
+  posterPublicId?: string;
+
   releaseYear?: number;
 
   priority: EWatchlistPriority;
@@ -57,6 +59,10 @@ export class WatchlistItem implements IWatchlistItemData {
 
     if (params.posterUrl) {
       this.posterUrl = params.posterUrl;
+    }
+
+    if (params.posterPublicId) {
+      this.posterPublicId = params.posterPublicId;
     }
 
     if (params.releaseYear !== undefined) {
@@ -102,8 +108,14 @@ export class WatchlistItem implements IWatchlistItemData {
       this.tmdbId = detailsData.tmdbId ?? undefined;
     }
 
-    if (detailsData.posterUrl !== undefined) {
-      this.posterUrl = detailsData.posterUrl ?? undefined;
+    // Sending the current posterUrl back keeps the uploaded file; any other value replaces it.
+    if (detailsData.posterUrl === null) {
+      this.removePoster();
+    } else if (
+      detailsData.posterUrl !== undefined &&
+      detailsData.posterUrl !== this.posterUrl
+    ) {
+      this.changePoster(detailsData.posterUrl, undefined);
     }
 
     if (detailsData.priority !== undefined) {
@@ -137,10 +149,21 @@ export class WatchlistItem implements IWatchlistItemData {
     }
   }
 
+  // posterPublicId is absent for an external URL: only uploaded posters live in our storage.
+  changePoster(posterUrl: string, posterPublicId: string | undefined): void {
+    this.posterUrl = posterUrl;
+    this.posterPublicId = posterPublicId;
+  }
+
+  removePoster(): void {
+    this.posterUrl = undefined;
+    this.posterPublicId = undefined;
+  }
+
   public static toWatchlistItemResponse(
     data: IWatchlistItem,
   ): IWatchlistItemResponse {
-    const { _id, normalizedTitle, ...item } = data;
+    const { _id, normalizedTitle, posterPublicId, ...item } = data;
 
     return { id: _id, ...item };
   }

@@ -31,6 +31,9 @@ export const watchlistSchema = new mongoose.Schema<IMWatchlistItem>(
     posterUrl: {
       type: String,
     },
+    posterPublicId: {
+      type: String,
+    },
     releaseYear: {
       type: Number,
     },

@@ -14,5 +14,6 @@ export interface IWatchlistRepositoryWrite {
     id: string,
     userId: string,
   ): Promise<IWatchlistItem | null>;
-  deleteWatchlistItemsByUserId(userId: string): Promise<void>;
+  // Returns the deleted items so the caller can clean up their posters in storage.
+  deleteWatchlistItemsByUserId(userId: string): Promise<IWatchlistItem[]>;
 }

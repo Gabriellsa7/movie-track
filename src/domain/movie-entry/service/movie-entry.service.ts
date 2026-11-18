@@ -74,6 +74,14 @@ export class MovieEntryService implements IMovieEntryService {
   async createMovieEntry(
     params: IParamsCreateMovieEntry,
   ): Promise<IMovieEntry> {
+    return this.createMovie(params);
+  }
+
+  // posterPublicId comes only from a watchlist item: the movie takes over the file it uploaded.
+  private async createMovie(
+    params: IParamsCreateMovieEntry,
+    posterPublicId?: string,
+  ): Promise<IMovieEntry> {
     const movieEntry = new MovieEntry({
       userId: params.userId,
       title: params.title,
@@ -83,6 +91,7 @@ export class MovieEntryService implements IMovieEntryService {
       rating: params.rating,
       review: params.review,
       posterUrl: params.posterUrl,
+      posterPublicId,
       director: params.director,
       durationMinutes: params.durationMinutes,
       watchedAt: params.watchedAt,
@@ -108,17 +117,23 @@ export class MovieEntryService implements IMovieEntryService {
 
     // Logging a movie from the watchlist means it has been watched.
     if (params.watchlistItemId) {
-      await this.watchlistRepositoryWrite.deleteWatchlistItemById(
-        params.watchlistItemId,
-        params.userId,
-      );
+      const deletedItem =
+        await this.watchlistRepositoryWrite.deleteWatchlistItemById(
+          params.watchlistItemId,
+          params.userId,
+        );
+      if (deletedItem?.posterPublicId !== createdMovieEntry.posterPublicId) {
+        await this.deleteStoredPoster(deletedItem?.posterPublicId);
+      }
     }
 
     return createdMovieEntry;
   }
 
   @ErrorHandler()
-  async logWatchlistItem(params: IParamsLogWatchlistItem): Promise<IMovieEntry> {
+  async logWatchlistItem(
+    params: IParamsLogWatchlistItem,
+  ): Promise<IMovieEntry> {
     const item = await this.watchlistRepositoryRead.findWatchlistItemById(
       params.watchlistItemId,
       params.userId,
@@ -142,22 +157,25 @@ export class MovieEntryService implements IMovieEntryService {
       );
     }
 
-    return this.createMovieEntry({
-      userId: params.userId,
-      watchlistItemId: params.watchlistItemId,
-      title: item.title,
-      tmdbId: item.tmdbId,
-      posterUrl: item.posterUrl,
-      synopsis,
-      releaseYear,
-      genreIds,
-      director: params.director ?? item.director,
-      durationMinutes: params.durationMinutes ?? item.durationMinutes,
-      rating: params.rating,
-      review: params.review,
-      watchedAt: params.watchedAt,
-      isFavorite: params.isFavorite,
-    });
+    return this.createMovie(
+      {
+        userId: params.userId,
+        watchlistItemId: params.watchlistItemId,
+        title: item.title,
+        tmdbId: item.tmdbId,
+        posterUrl: item.posterUrl,
+        synopsis,
+        releaseYear,
+        genreIds,
+        director: params.director ?? item.director,
+        durationMinutes: params.durationMinutes ?? item.durationMinutes,
+        rating: params.rating,
+        review: params.review,
+        watchedAt: params.watchedAt,
+        isFavorite: params.isFavorite,
+      },
+      item.posterPublicId,
+    );
   }
 
   @ErrorHandler()
@@ -211,7 +229,9 @@ export class MovieEntryService implements IMovieEntryService {
   }
 
   @ErrorHandler()
-  async updateMovieEntry(params: IParamsUpdateMovieEntry): Promise<IMovieEntry> {
+  async updateMovieEntry(
+    params: IParamsUpdateMovieEntry,
+  ): Promise<IMovieEntry> {
     const { posterUrl, ...detailsData } = params.movieData;
     const existingMovieEntry = await this.findExistingMovieEntry(
       params.id,
@@ -443,15 +463,14 @@ export class MovieEntryService implements IMovieEntryService {
     movieEntry: MovieEntry,
     excludeId?: string,
   ): Promise<void> {
-    const duplicate = await this.movieEntryRepositoryRead.findDuplicateMovieEntry(
-      {
+    const duplicate =
+      await this.movieEntryRepositoryRead.findDuplicateMovieEntry({
         userId: movieEntry.userId,
         tmdbId: movieEntry.tmdbId,
         normalizedTitle: movieEntry.normalizedTitle,
         releaseYear: movieEntry.releaseYear,
         excludeId,
-      },
-    );
+      });
     if (duplicate) {
       throw new ConflictError(
         'This movie is already in your list',
@@ -494,7 +513,9 @@ export class MovieEntryService implements IMovieEntryService {
   }
 
   // The entry is already saved; a storage failure only leaves an orphan file, so it must not fail the request.
-  private async deleteStoredPoster(publicId: string | undefined): Promise<void> {
+  private async deleteStoredPoster(
+    publicId: string | undefined,
+  ): Promise<void> {
     if (!publicId) {
       return;
     }

@@ -1,8 +1,13 @@
 import supertest from 'supertest';
 import '../../../jest/setup-integration-tests';
+import { MmovieEntry } from '../../infrastructure/db/mongo/models/movie-entry.model';
 import { Mwatchlist } from '../../infrastructure/db/mongo/models/watchlist.model';
 import { WatchlistRepositoryWrite } from '../../infrastructure/repository/watchlist/watchlist.repository.write';
-import { KNOWN_GENRES, movieEntryApp } from '../configMovieEntryApp';
+import {
+  fakeStorageProvider,
+  KNOWN_GENRES,
+  movieEntryApp,
+} from '../configMovieEntryApp';
 import { authHeaderFor, ensureUserExists, newObjectId } from '../testUtils';
 
 const watchlistRepositoryWrite = new WatchlistRepositoryWrite();
@@ -134,5 +139,29 @@ describe('When marking as watched breaks a movie rule', () => {
     const { statusCode } = await markWatched(userId, item._id, {});
 
     expect(statusCode).toBe(400);
+  });
+});
+
+describe('When we mark as watched an item with an uploaded poster', () => {
+  it('should give the movie that poster without deleting the file', async () => {
+    fakeStorageProvider.delete.mockClear();
+    const userId = newObjectId();
+    const item = await addItemFor(userId, {
+      posterUrl: 'https://cdn.example.com/posters/item.png',
+      posterPublicId: 'posters/item',
+      releaseYear: 2014,
+      synopsis: 'Explorers travel through a wormhole.',
+      genreIds: [KNOWN_GENRES[0]._id],
+    });
+
+    const { body, statusCode } = await markWatched(userId, item._id, {
+      rating: 9,
+    });
+
+    expect(statusCode).toBe(201);
+    expect(body.posterUrl).toBe('https://cdn.example.com/posters/item.png');
+    const movieInDb = await MmovieEntry.findById(body.id).lean();
+    expect(movieInDb?.posterPublicId).toBe('posters/item');
+    expect(fakeStorageProvider.delete).not.toHaveBeenCalled();
   });
 });
