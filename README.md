@@ -115,6 +115,7 @@ All `/movies`, `/watchlist` and `/tmdb` routes require `Authorization: Bearer <a
 | `GET` | `/tmdb/search` | Search movies in TMDB to prefill a movie or watchlist item |
 | `GET` | `/tmdb/movies/{tmdbId}` | Director and runtime of a TMDB movie, to finish the prefill |
 | `GET` | `/genres` | List the genres |
+| `GET` | `/links/{action}` | Page that opens the app from an e-mail link (`verify-email` or `reset-password`) |
 | `GET` | `/health` | Health check |
 | `GET` | `/docs` | Swagger UI |
 
@@ -151,8 +152,12 @@ CORS: browsers only reach the API from the origins in `CORS_ORIGINS`
 (comma-separated, e.g. `http://localhost:5173,https://movie-track-web.vercel.app`).
 It defaults to `APP_URL`. Native apps are not affected.
 
-E-mails: set `APP_URL` to the front-end URL (links go to its `/verify-email`
-and `/reset-password` pages) and `RESEND_API_KEY` to an API key from
+E-mails: set `APP_URL` to where the links should go (they end in `/verify-email`
+or `/reset-password`). For the mobile app, use this API's public URL plus
+`/links`: `GET /links/{action}` answers a page that opens the app at
+`APP_DEEP_LINK_URL` (`movietrack://` by default, `exp://<your-ip>:8081/--` in
+Expo Go) with the same token, since e-mail clients rarely open custom-scheme
+links. Also set `RESEND_API_KEY` to an API key from
 [resend.com](https://resend.com). Without the key, e-mails are only written to
 the log, which is handy locally. The default sender
 `onboarding@resend.dev` only delivers to the address that owns the Resend

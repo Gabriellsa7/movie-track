@@ -24,6 +24,8 @@ tags:
     description: Movies the authenticated user wants to watch
   - name: Movie search
     description: Search movies in TMDB to prefill a movie or a watchlist item
+  - name: App links
+    description: Pages that open the app from the links in the account e-mails
 
 paths:
   /users:
@@ -1523,6 +1525,46 @@ paths:
                 message: 'Send synopsis, genreIds: the watchlist item does not have them'
                 status: 422
                 code: 'INCOMPLETE_MOVIE'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+
+  /links/{action}:
+    get:
+      tags:
+        - App links
+      summary: Open an e-mail link in the app
+      operationId: openAppLink
+      description: >
+        Public. The verification and password reset e-mails point here (set APP_URL to
+        <this API>/links): the page sends the user to the app (APP_DEEP_LINK_URL) with the
+        same token, since e-mail clients rarely open custom-scheme links.
+      security: []
+      parameters:
+        - name: action
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [verify-email, reset-password]
+        - name: token
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 200
+            pattern: '^[A-Za-z0-9_-]+$'
+      responses:
+        '200':
+          description: A page that opens the app
+          content:
+            text/html:
+              schema:
+                type: string
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
         '500':
           $ref: '#/components/responses/ServerError'
         default:

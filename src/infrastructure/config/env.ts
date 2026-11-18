@@ -4,6 +4,7 @@ const DEFAULT_REFRESH_TOKEN_EXPIRES_IN = '7d';
 // Resend's shared sender works without a domain, but only delivers to the account owner's address.
 const DEFAULT_EMAIL_FROM = 'Movie Track <onboarding@resend.dev>';
 const DEFAULT_APP_URL = 'http://localhost:5173';
+const DEFAULT_APP_DEEP_LINK_URL = 'movietrack://';
 
 function parseList(value: string | undefined): Array<string> {
   return (value ?? '')
@@ -39,6 +40,8 @@ export const env = {
   tmdbAccessToken: process.env.TMDB_ACCESS_TOKEN || undefined,
   // Where the front-end runs; e-mail links point to its /verify-email and /reset-password pages.
   appUrl: process.env.APP_URL || DEFAULT_APP_URL,
+  // Where GET /links/{action} sends the user: the app's scheme (exp://<host>:8081/-- in Expo Go).
+  appDeepLinkUrl: process.env.APP_DEEP_LINK_URL || DEFAULT_APP_DEEP_LINK_URL,
   // Browser origins allowed by CORS, comma-separated; defaults to APP_URL. Native apps don't need it.
   corsOrigins: parseList(
     process.env.CORS_ORIGINS || process.env.APP_URL || DEFAULT_APP_URL,
