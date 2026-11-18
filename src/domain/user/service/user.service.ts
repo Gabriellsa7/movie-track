@@ -86,6 +86,11 @@ export class UserService implements IUserService {
       User.normalizeEmail(params.email),
     );
     if (existingUser) {
+      Logger.warn('Sign-up failed', {
+        eventName: 'user.sign_up.failed',
+        reason: 'email_taken',
+        existingUserId: existingUser._id,
+      });
       throw this.emailTakenError();
     }
 
