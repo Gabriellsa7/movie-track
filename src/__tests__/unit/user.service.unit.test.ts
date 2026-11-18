@@ -43,7 +43,10 @@ const A_USER_PRIVATE = {
 let userRepositoryRead: jest.Mocked<IUserRepositoryRead>;
 let userRepositoryWrite: jest.Mocked<IUserRepositoryWrite>;
 let movieEntryRepositoryRead: jest.Mocked<
-  Pick<IMovieEntryRepositoryRead, 'getSummariesByUserIds'>
+  Pick<
+    IMovieEntryRepositoryRead,
+    'findUserIdsWithMovies' | 'getSummariesByUserIds'
+  >
 >;
 let movieEntryRepositoryWrite: jest.Mocked<IMovieEntryRepositoryWrite>;
 let watchlistRepositoryWrite: jest.Mocked<IWatchlistRepositoryWrite>;
@@ -77,6 +80,7 @@ beforeEach(() => {
     deleteUserById: jest.fn(),
   };
   movieEntryRepositoryRead = {
+    findUserIdsWithMovies: jest.fn().mockResolvedValue(['user-1']),
     getSummariesByUserIds: jest.fn().mockResolvedValue([]),
   };
   movieEntryRepositoryWrite = {
@@ -467,11 +471,12 @@ describe('When we list public users', () => {
       page: 3,
       limit: 20,
     });
-    expect(userRepositoryRead.searchUsers).toHaveBeenCalledWith('white', {
-      limit: 20,
-      offset: 40,
-    });
-    expect(userRepositoryRead.countUsers).toHaveBeenCalledWith('white');
+    const onlyWithMovies = { search: 'white', ids: ['user-1'] };
+    expect(userRepositoryRead.searchUsers).toHaveBeenCalledWith(
+      onlyWithMovies,
+      { limit: 20, offset: 40 },
+    );
+    expect(userRepositoryRead.countUsers).toHaveBeenCalledWith(onlyWithMovies);
   });
 
   it('should add each user movies summary with a single query', async () => {

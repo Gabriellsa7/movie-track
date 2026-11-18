@@ -1,4 +1,4 @@
-import { FilterQuery, SortOrder } from 'mongoose';
+import { FilterQuery, SortOrder, Types } from 'mongoose';
 import { IPagination } from '../../../domain/common/pagination.interface';
 import { normalizeText } from '../../../domain/common/text.normalizer';
 import {
@@ -232,6 +232,11 @@ export class MovieEntryRepositoryRead implements IMovieEntryRepositoryRead {
       moviesPerMonth: stats.moviesPerMonth,
       topGenres: stats.topGenres,
     };
+  }
+
+  async findUserIdsWithMovies(): Promise<string[]> {
+    const userIds: Types.ObjectId[] = await MmovieEntry.distinct('userId');
+    return userIds.map((userId) => userId.toString());
   }
 
   async getSummariesByUserIds(

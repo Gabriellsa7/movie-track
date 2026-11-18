@@ -225,9 +225,14 @@ export class UserService implements IUserService {
     params: IParamsListUsers,
   ): Promise<IPaginatedResult<IUserPublicSummary>> {
     const { search, pagination } = params;
+    // The list is for finding people to follow: profiles without movies are left out.
+    const filter = {
+      search,
+      ids: await this.movieEntryRepositoryRead.findUserIdsWithMovies(),
+    };
     const [users, total] = await Promise.all([
-      this.userRepositoryRead.searchUsers(search, pagination),
-      this.userRepositoryRead.countUsers(search),
+      this.userRepositoryRead.searchUsers(filter, pagination),
+      this.userRepositoryRead.countUsers(filter),
     ]);
     const summaries = await this.findMoviesSummaries(
       users.map((user) => user._id),

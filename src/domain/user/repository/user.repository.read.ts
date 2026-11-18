@@ -1,5 +1,5 @@
 import { IPagination } from '../../common/pagination.interface';
-import { IUser } from '../interfaces/user.interface';
+import { IUser, IUserSearchFilter } from '../interfaces/user.interface';
 
 export interface IUserRepositoryRead {
   findUserByEmail(email: string): Promise<IUser | null>;
@@ -9,8 +9,8 @@ export interface IUserRepositoryRead {
   ): Promise<IUser | null>;
   findUserByPasswordResetTokenHash(tokenHash: string): Promise<IUser | null>;
   searchUsers(
-    search: string | undefined,
+    filter: IUserSearchFilter,
     pagination: IPagination,
   ): Promise<IUser[]>;
-  countUsers(search: string | undefined): Promise<number>;
+  countUsers(filter: IUserSearchFilter): Promise<number>;
 }

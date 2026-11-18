@@ -70,3 +70,9 @@ export interface IUserPublicSummary extends IUserMoviesSummary {
 export interface IUserPublicProfile extends IUserPublicSummary {
   memberSince: Date;
 }
+
+export interface IUserSearchFilter {
+  search?: string;
+  // Only these users; an empty list matches no one.
+  ids?: string[];
+}

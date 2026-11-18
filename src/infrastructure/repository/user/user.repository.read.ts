@@ -1,7 +1,10 @@
 import { FilterQuery } from 'mongoose';
 import { IPagination } from '../../../domain/common/pagination.interface';
 import { normalizeText } from '../../../domain/common/text.normalizer';
-import { IUser } from '../../../domain/user/interfaces/user.interface';
+import {
+  IUser,
+  IUserSearchFilter,
+} from '../../../domain/user/interfaces/user.interface';
 import { IUserRepositoryRead } from '../../../domain/user/repository/user.repository.read';
 import { Muser } from '../../db/mongo/models/user.model';
 import { HIDE_USER_INTERNAL_FIELDS } from '../../db/mongo/mongo.projection';
@@ -52,11 +55,11 @@ export class UserRepositoryRead implements IUserRepositoryRead {
   }
 
   async searchUsers(
-    search: string | undefined,
+    filter: IUserSearchFilter,
     pagination: IPagination,
   ): Promise<IUser[]> {
     const users = await Muser.find(
-      this.buildSearchFilter(search),
+      this.buildSearchFilter(filter),
       HIDE_USER_INTERNAL_FIELDS,
     )
       .sort({ normalizedName: 1, _id: 1 })
@@ -66,19 +69,24 @@ export class UserRepositoryRead implements IUserRepositoryRead {
     return users.map(toUser);
   }
 
-  async countUsers(search: string | undefined): Promise<number> {
-    return Muser.countDocuments(this.buildSearchFilter(search));
+  async countUsers(filter: IUserSearchFilter): Promise<number> {
+    return Muser.countDocuments(this.buildSearchFilter(filter));
   }
 
-  private buildSearchFilter(search: string | undefined): FilterQuery<IMUser> {
+  private buildSearchFilter({
+    search,
+    ids,
+  }: IUserSearchFilter): FilterQuery<IMUser> {
+    const query: FilterQuery<IMUser> = {};
     const normalizedSearch = search ? normalizeText(search) : '';
-    if (!normalizedSearch) {
-      return {};
-    }
-    return {
-      normalizedName: {
+    if (normalizedSearch) {
+      query.normalizedName = {
         $regex: normalizedSearch.replace(REGEX_SPECIAL_CHARACTERS, '\\$&'),
-      },
-    };
+      };
+    }
+    if (ids) {
+      query._id = { $in: ids.filter(isObjectId).map(toObjectId) };
+    }
+    return query;
   }
 }

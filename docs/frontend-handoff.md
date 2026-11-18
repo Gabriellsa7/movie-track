@@ -88,17 +88,17 @@ Unconfirmed users **can use the app normally**; the user object has
 
 ### Profile and account
 
-| Action                 | Route                                                                                                                                 |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| My account             | `GET /users/{id}/account` (private user: `email`, `emailVerified`, avatar)                                                            |
-| Edit name / e-mail     | `PUT /users/{id}` `{ name?, email?, currentPassword? }` (returns the private user, with `email` and `emailVerified`)                  |
-| Change password        | `PATCH /users/{id}/password` `{ currentPassword, newPassword }`                                                                       |
-| Upload / remove avatar | `PUT /users/{id}/avatar` (multipart field `avatar`) / `DELETE /users/{id}/avatar`                                                     |
-| Delete account         | `DELETE /users/{id}` `{ password }` (also deletes movies, watchlist and images)                                                       |
-| My stats               | `GET /users/{id}/stats` (private)                                                                                                     |
-| Public profile         | `GET /users/{id}`, `GET /users?search=` (name, avatar, member since, movies count, average rating, favorites count; never the e-mail) |
-| Profile movies         | `GET /users/{id}/movies` (public; same filters, sort and pagination as `GET /movies`; 404 `USER_NOT_FOUND`)                           |
-| Review page            | `GET /users/{id}/movies/{movieId}` (public; 404 `MOVIE_NOT_FOUND`)                                                                    |
+| Action                 | Route                                                                                                                                                          |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| My account             | `GET /users/{id}/account` (private user: `email`, `emailVerified`, avatar)                                                                                     |
+| Edit name / e-mail     | `PUT /users/{id}` `{ name?, email?, currentPassword? }` (returns the private user, with `email` and `emailVerified`)                                           |
+| Change password        | `PATCH /users/{id}/password` `{ currentPassword, newPassword }`                                                                                                |
+| Upload / remove avatar | `PUT /users/{id}/avatar` (multipart field `avatar`) / `DELETE /users/{id}/avatar`                                                                              |
+| Delete account         | `DELETE /users/{id}` `{ password }` (also deletes movies, watchlist and images)                                                                                |
+| My stats               | `GET /users/{id}/stats` (private)                                                                                                                              |
+| Public profile         | `GET /users/{id}`, `GET /users?search=` (only people with movies; name, avatar, member since, movies count, average rating, favorites count; never the e-mail) |
+| Profile movies         | `GET /users/{id}/movies` (public; same filters, sort and pagination as `GET /movies`; 404 `USER_NOT_FOUND`)                                                    |
+| Review page            | `GET /users/{id}/movies/{movieId}` (public; 404 `MOVIE_NOT_FOUND`)                                                                                             |
 
 Stats return `totalMovies`, `totalWatches`, `averageRating`, `favoritesCount`,
 `totalMinutes`, `ratingDistribution`, `moviesPerMonth` (last 12 months, months

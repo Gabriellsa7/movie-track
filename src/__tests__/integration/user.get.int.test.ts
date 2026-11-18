@@ -117,12 +117,14 @@ describe('When we list users', () => {
   });
 
   it('should search by name ignoring case and accents', async () => {
+    const edouardId = newObjectId();
     await Muser.create({
       ...existingUser,
-      _id: newObjectId(),
+      _id: edouardId,
       email: `get-${randomUUID()}@email.com`,
       name: `${NAME_PREFIX} Édouard`,
     });
+    await createMovieFor(edouardId);
 
     const { body, statusCode } = await supertest(app.app)
       .get('/users')
@@ -133,6 +135,23 @@ describe('When we list users', () => {
     expect(body.items).toEqual([
       expect.objectContaining({ name: `${NAME_PREFIX} Édouard` }),
     ]);
+  });
+
+  it('should leave out the users without movies', async () => {
+    const name = `${NAME_PREFIX} no-movies-${randomUUID()}`;
+    await Muser.create({
+      ...existingUser,
+      _id: newObjectId(),
+      email: `get-${randomUUID()}@email.com`,
+      name,
+    });
+
+    const { body, statusCode } = await supertest(app.app)
+      .get('/users')
+      .query({ search: name });
+
+    expect(statusCode).toBe(200);
+    expect(body).toMatchObject({ items: [], total: 0 });
   });
 
   it('should paginate with page and limit', async () => {
