@@ -120,7 +120,7 @@ so a field removed from a schema used to leave its index behind (the old unique
 therefore be declared in its schema, never created by hand in the database.
 
 The genre seed (`src/infrastructure/db/mongo/seed/genre.seed.ts`) upserts
-TMDB's pt-BR movie genres by `tmdbGenreId`, so it is idempotent and keeps each
+TMDB's English movie genres by `tmdbGenreId`, so it is idempotent and keeps each
 genre's `_id` across boots (movies store those ids in `genreIds`). It is the
 only caller of `IGenreRepositoryWrite`; no route writes genres. Integration
 tests run it themselves when they need the real list (`configApp.ts` does not).

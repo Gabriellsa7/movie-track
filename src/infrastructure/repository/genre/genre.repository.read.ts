@@ -6,7 +6,7 @@ import { isObjectId, toObjectId } from '../../db/mongo/object-id';
 import { IMGenre } from '../../db/mongo/schema/genre.schema';
 import { toGenre } from './genre.mapper';
 
-const NAME_COLLATION = { locale: 'pt' };
+const NAME_COLLATION = { locale: 'en' };
 
 export class GenreRepositoryRead implements IGenreRepositoryRead {
   async listGenres(): Promise<IGenre[]> {

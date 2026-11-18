@@ -9,8 +9,8 @@ import { ServiceUnavailableError } from '../../../domain/errors/service-unavaila
 
 const TMDB_API_URL = 'https://api.themoviedb.org/3';
 const TMDB_POSTER_URL = 'https://image.tmdb.org/t/p/w500';
-// Genres are seeded in pt-BR, so titles and synopses come in the same language.
-const TMDB_LANGUAGE = 'pt-BR';
+// Genres are seeded in English, so titles and synopses come in the same language.
+const TMDB_LANGUAGE = 'en-US';
 const TMDB_PAGE_SIZE = 20;
 const REQUEST_TIMEOUT_MILLISECONDS = 5000;
 

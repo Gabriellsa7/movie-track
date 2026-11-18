@@ -17,12 +17,12 @@ beforeEach(() => {
 describe('When we list the genres', () => {
   it('should return them in the repository order with only id and name', async () => {
     genreRepositoryRead.listGenres.mockResolvedValue([
-      { _id: 'genre-1', name: 'Ação', tmdbGenreId: 28 },
+      { _id: 'genre-1', name: 'Action', tmdbGenreId: 28 },
       { _id: 'genre-2', name: 'Drama', tmdbGenreId: 18 },
     ]);
 
     await expect(genreService.listGenres()).resolves.toEqual([
-      { id: 'genre-1', name: 'Ação' },
+      { id: 'genre-1', name: 'Action' },
       { id: 'genre-2', name: 'Drama' },
     ]);
   });
