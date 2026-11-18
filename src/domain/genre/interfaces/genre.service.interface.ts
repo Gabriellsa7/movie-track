@@ -1,3 +1,4 @@
+import { ELanguage } from '../../common/language';
 import { IGenreRepositoryRead } from '../repository/genre.repository.read';
 import { IGenreResponse } from './genre.interface';
 
@@ -6,5 +7,5 @@ export interface IParamsGenreService {
 }
 
 export interface IGenreService {
-  listGenres(): Promise<IGenreResponse[]>;
+  listGenres(language: ELanguage): Promise<IGenreResponse[]>;
 }

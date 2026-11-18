@@ -34,14 +34,24 @@ export class ResendAccountMailer implements IAccountMailer {
     this.fetch = fetchFn ?? fetch;
   }
 
-  sendEmailVerification({ to, name, token }: IParamsAccountEmail): Promise<void> {
+  sendEmailVerification({
+    to,
+    name,
+    token,
+    language,
+  }: IParamsAccountEmail): Promise<void> {
     const link = accountLink(this.appUrl, 'verify-email', token);
-    return this.send(to, emailVerificationEmail(name, link));
+    return this.send(to, emailVerificationEmail(name, link, language));
   }
 
-  sendPasswordReset({ to, name, token }: IParamsAccountEmail): Promise<void> {
+  sendPasswordReset({
+    to,
+    name,
+    token,
+    language,
+  }: IParamsAccountEmail): Promise<void> {
     const link = accountLink(this.appUrl, 'reset-password', token);
-    return this.send(to, passwordResetEmail(name, link));
+    return this.send(to, passwordResetEmail(name, link, language));
   }
 
   private async send(to: string, email: IAccountEmail): Promise<void> {

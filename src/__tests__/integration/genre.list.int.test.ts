@@ -60,3 +60,18 @@ describe('When we run the genre seed twice', () => {
     expect(after).toEqual(before);
   });
 });
+
+describe('When the app asks for the genres in Portuguese', () => {
+  it('should return the Portuguese names sorted in Portuguese', async () => {
+    const { body, statusCode } = await supertest(app.app)
+      .get('/genres')
+      .set('Accept-Language', 'pt-BR');
+
+    expect(statusCode).toBe(200);
+    const names = (body as { name: string }[]).map((genre) => genre.name);
+    expect(names).toContain('Ficção científica');
+    expect(names).not.toContain('Science Fiction');
+    expect(names.indexOf('Ação')).toBeLessThan(names.indexOf('Aventura'));
+    expect(names.indexOf('Drama')).toBeLessThan(names.indexOf('Faroeste'));
+  });
+});

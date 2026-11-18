@@ -4,6 +4,7 @@ import { IClock } from '../../common/providers/clock.provider';
 import { ISecureTokenProvider } from '../../common/providers/secure-token.provider';
 import { UnprocessableEntityError } from '../../errors/unprocessable-entity.error';
 import { IUserRepositoryWrite } from '../../user/repository/user.repository.write';
+import { DEFAULT_LANGUAGE, ELanguage } from '../../common/language';
 import { ErrorHandler } from '../../common/decorators/error-handler.decorator';
 import { IPasswordHasher } from '../../common/providers/password-hasher.provider';
 import { ITokenProvider } from '../../common/providers/token.provider';
@@ -151,7 +152,10 @@ export class AuthService implements IAuthService {
 
   // Answers the same whether the e-mail exists or not, so it cannot be used to find accounts.
   @ErrorHandler()
-  async requestPasswordReset(email: string): Promise<void> {
+  async requestPasswordReset(
+    email: string,
+    language: ELanguage = DEFAULT_LANGUAGE,
+  ): Promise<void> {
     const existingUser = await this.userRepositoryRead.findUserByEmail(
       User.normalizeEmail(email),
     );
@@ -176,6 +180,7 @@ export class AuthService implements IAuthService {
         to: user.email,
         name: user.name,
         token,
+        language,
       });
     } catch (error) {
       Logger.warn('Failed to send the password reset e-mail', {

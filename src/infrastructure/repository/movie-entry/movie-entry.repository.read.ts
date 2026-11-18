@@ -1,3 +1,7 @@
+import {
+  DEFAULT_LANGUAGE,
+  ELanguage,
+} from '../../../domain/common/language';
 import { FilterQuery, SortOrder, Types } from 'mongoose';
 import { IPagination } from '../../../domain/common/pagination.interface';
 import { normalizeText } from '../../../domain/common/text.normalizer';
@@ -132,7 +136,11 @@ export class MovieEntryRepositoryRead implements IMovieEntryRepositoryRead {
     return MmovieEntry.countDocuments(this.buildFilter(filter));
   }
 
-  async getUserStats(userId: string, since: Date): Promise<IUserStats> {
+  async getUserStats(
+    userId: string,
+    since: Date,
+    language: ELanguage,
+  ): Promise<IUserStats> {
     const emptyStats: IUserStats = {
       totalMovies: 0,
       averageRating: null,
@@ -213,7 +221,15 @@ export class MovieEntryRepositoryRead implements IMovieEntryRepositoryRead {
               $project: {
                 _id: 0,
                 genreId: { $toString: '$_id' },
-                name: '$genre.name',
+                name:
+                  language === DEFAULT_LANGUAGE
+                    ? '$genre.name'
+                    : {
+                        $ifNull: [
+                          `$genre.translatedNames.${language}`,
+                          '$genre.name',
+                        ],
+                      },
                 count: 1,
               },
             },

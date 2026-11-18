@@ -1,7 +1,9 @@
+import { ELanguage } from '../common/language';
 import {
   IGenre,
   IGenreData,
   IGenreResponse,
+  IGenreTranslatedNames,
   IParamsGenre,
 } from './interfaces/genre.interface';
 
@@ -12,6 +14,8 @@ export class Genre implements IGenreData {
 
   tmdbGenreId: number;
 
+  translatedNames?: IGenreTranslatedNames;
+
   constructor(params: IParamsGenre) {
     this.name = params.name.trim();
     this.tmdbGenreId = params.tmdbGenreId;
@@ -19,12 +23,26 @@ export class Genre implements IGenreData {
     if (params._id) {
       this._id = params._id;
     }
+
+    if (params.translatedNames) {
+      this.translatedNames = params.translatedNames;
+    }
   }
 
-  public static toGenreResponse(data: IGenre): IGenreResponse {
+  public static nameIn(
+    genre: Pick<IGenre, 'name' | 'translatedNames'>,
+    language: ELanguage,
+  ): string {
+    return genre.translatedNames?.[language] ?? genre.name;
+  }
+
+  public static toGenreResponse(
+    data: IGenre,
+    language: ELanguage,
+  ): IGenreResponse {
     return {
       id: data._id,
-      name: data.name,
+      name: Genre.nameIn(data, language),
     };
   }
 }

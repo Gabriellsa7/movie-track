@@ -1,4 +1,5 @@
 import { ErrorHandler } from '../../common/decorators/error-handler.decorator';
+import { ELanguage } from '../../common/language';
 import { IPaginatedResult } from '../../common/pagination.interface';
 import {
   ICatalogMovie,
@@ -35,6 +36,7 @@ export class MovieSearchService implements IMovieSearchService {
     const catalogPage = await this.movieCatalogProvider.searchMovies({
       query: params.query.trim(),
       page: params.page,
+      language: params.language,
     });
 
     // Movies reference our genre ids, so the TMDB ones are translated; unknown ones are dropped.
@@ -58,8 +60,14 @@ export class MovieSearchService implements IMovieSearchService {
   }
 
   @ErrorHandler()
-  async getMovieDetails(tmdbId: number): Promise<IMovieSearchDetails> {
-    const details = await this.movieCatalogProvider.getMovieDetails(tmdbId);
+  async getMovieDetails(
+    tmdbId: number,
+    language: ELanguage,
+  ): Promise<IMovieSearchDetails> {
+    const details = await this.movieCatalogProvider.getMovieDetails(
+      tmdbId,
+      language,
+    );
     if (!details) {
       throw new NotFoundError('Movie not found in TMDB', 'TMDB_MOVIE_NOT_FOUND');
     }

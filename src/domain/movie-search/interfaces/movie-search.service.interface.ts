@@ -1,3 +1,4 @@
+import { ELanguage } from '../../common/language';
 import { IPaginatedResult } from '../../common/pagination.interface';
 import { IMovieCatalogProvider } from '../../common/providers/movie-catalog.provider';
 import { IGenreRepositoryRead } from '../../genre/repository/genre.repository.read';
@@ -9,6 +10,7 @@ import {
 export interface IParamsSearchMovies {
   query: string;
   page: number;
+  language: ELanguage;
 }
 
 export interface IParamsMovieSearchService {
@@ -20,5 +22,8 @@ export interface IMovieSearchService {
   searchMovies(
     params: IParamsSearchMovies,
   ): Promise<IPaginatedResult<IMovieSearchResult>>;
-  getMovieDetails(tmdbId: number): Promise<IMovieSearchDetails>;
+  getMovieDetails(
+    tmdbId: number,
+    language: ELanguage,
+  ): Promise<IMovieSearchDetails>;
 }

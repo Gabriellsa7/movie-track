@@ -1,3 +1,4 @@
+import { ELanguage } from '../../common/language';
 import { IAccountMailer } from '../../common/providers/account-mailer.provider';
 import { IClock } from '../../common/providers/clock.provider';
 import { IPasswordHasher } from '../../common/providers/password-hasher.provider';
@@ -44,6 +45,6 @@ export interface IAuthService {
   refresh(params: IParamsRefreshToken): Promise<IAuthTokens>;
   logout(params: IParamsRefreshToken): Promise<void>;
   verifyEmail(token: string): Promise<void>;
-  requestPasswordReset(email: string): Promise<void>;
+  requestPasswordReset(email: string, language?: ELanguage): Promise<void>;
   resetPassword(params: IParamsResetPassword): Promise<void>;
 }

@@ -12,7 +12,9 @@ export class GenreRepositoryWrite implements IGenreRepositoryWrite {
       genres.map((genre) => ({
         updateOne: {
           filter: { tmdbGenreId: genre.tmdbGenreId },
-          update: { $set: { name: genre.name } },
+          update: {
+            $set: { name: genre.name, translatedNames: genre.translatedNames },
+          },
           upsert: true,
         },
       })),

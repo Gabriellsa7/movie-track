@@ -303,7 +303,10 @@ export class MovieEntryController implements IController {
     next: NextFunction,
   ): Promise<void> => {
     try {
-      const stats = await this.movieEntryService.getUserStats(req.userId!);
+      const stats = await this.movieEntryService.getUserStats(
+        req.userId!,
+        req.language,
+      );
       res.status(200).json(stats);
     } catch (error) {
       next(error);

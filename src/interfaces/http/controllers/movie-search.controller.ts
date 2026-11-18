@@ -47,6 +47,7 @@ export class MovieSearchController implements IController {
     try {
       const details = await this.movieSearchService.getMovieDetails(
         Number(req.params.tmdbId),
+        req.language,
       );
       res.status(200).json(details);
     } catch (error) {
@@ -65,6 +66,7 @@ export class MovieSearchController implements IController {
       const result = await this.movieSearchService.searchMovies({
         query,
         page,
+        language: req.language,
       });
       res.status(200).json(result);
     } catch (error) {

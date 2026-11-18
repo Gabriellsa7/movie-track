@@ -1,3 +1,4 @@
+import { ELanguage } from '../../domain/common/language';
 import { EWatchlistPriority } from '../../domain/watchlist/interfaces/watchlist.interface';
 import { IUserRepositoryRead } from '../../domain/user/repository/user.repository.read';
 import { Logger } from 'traceability';
@@ -665,11 +666,12 @@ describe('When we get the stats of a user', () => {
       totalMinutes: 0,
     });
 
-    await movieEntryService.getUserStats(USER_ID);
+    await movieEntryService.getUserStats(USER_ID, ELanguage.EN);
 
     expect(movieEntryRepositoryRead.getUserStats).toHaveBeenCalledWith(
       USER_ID,
       new Date('2025-11-01T00:00:00.000Z'),
+      ELanguage.EN,
     );
   });
 });

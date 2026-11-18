@@ -1,3 +1,4 @@
+import { ELanguage } from '../../common/language';
 import { IPagination } from '../../common/pagination.interface';
 import { IUserMoviesSummary } from '../../user/interfaces/user.interface';
 import {
@@ -23,7 +24,11 @@ export interface IMovieEntryRepositoryRead {
     pagination: IPagination,
   ): Promise<IMovieEntry[]>;
   countMovieEntries(filter: IMovieEntryFilter): Promise<number>;
-  getUserStats(userId: string, since: Date): Promise<IUserStats>;
+  getUserStats(
+    userId: string,
+    since: Date,
+    language: ELanguage,
+  ): Promise<IUserStats>;
   findUserIdsWithMovies(): Promise<string[]>;
   getSummariesByUserIds(
     userIds: string[],

@@ -1,4 +1,5 @@
 import { ErrorHandler } from '../../common/decorators/error-handler.decorator';
+import { ELanguage } from '../../common/language';
 import { Genre } from '../genre.entity';
 import { IGenreResponse } from '../interfaces/genre.interface';
 import {
@@ -15,8 +16,15 @@ export class GenreService implements IGenreService {
   }
 
   @ErrorHandler()
-  async listGenres(): Promise<IGenreResponse[]> {
+  async listGenres(language: ELanguage): Promise<IGenreResponse[]> {
     const genres = await this.genreRepositoryRead.listGenres();
-    return genres.map(Genre.toGenreResponse);
+    // Sorted here because the order changes with the language (Ação comes first, Action does not).
+    return genres
+      .map((genre) => Genre.toGenreResponse(genre, language))
+      .sort((first, second) =>
+        first.name.localeCompare(second.name, language, {
+          sensitivity: 'base',
+        }),
+      );
   }
 }

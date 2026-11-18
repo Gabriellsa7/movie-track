@@ -1,6 +1,7 @@
 import { Logger } from 'traceability';
 import { ErrorHandler } from '../../common/decorators/error-handler.decorator';
 import { IMAGE_MIME_TYPES } from '../../common/image.mime-types';
+import { ELanguage } from '../../common/language';
 import { IPaginatedResult } from '../../common/pagination.interface';
 import { IClock } from '../../common/providers/clock.provider';
 import { IStorageProvider } from '../../common/providers/storage.provider';
@@ -359,12 +360,15 @@ export class MovieEntryService implements IMovieEntryService {
   }
 
   @ErrorHandler()
-  async getUserStats(userId: string): Promise<IUserStats> {
+  async getUserStats(
+    userId: string,
+    language: ELanguage,
+  ): Promise<IUserStats> {
     const now = this.clock.now();
     const since = new Date(
       Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (STATS_MONTHS - 1), 1),
     );
-    return this.movieEntryRepositoryRead.getUserStats(userId, since);
+    return this.movieEntryRepositoryRead.getUserStats(userId, since, language);
   }
 
   private async findExistingMovieEntry(

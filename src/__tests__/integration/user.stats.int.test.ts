@@ -1,6 +1,12 @@
 import supertest from 'supertest';
 import '../../../jest/setup-integration-tests';
-import { createMovieFor, movieEntryApp } from '../configMovieEntryApp';
+import { Mgenre } from '../../infrastructure/db/mongo/models/genre.model';
+import { toObjectId } from '../../infrastructure/db/mongo/object-id';
+import {
+  createMovieFor,
+  KNOWN_GENRES,
+  movieEntryApp,
+} from '../configMovieEntryApp';
 import { authHeaderFor, newObjectId } from '../testUtils';
 
 const getStats = (userId: string, tokenUserId = userId) =>
@@ -56,6 +62,45 @@ describe('When we get our own stats', () => {
       moviesPerMonth: [],
       topGenres: [],
     });
+  });
+});
+
+describe('When we get our stats in Portuguese', () => {
+  it('should name the top genres in Portuguese and fall back to English', async () => {
+    const [translated, untranslated] = KNOWN_GENRES;
+    await Mgenre.updateOne(
+      { _id: toObjectId(translated._id) },
+      {
+        name: 'Stats comedy',
+        tmdbGenreId: 990_035,
+        translatedNames: { 'pt-BR': 'Comédia das estatísticas' },
+      },
+      { upsert: true },
+    );
+    await Mgenre.updateOne(
+      { _id: toObjectId(untranslated._id) },
+      { name: 'Stats drama', tmdbGenreId: 990_018 },
+      { upsert: true },
+    );
+    const userId = newObjectId();
+    await createMovieFor(userId, { genreIds: [translated._id] });
+    await createMovieFor(userId, { genreIds: [translated._id] });
+    await createMovieFor(userId, { genreIds: [untranslated._id] });
+
+    const { body, statusCode } = await getStats(userId).set(
+      'Accept-Language',
+      'pt-BR',
+    );
+
+    expect(statusCode).toBe(200);
+    expect(body.topGenres).toEqual([
+      {
+        genreId: translated._id,
+        name: 'Comédia das estatísticas',
+        count: 2,
+      },
+      { genreId: untranslated._id, name: 'Stats drama', count: 1 },
+    ]);
   });
 });
 

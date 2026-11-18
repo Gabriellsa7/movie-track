@@ -22,7 +22,7 @@ export class GenreController implements IController {
     next: NextFunction,
   ): Promise<void> => {
     try {
-      const genres = await this.genreService.listGenres();
+      const genres = await this.genreService.listGenres(req.language);
       res.status(200).json(genres);
     } catch (error) {
       next(error);

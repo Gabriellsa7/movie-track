@@ -142,6 +142,7 @@ export class UserController implements IController {
         name,
         email,
         password,
+        language: req.language,
       });
       res.status(201).json(newUser);
     } catch (error) {
@@ -160,6 +161,7 @@ export class UserController implements IController {
         id: req.params.id,
         userData: { name, email },
         currentPassword,
+        language: req.language,
       });
       res.status(200).json(updatedUser);
     } catch (error) {
@@ -207,7 +209,10 @@ export class UserController implements IController {
     next: NextFunction,
   ): Promise<void> => {
     try {
-      await this.userService.resendEmailVerification(req.params.id);
+      await this.userService.resendEmailVerification(
+        req.params.id,
+        req.language,
+      );
       res.status(204).send();
     } catch (error) {
       next(error);

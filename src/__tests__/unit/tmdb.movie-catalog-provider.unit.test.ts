@@ -1,3 +1,4 @@
+import { ELanguage } from '../../domain/common/language';
 import { Logger } from 'traceability';
 import { ServiceUnavailableError } from '../../domain/errors/service-unavailable.error';
 import { TmdbMovieCatalogProvider } from '../../infrastructure/providers/movie-catalog/tmdb.movie-catalog-provider';
@@ -53,7 +54,7 @@ afterEach(() => {
 
 describe('When we search movies in TMDB', () => {
   it('should call the search endpoint in English with the bearer token', async () => {
-    await provider.searchMovies({ query: 'cidade de deus', page: 2 });
+    await provider.searchMovies({ query: 'cidade de deus', page: 2, language: ELanguage.EN });
 
     const [url, init] = fetchMock.mock.calls[0];
     expect(url.origin + url.pathname).toBe(
@@ -70,7 +71,7 @@ describe('When we search movies in TMDB', () => {
   });
 
   it('should map the results and the page metadata', async () => {
-    const result = await provider.searchMovies({ query: 'cidade', page: 1 });
+    const result = await provider.searchMovies({ query: 'cidade', page: 1, language: ELanguage.EN });
 
     expect(result).toEqual({
       items: [
@@ -109,7 +110,7 @@ describe('When TMDB answers with an error status', () => {
       jsonResponse({ status_message: 'Invalid API key' }, 401),
     );
 
-    const search = provider.searchMovies({ query: 'cidade', page: 1 });
+    const search = provider.searchMovies({ query: 'cidade', page: 1, language: ELanguage.EN });
 
     await expect(search).rejects.toBeInstanceOf(ServiceUnavailableError);
     await expect(search).rejects.toMatchObject({
@@ -128,7 +129,7 @@ describe('When TMDB cannot be reached', () => {
     fetchMock.mockRejectedValue(new Error('The operation was aborted'));
 
     await expect(
-      provider.searchMovies({ query: 'cidade', page: 1 }),
+      provider.searchMovies({ query: 'cidade', page: 1, language: ELanguage.EN }),
     ).rejects.toMatchObject({ status: 503, code: 'MOVIE_CATALOG_UNAVAILABLE' });
     expect(warnSpy).toHaveBeenCalledWith('TMDB request failed', {
       eventName: 'tmdb.request_failed',
@@ -154,7 +155,7 @@ describe('When we get the details of a TMDB movie', () => {
       }),
     );
 
-    const details = await provider.getMovieDetails(598);
+    const details = await provider.getMovieDetails(598, ELanguage.EN);
 
     const [url] = fetchMock.mock.calls[0];
     expect(url.origin + url.pathname).toBe(
@@ -174,20 +175,20 @@ describe('When we get the details of a TMDB movie', () => {
       jsonResponse({ id: 2, runtime: 0, credits: { crew: [] } }),
     );
 
-    await expect(provider.getMovieDetails(2)).resolves.toEqual({ tmdbId: 2 });
+    await expect(provider.getMovieDetails(2, ELanguage.EN)).resolves.toEqual({ tmdbId: 2 });
   });
 
   it('should return null when TMDB does not have the movie', async () => {
     fetchMock.mockResolvedValue(jsonResponse({}, 404));
 
-    await expect(provider.getMovieDetails(999)).resolves.toBeNull();
+    await expect(provider.getMovieDetails(999, ELanguage.EN)).resolves.toBeNull();
     expect(warnSpy).not.toHaveBeenCalled();
   });
 
   it('should throw 503 MOVIE_CATALOG_UNAVAILABLE when TMDB fails', async () => {
     fetchMock.mockResolvedValue(jsonResponse({}, 500));
 
-    await expect(provider.getMovieDetails(598)).rejects.toMatchObject({
+    await expect(provider.getMovieDetails(598, ELanguage.EN)).rejects.toMatchObject({
       status: 503,
       code: 'MOVIE_CATALOG_UNAVAILABLE',
     });

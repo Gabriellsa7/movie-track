@@ -1,3 +1,4 @@
+import { ELanguage } from '../../common/language';
 import {
   IPaginatedResult,
   IPagination,
@@ -115,5 +116,5 @@ export interface IMovieEntryService {
   deleteMovieEntry(id: string, userId: string): Promise<void>;
   uploadPoster(params: IParamsUploadPoster): Promise<IMovieEntry>;
   removePoster(id: string, userId: string): Promise<IMovieEntry>;
-  getUserStats(userId: string): Promise<IUserStats>;
+  getUserStats(userId: string, language: ELanguage): Promise<IUserStats>;
 }
