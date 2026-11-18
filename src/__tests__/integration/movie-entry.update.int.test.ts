@@ -69,6 +69,22 @@ describe('When we update one of our movies', () => {
   });
 });
 
+describe('When we clear the runtime of one of our movies', () => {
+  it('should return 200 without durationMinutes', async () => {
+    const movie = await createMovieFor(userId, { durationMinutes: 115 });
+
+    const { body, statusCode } = await putMovie(movie.id, {
+      ...UPDATE,
+      durationMinutes: null,
+    });
+
+    expect(statusCode).toBe(200);
+    expect(body).not.toHaveProperty('durationMinutes');
+    const inDb = await MmovieEntry.findById(movie.id).lean();
+    expect(inDb).not.toHaveProperty('durationMinutes');
+  });
+});
+
 describe('When we update the poster through the movie body', () => {
   it('should set an external poster and remove it with null', async () => {
     const movie = await createMovieFor(userId);

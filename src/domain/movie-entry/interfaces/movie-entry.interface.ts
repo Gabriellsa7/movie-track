@@ -51,14 +51,13 @@ export type IMovieEntryDetailsData = Partial<
     | 'releaseYear'
     | 'genreIds'
     | 'director'
-    | 'durationMinutes'
     | 'rating'
     | 'review'
     | 'watchedAt'
     | 'watchCount'
     | 'isFavorite'
   >
->;
+> & { durationMinutes?: number | null };
 
 export type IMovieEntryData = Omit<IMovieEntry, '_id'>;
 

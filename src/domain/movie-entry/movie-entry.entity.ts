@@ -121,7 +121,7 @@ export class MovieEntry implements IMovieEntryData {
     }
 
     if (detailsData.durationMinutes !== undefined) {
-      this.durationMinutes = detailsData.durationMinutes;
+      this.durationMinutes = detailsData.durationMinutes ?? undefined;
     }
 
     if (detailsData.review !== undefined) {

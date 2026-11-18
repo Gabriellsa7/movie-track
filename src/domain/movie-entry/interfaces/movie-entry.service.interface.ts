@@ -40,9 +40,10 @@ export interface IParamsUpdateMovieEntry {
   userId: string;
   movieData: Omit<
     IParamsCreateMovieEntry,
-    'userId' | 'watchlistItemId' | 'posterUrl'
+    'userId' | 'watchlistItemId' | 'posterUrl' | 'durationMinutes'
   > & {
     posterUrl?: string | null;
+    durationMinutes?: number | null;
   };
 }
 
