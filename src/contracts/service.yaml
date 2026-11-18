@@ -1908,6 +1908,8 @@ components:
           type: integer
           minimum: 1
           maximum: 1000
+          nullable: true
+          description: null clears the runtime
         watchedAt:
           type: string
           format: date
