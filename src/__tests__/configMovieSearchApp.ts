@@ -10,6 +10,7 @@ import { Server } from '../interfaces/http/server';
 // configApp.ts wires the real TMDB provider; tests must not depend on the network.
 export const fakeMovieCatalogProvider: jest.Mocked<IMovieCatalogProvider> = {
   searchMovies: jest.fn(),
+  getMovieDetails: jest.fn(),
 };
 
 const OPEN_API_SPEC_FILE_LOCATION = path.resolve(

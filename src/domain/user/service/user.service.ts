@@ -368,13 +368,14 @@ export class UserService implements IUserService {
 
   // Runs after the account is gone: a failure here leaves unreachable rows, never an account missing its movies.
   private async deleteUserData(user: IUser): Promise<void> {
-    const [movieEntries] = await Promise.all([
+    const [movieEntries, watchlistItems] = await Promise.all([
       this.movieEntryRepositoryWrite.deleteMovieEntriesByUserId(user._id),
       this.watchlistRepositoryWrite.deleteWatchlistItemsByUserId(user._id),
     ]);
     const publicIds = [
       user.avatarPublicId,
       ...movieEntries.map((movieEntry) => movieEntry.posterPublicId),
+      ...watchlistItems.map((item) => item.posterPublicId),
     ].filter((publicId): publicId is string => Boolean(publicId));
     await Promise.all(
       publicIds.map((publicId) => this.deleteStoredFile(publicId)),

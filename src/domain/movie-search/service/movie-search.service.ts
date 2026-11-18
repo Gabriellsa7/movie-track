@@ -4,8 +4,12 @@ import {
   ICatalogMovie,
   IMovieCatalogProvider,
 } from '../../common/providers/movie-catalog.provider';
+import { NotFoundError } from '../../errors/not-found.error';
 import { IGenreRepositoryRead } from '../../genre/repository/genre.repository.read';
-import { IMovieSearchResult } from '../interfaces/movie-search.interface';
+import {
+  IMovieSearchDetails,
+  IMovieSearchResult,
+} from '../interfaces/movie-search.interface';
 import {
   IMovieSearchService,
   IParamsMovieSearchService,
@@ -51,6 +55,15 @@ export class MovieSearchService implements IMovieSearchService {
         this.toSearchResult(movie, genreIdByTmdbId),
       ),
     };
+  }
+
+  @ErrorHandler()
+  async getMovieDetails(tmdbId: number): Promise<IMovieSearchDetails> {
+    const details = await this.movieCatalogProvider.getMovieDetails(tmdbId);
+    if (!details) {
+      throw new NotFoundError('Movie not found in TMDB', 'TMDB_MOVIE_NOT_FOUND');
+    }
+    return details;
   }
 
   private toSearchResult(

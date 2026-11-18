@@ -9,6 +9,7 @@ import { IPasswordHasher } from '../../domain/common/providers/password-hasher.p
 import { IClock } from '../../domain/common/providers/clock.provider';
 import { IStorageProvider } from '../../domain/common/providers/storage.provider';
 import { IMovieEntry } from '../../domain/movie-entry/interfaces/movie-entry.interface';
+import { IWatchlistItem } from '../../domain/watchlist/interfaces/watchlist.interface';
 import { IMovieEntryRepositoryRead } from '../../domain/movie-entry/repository/movie-entry.repository.read';
 import { IMovieEntryRepositoryWrite } from '../../domain/movie-entry/repository/movie-entry.repository.write';
 import { IWatchlistRepositoryWrite } from '../../domain/watchlist/repository/watchlist.repository.write';
@@ -88,7 +89,7 @@ beforeEach(() => {
     createWatchlistItem: jest.fn(),
     updateWatchlistItemById: jest.fn(),
     deleteWatchlistItemById: jest.fn(),
-    deleteWatchlistItemsByUserId: jest.fn(),
+    deleteWatchlistItemsByUserId: jest.fn().mockResolvedValue([]),
   };
   storageProvider = { upload: jest.fn(), delete: jest.fn() };
   passwordHasher = {
@@ -394,6 +395,9 @@ describe('When we delete a user that has movies, a watchlist and files', () => {
       { posterPublicId: 'posters/uploaded' } as IMovieEntry,
       { posterUrl: 'https://example.com/external.png' } as IMovieEntry,
     ]);
+    watchlistRepositoryWrite.deleteWatchlistItemsByUserId.mockResolvedValue([
+      { posterPublicId: 'posters/watchlist' } as IWatchlistItem,
+    ]);
   });
 
   it('should delete their movies and watchlist items', async () => {
@@ -410,8 +414,9 @@ describe('When we delete a user that has movies, a watchlist and files', () => {
   it('should delete the uploaded posters and the avatar from storage', async () => {
     await userService.deleteUser({ id: A_USER._id, password: 'secret123' });
 
-    expect(storageProvider.delete).toHaveBeenCalledTimes(2);
+    expect(storageProvider.delete).toHaveBeenCalledTimes(3);
     expect(storageProvider.delete).toHaveBeenCalledWith('posters/uploaded');
+    expect(storageProvider.delete).toHaveBeenCalledWith('posters/watchlist');
     expect(storageProvider.delete).toHaveBeenCalledWith(A_USER.avatarPublicId);
   });
 

@@ -20,6 +20,15 @@ export interface ICatalogSearchPage {
   limit: number;
 }
 
+// What the search results lack: TMDB only returns them movie by movie.
+export interface ICatalogMovieDetails {
+  tmdbId: number;
+  director?: string;
+  durationMinutes?: number;
+}
+
 export interface IMovieCatalogProvider {
   searchMovies(params: IParamsSearchCatalog): Promise<ICatalogSearchPage>;
+  // null when TMDB has no movie with this id.
+  getMovieDetails(tmdbId: number): Promise<ICatalogMovieDetails | null>;
 }

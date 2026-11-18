@@ -1,7 +1,10 @@
 import { IPaginatedResult } from '../../common/pagination.interface';
 import { IMovieCatalogProvider } from '../../common/providers/movie-catalog.provider';
 import { IGenreRepositoryRead } from '../../genre/repository/genre.repository.read';
-import { IMovieSearchResult } from './movie-search.interface';
+import {
+  IMovieSearchDetails,
+  IMovieSearchResult,
+} from './movie-search.interface';
 
 export interface IParamsSearchMovies {
   query: string;
@@ -17,4 +20,5 @@ export interface IMovieSearchService {
   searchMovies(
     params: IParamsSearchMovies,
   ): Promise<IPaginatedResult<IMovieSearchResult>>;
+  getMovieDetails(tmdbId: number): Promise<IMovieSearchDetails>;
 }

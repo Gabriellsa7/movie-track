@@ -50,10 +50,18 @@ export class WatchlistRepositoryWrite implements IWatchlistRepositoryWrite {
     return item && toWatchlistItem(item);
   }
 
-  async deleteWatchlistItemsByUserId(userId: string): Promise<void> {
+  async deleteWatchlistItemsByUserId(
+    userId: string,
+  ): Promise<IWatchlistItem[]> {
     if (!isObjectId(userId)) {
-      return;
+      return [];
     }
-    await Mwatchlist.deleteMany({ userId: toObjectId(userId) });
+    const filter = { userId: toObjectId(userId) };
+    const items = await Mwatchlist.find(
+      filter,
+      HIDE_MONGO_INTERNAL_FIELDS,
+    ).lean<IMWatchlistItem[]>();
+    await Mwatchlist.deleteMany(filter);
+    return items.map(toWatchlistItem);
   }
 }

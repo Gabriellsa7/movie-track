@@ -7,3 +7,9 @@ export interface IMovieSearchResult {
   posterUrl?: string;
   genreIds: string[];
 }
+
+export interface IMovieSearchDetails {
+  tmdbId: number;
+  director?: string;
+  durationMinutes?: number;
+}

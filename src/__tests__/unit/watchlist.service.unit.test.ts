@@ -2,6 +2,7 @@ import { IGenreRepositoryRead } from '../../domain/genre/repository/genre.reposi
 import { IUserRepositoryRead } from '../../domain/user/repository/user.repository.read';
 import { Logger } from 'traceability';
 import { IClock } from '../../domain/common/providers/clock.provider';
+import { IStorageProvider } from '../../domain/common/providers/storage.provider';
 import { IMovieEntry } from '../../domain/movie-entry/interfaces/movie-entry.interface';
 import { IMovieEntryRepositoryRead } from '../../domain/movie-entry/repository/movie-entry.repository.read';
 import {
@@ -35,6 +36,7 @@ let watchlistRepositoryWrite: jest.Mocked<IWatchlistRepositoryWrite>;
 let movieEntryRepositoryRead: jest.Mocked<
   Pick<IMovieEntryRepositoryRead, 'findDuplicateMovieEntry'>
 >;
+let storageProvider: jest.Mocked<IStorageProvider>;
 let watchlistService: WatchlistService;
 
 beforeEach(() => {
@@ -67,6 +69,13 @@ beforeEach(() => {
   userRepositoryRead = {
     findUserById: jest.fn().mockResolvedValue({ _id: 'user-1' }),
   };
+  storageProvider = {
+    upload: jest.fn().mockResolvedValue({
+      url: 'https://cdn.example.com/posters/new.png',
+      publicId: 'posters/new',
+    }),
+    delete: jest.fn(),
+  };
   const clock: IClock = { now: () => NOW };
   watchlistService = new WatchlistService({
     watchlistRepositoryRead,
@@ -76,6 +85,7 @@ beforeEach(() => {
     userRepositoryRead:
       userRepositoryRead as unknown as IUserRepositoryRead,
     genreRepositoryRead,
+    storageProvider,
     clock,
   });
 });
@@ -372,5 +382,187 @@ describe('When a watchlist item has genres', () => {
       }),
     ).rejects.toMatchObject({ code: 'INVALID_GENRE' });
     expect(watchlistRepositoryWrite.createWatchlistItem).not.toHaveBeenCalled();
+  });
+});
+
+const AN_UPLOADED_POSTER_ITEM: IWatchlistItem = {
+  ...AN_ITEM,
+  posterUrl: 'https://cdn.example.com/posters/old.png',
+  posterPublicId: 'posters/old',
+};
+
+describe('When we upload a poster to a watchlist item', () => {
+  beforeEach(() => {
+    watchlistRepositoryRead.findWatchlistItemById.mockResolvedValue(
+      AN_UPLOADED_POSTER_ITEM,
+    );
+    watchlistRepositoryWrite.updateWatchlistItemById.mockImplementation(
+      async (id, userId, itemData) => ({ ...AN_ITEM, ...itemData }),
+    );
+  });
+
+  it('should store the image, save it on the item and delete the previous upload', async () => {
+    const buffer = Buffer.from('png');
+
+    const updated = await watchlistService.uploadPoster({
+      id: 'item-1',
+      userId: USER_ID,
+      buffer,
+      mimeType: 'image/png',
+    });
+
+    expect(storageProvider.upload).toHaveBeenCalledWith({
+      buffer,
+      mimeType: 'image/png',
+      folder: 'posters',
+    });
+    expect(updated).toMatchObject({
+      posterUrl: 'https://cdn.example.com/posters/new.png',
+      posterPublicId: 'posters/new',
+    });
+    expect(storageProvider.delete).toHaveBeenCalledWith('posters/old');
+  });
+
+  it('should reject a file that is not a JPEG, PNG or WebP image', async () => {
+    await expect(
+      watchlistService.uploadPoster({
+        id: 'item-1',
+        userId: USER_ID,
+        buffer: Buffer.from('gif'),
+        mimeType: 'image/gif',
+      }),
+    ).rejects.toMatchObject({ status: 422, code: 'INVALID_POSTER_TYPE' });
+    expect(storageProvider.upload).not.toHaveBeenCalled();
+  });
+
+  it('should throw 404 without storing anything when the item is not ours', async () => {
+    watchlistRepositoryRead.findWatchlistItemById.mockResolvedValue(null);
+
+    await expect(
+      watchlistService.uploadPoster({
+        id: 'item-1',
+        userId: USER_ID,
+        buffer: Buffer.from('png'),
+        mimeType: 'image/png',
+      }),
+    ).rejects.toMatchObject({ status: 404, code: 'WATCHLIST_ITEM_NOT_FOUND' });
+    expect(storageProvider.upload).not.toHaveBeenCalled();
+  });
+
+  it('should delete the new file when the item vanished before saving', async () => {
+    watchlistRepositoryWrite.updateWatchlistItemById.mockResolvedValue(null);
+
+    await expect(
+      watchlistService.uploadPoster({
+        id: 'item-1',
+        userId: USER_ID,
+        buffer: Buffer.from('png'),
+        mimeType: 'image/png',
+      }),
+    ).rejects.toMatchObject({ status: 404 });
+    expect(storageProvider.delete).toHaveBeenCalledWith('posters/new');
+  });
+});
+
+describe('When we remove the poster of a watchlist item', () => {
+  beforeEach(() => {
+    watchlistRepositoryWrite.updateWatchlistItemById.mockImplementation(
+      async (id, userId, itemData) => ({ ...AN_ITEM, ...itemData }),
+    );
+  });
+
+  it('should clear it and delete the uploaded file', async () => {
+    watchlistRepositoryRead.findWatchlistItemById.mockResolvedValue(
+      AN_UPLOADED_POSTER_ITEM,
+    );
+
+    const updated = await watchlistService.removePoster('item-1', USER_ID);
+
+    expect(updated.posterUrl).toBeUndefined();
+    expect(storageProvider.delete).toHaveBeenCalledWith('posters/old');
+  });
+
+  it('should change nothing when there is no poster', async () => {
+    watchlistRepositoryRead.findWatchlistItemById.mockResolvedValue(AN_ITEM);
+
+    const updated = await watchlistService.removePoster('item-1', USER_ID);
+
+    expect(updated).toBe(AN_ITEM);
+    expect(
+      watchlistRepositoryWrite.updateWatchlistItemById,
+    ).not.toHaveBeenCalled();
+  });
+});
+
+describe('When we edit the poster url of an item with an uploaded poster', () => {
+  beforeEach(() => {
+    watchlistRepositoryRead.findWatchlistItemById.mockResolvedValue(
+      AN_UPLOADED_POSTER_ITEM,
+    );
+    watchlistRepositoryWrite.updateWatchlistItemById.mockImplementation(
+      async (id, userId, itemData) => ({ ...AN_ITEM, ...itemData }),
+    );
+  });
+
+  it('should keep the file when the same url is sent back', async () => {
+    await watchlistService.updateWatchlistItem({
+      id: 'item-1',
+      userId: USER_ID,
+      itemData: {
+        posterUrl: AN_UPLOADED_POSTER_ITEM.posterUrl,
+        note: 'Friday',
+      },
+    });
+
+    expect(
+      watchlistRepositoryWrite.updateWatchlistItemById,
+    ).toHaveBeenCalledWith(
+      'item-1',
+      USER_ID,
+      expect.objectContaining({ posterPublicId: 'posters/old' }),
+    );
+    expect(storageProvider.delete).not.toHaveBeenCalled();
+  });
+
+  it('should delete the file when another url replaces it', async () => {
+    await watchlistService.updateWatchlistItem({
+      id: 'item-1',
+      userId: USER_ID,
+      itemData: { posterUrl: 'https://image.tmdb.org/t/p/w500/x.jpg' },
+    });
+
+    expect(storageProvider.delete).toHaveBeenCalledWith('posters/old');
+  });
+
+  it('should delete the file when the poster is cleared', async () => {
+    await watchlistService.updateWatchlistItem({
+      id: 'item-1',
+      userId: USER_ID,
+      itemData: { posterUrl: null },
+    });
+
+    expect(storageProvider.delete).toHaveBeenCalledWith('posters/old');
+  });
+});
+
+describe('When we remove a watchlist item with an uploaded poster', () => {
+  it('should delete the file and still succeed when the storage fails', async () => {
+    watchlistRepositoryWrite.deleteWatchlistItemById.mockResolvedValue(
+      AN_UPLOADED_POSTER_ITEM,
+    );
+    storageProvider.delete.mockRejectedValue(new Error('storage down'));
+    const warnSpy = jest
+      .spyOn(Logger, 'warn')
+      .mockImplementation(() => Logger);
+
+    await expect(
+      watchlistService.removeWatchlistItem('item-1', USER_ID),
+    ).resolves.toBeUndefined();
+    expect(storageProvider.delete).toHaveBeenCalledWith('posters/old');
+    expect(warnSpy).toHaveBeenCalledWith(
+      'Failed to delete a poster from storage',
+      expect.objectContaining({ eventName: 'watchlist.poster.delete_failed' }),
+    );
+    warnSpy.mockRestore();
   });
 });

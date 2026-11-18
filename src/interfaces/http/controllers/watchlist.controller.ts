@@ -6,6 +6,7 @@ import {
   RequestHandler,
 } from 'express';
 import { IController } from './controller.interface';
+import { getUploadedFile } from './uploaded-file.helper';
 import { IWatchlistService } from '../../../domain/watchlist/interfaces/watchlist.service.interface';
 import { WatchlistItem } from '../../../domain/watchlist/watchlist.entity';
 import {
@@ -15,6 +16,7 @@ import {
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_PAGE_LIMIT = 20;
+const POSTER_FIELD = 'poster';
 
 interface IListWatchlistQuery {
   search?: string;
@@ -52,6 +54,16 @@ export class WatchlistController implements IController {
       '/watchlist/:id',
       this.authenticate,
       this.removeWatchlistItem,
+    );
+    this.router.put(
+      '/watchlist/:id/poster',
+      this.authenticate,
+      this.uploadPoster,
+    );
+    this.router.delete(
+      '/watchlist/:id/poster',
+      this.authenticate,
+      this.removePoster,
     );
   }
 
@@ -139,6 +151,49 @@ export class WatchlistController implements IController {
         req.userId!,
       );
       res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  uploadPoster = async (
+    req: Request<{ id: string }>,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    const poster = getUploadedFile(req, POSTER_FIELD);
+    if (poster instanceof Error) {
+      next(poster);
+      return;
+    }
+    try {
+      const watchlistItem = await this.watchlistService.uploadPoster({
+        id: req.params.id,
+        userId: req.userId!,
+        buffer: poster.buffer,
+        mimeType: poster.mimetype,
+      });
+      res
+        .status(200)
+        .json(WatchlistItem.toWatchlistItemResponse(watchlistItem));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  removePoster = async (
+    req: Request<{ id: string }>,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const watchlistItem = await this.watchlistService.removePoster(
+        req.params.id,
+        req.userId!,
+      );
+      res
+        .status(200)
+        .json(WatchlistItem.toWatchlistItemResponse(watchlistItem));
     } catch (error) {
       next(error);
     }

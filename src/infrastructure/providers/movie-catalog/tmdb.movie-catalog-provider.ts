@@ -1,6 +1,7 @@
 import { Logger } from 'traceability';
 import {
   ICatalogMovie,
+  ICatalogMovieDetails,
   ICatalogSearchPage,
   IMovieCatalogProvider,
   IParamsSearchCatalog,
@@ -13,6 +14,10 @@ const TMDB_POSTER_URL = 'https://image.tmdb.org/t/p/w500';
 const TMDB_LANGUAGE = 'en-US';
 const TMDB_PAGE_SIZE = 20;
 const REQUEST_TIMEOUT_MILLISECONDS = 5000;
+const NOT_FOUND_STATUS = 404;
+const DIRECTOR_JOB = 'Director';
+const DIRECTOR_MAX_LENGTH = 200;
+const MAX_DURATION_MINUTES = 1000;
 
 interface ITmdbMovie {
   id: number;
@@ -28,6 +33,12 @@ interface ITmdbSearchResponse {
   page: number;
   results: ITmdbMovie[];
   total_results: number;
+}
+
+interface ITmdbMovieDetails {
+  id: number;
+  runtime?: number | null;
+  credits?: { crew?: { job?: string; name?: string }[] };
 }
 
 export interface IParamsTmdbMovieCatalogProvider {
@@ -63,7 +74,21 @@ export class TmdbMovieCatalogProvider implements IMovieCatalogProvider {
     };
   }
 
-  private async request<T>(url: URL): Promise<T> {
+  async getMovieDetails(tmdbId: number): Promise<ICatalogMovieDetails | null> {
+    const url = new URL(`${TMDB_API_URL}/movie/${tmdbId}`);
+    url.searchParams.set('language', TMDB_LANGUAGE);
+    url.searchParams.set('append_to_response', 'credits');
+
+    const body = await this.request<ITmdbMovieDetails | null>(url, {
+      notFoundAsNull: true,
+    });
+    return body && this.toCatalogMovieDetails(body);
+  }
+
+  private async request<T>(
+    url: URL,
+    { notFoundAsNull = false }: { notFoundAsNull?: boolean } = {},
+  ): Promise<T> {
     let response: Response;
     try {
       response = await this.fetch(url, {
@@ -77,6 +102,9 @@ export class TmdbMovieCatalogProvider implements IMovieCatalogProvider {
       throw this.unavailableError({
         error: error instanceof Error ? error.message : String(error),
       });
+    }
+    if (notFoundAsNull && response.status === NOT_FOUND_STATUS) {
+      return null as T;
     }
     if (!response.ok) {
       throw this.unavailableError({ upstreamStatus: response.status });
@@ -110,6 +138,26 @@ export class TmdbMovieCatalogProvider implements IMovieCatalogProvider {
       ...(movie.poster_path && {
         posterUrl: `${TMDB_POSTER_URL}${movie.poster_path}`,
       }),
+    };
+  }
+
+  // Values our movies would reject (no runtime, or a list of directors over the limit) are left out.
+  private toCatalogMovieDetails(movie: ITmdbMovieDetails): ICatalogMovieDetails {
+    const directors = [
+      ...new Set(
+        (movie.credits?.crew ?? [])
+          .filter((member) => member.job === DIRECTOR_JOB && member.name)
+          .map((member) => member.name!.trim()),
+      ),
+    ].join(', ');
+    const { runtime } = movie;
+    return {
+      tmdbId: movie.id,
+      ...(directors &&
+        directors.length <= DIRECTOR_MAX_LENGTH && { director: directors }),
+      ...(runtime &&
+        runtime > 0 &&
+        runtime <= MAX_DURATION_MINUTES && { durationMinutes: runtime }),
     };
   }
 }

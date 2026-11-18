@@ -1,6 +1,9 @@
+import { Logger } from 'traceability';
 import { ErrorHandler } from '../../common/decorators/error-handler.decorator';
+import { IMAGE_MIME_TYPES } from '../../common/image.mime-types';
 import { IPaginatedResult } from '../../common/pagination.interface';
 import { IClock } from '../../common/providers/clock.provider';
+import { IStorageProvider } from '../../common/providers/storage.provider';
 import { ConflictError } from '../../errors/conflict.error';
 import { NotFoundError } from '../../errors/not-found.error';
 import { UnprocessableEntityError } from '../../errors/unprocessable-entity.error';
@@ -13,6 +16,7 @@ import {
   IParamsAddWatchlistItem,
   IParamsListWatchlistItems,
   IParamsUpdateWatchlistItem,
+  IParamsUploadWatchlistPoster,
   IParamsWatchlistService,
   IWatchlistService,
 } from '../interfaces/watchlist.service.interface';
@@ -21,6 +25,7 @@ import { IWatchlistRepositoryWrite } from '../repository/watchlist.repository.wr
 import { WatchlistItem } from '../watchlist.entity';
 
 const MAX_GENRES = 5;
+const POSTER_FOLDER = 'posters';
 
 export class WatchlistService implements IWatchlistService {
   private watchlistRepositoryRead: IWatchlistRepositoryRead;
@@ -28,6 +33,7 @@ export class WatchlistService implements IWatchlistService {
   private movieEntryRepositoryRead: IMovieEntryRepositoryRead;
   private userRepositoryRead: IUserRepositoryRead;
   private genreRepositoryRead: IGenreRepositoryRead;
+  private storageProvider: IStorageProvider;
   private clock: IClock;
 
   constructor({
@@ -36,6 +42,7 @@ export class WatchlistService implements IWatchlistService {
     movieEntryRepositoryRead,
     userRepositoryRead,
     genreRepositoryRead,
+    storageProvider,
     clock,
   }: IParamsWatchlistService) {
     this.watchlistRepositoryRead = watchlistRepositoryRead;
@@ -43,6 +50,7 @@ export class WatchlistService implements IWatchlistService {
     this.movieEntryRepositoryRead = movieEntryRepositoryRead;
     this.userRepositoryRead = userRepositoryRead;
     this.genreRepositoryRead = genreRepositoryRead;
+    this.storageProvider = storageProvider;
     this.clock = clock;
   }
 
@@ -79,13 +87,7 @@ export class WatchlistService implements IWatchlistService {
   async updateWatchlistItem(
     params: IParamsUpdateWatchlistItem,
   ): Promise<IWatchlistItem> {
-    const existingItem = await this.watchlistRepositoryRead.findWatchlistItemById(
-      params.id,
-      params.userId,
-    );
-    if (!existingItem) {
-      throw this.watchlistItemNotFoundError();
-    }
+    const existingItem = await this.findExistingItem(params.id, params.userId);
 
     const watchlistItem = new WatchlistItem(existingItem);
     watchlistItem.updateDetails(params.itemData);
@@ -111,6 +113,7 @@ export class WatchlistService implements IWatchlistService {
           releaseYear: watchlistItem.releaseYear,
           tmdbId: watchlistItem.tmdbId,
           posterUrl: watchlistItem.posterUrl,
+          posterPublicId: watchlistItem.posterPublicId,
           priority: watchlistItem.priority,
           note: watchlistItem.note,
           synopsis: watchlistItem.synopsis,
@@ -123,6 +126,7 @@ export class WatchlistService implements IWatchlistService {
     if (!updatedItem) {
       throw this.watchlistItemNotFoundError();
     }
+    await this.deleteReplacedPoster(existingItem, updatedItem);
     return updatedItem;
   }
 
@@ -149,6 +153,105 @@ export class WatchlistService implements IWatchlistService {
       await this.watchlistRepositoryWrite.deleteWatchlistItemById(id, userId);
     if (!deletedItem) {
       throw this.watchlistItemNotFoundError();
+    }
+    await this.deleteStoredPoster(deletedItem.posterPublicId);
+  }
+
+  @ErrorHandler()
+  async uploadPoster(
+    params: IParamsUploadWatchlistPoster,
+  ): Promise<IWatchlistItem> {
+    if (!IMAGE_MIME_TYPES.includes(params.mimeType)) {
+      throw new UnprocessableEntityError(
+        'poster must be a JPEG, PNG or WebP image',
+        'INVALID_POSTER_TYPE',
+      );
+    }
+    const existingItem = await this.findExistingItem(params.id, params.userId);
+    const storedPoster = await this.storageProvider.upload({
+      buffer: params.buffer,
+      mimeType: params.mimeType,
+      folder: POSTER_FOLDER,
+    });
+
+    let updatedItem: IWatchlistItem | null;
+    try {
+      updatedItem = await this.watchlistRepositoryWrite.updateWatchlistItemById(
+        params.id,
+        params.userId,
+        { posterUrl: storedPoster.url, posterPublicId: storedPoster.publicId },
+      );
+    } catch (error) {
+      await this.deleteStoredPoster(storedPoster.publicId);
+      throw error;
+    }
+    // The item vanished meanwhile: do not leave an orphan file behind.
+    if (!updatedItem) {
+      await this.deleteStoredPoster(storedPoster.publicId);
+      throw this.watchlistItemNotFoundError();
+    }
+
+    await this.deleteReplacedPoster(existingItem, updatedItem);
+    return updatedItem;
+  }
+
+  @ErrorHandler()
+  async removePoster(id: string, userId: string): Promise<IWatchlistItem> {
+    const existingItem = await this.findExistingItem(id, userId);
+    if (!existingItem.posterUrl) {
+      return existingItem;
+    }
+    const updatedItem =
+      await this.watchlistRepositoryWrite.updateWatchlistItemById(id, userId, {
+        posterUrl: undefined,
+        posterPublicId: undefined,
+      });
+    if (!updatedItem) {
+      throw this.watchlistItemNotFoundError();
+    }
+    await this.deleteReplacedPoster(existingItem, updatedItem);
+    return updatedItem;
+  }
+
+  private async findExistingItem(
+    id: string,
+    userId: string,
+  ): Promise<IWatchlistItem> {
+    const item = await this.watchlistRepositoryRead.findWatchlistItemById(
+      id,
+      userId,
+    );
+    if (!item) {
+      throw this.watchlistItemNotFoundError();
+    }
+    return item;
+  }
+
+  private async deleteReplacedPoster(
+    before: IWatchlistItem,
+    after: IWatchlistItem,
+  ): Promise<void> {
+    if (
+      before.posterPublicId &&
+      before.posterPublicId !== after.posterPublicId
+    ) {
+      await this.deleteStoredPoster(before.posterPublicId);
+    }
+  }
+
+  // The item is already saved; a storage failure only leaves an orphan file, so it must not fail the request.
+  private async deleteStoredPoster(publicId: string | undefined): Promise<void> {
+    if (!publicId) {
+      return;
+    }
+    try {
+      await this.storageProvider.delete(publicId);
+    } catch (error) {
+      Logger.warn('Failed to delete a poster from storage', {
+        eventName: 'watchlist.poster.delete_failed',
+        publicId,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 

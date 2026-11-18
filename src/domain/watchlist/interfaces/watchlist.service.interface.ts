@@ -1,4 +1,5 @@
 import { IClock } from '../../common/providers/clock.provider';
+import { IStorageProvider } from '../../common/providers/storage.provider';
 import {
   IPaginatedResult,
   IPagination,
@@ -37,6 +38,13 @@ export interface IParamsUpdateWatchlistItem {
   itemData: IWatchlistItemDetailsData;
 }
 
+export interface IParamsUploadWatchlistPoster {
+  id: string;
+  userId: string;
+  buffer: Buffer;
+  mimeType: string;
+}
+
 export interface IParamsListWatchlistItems {
   filter: IWatchlistFilter;
   sort: EWatchlistSortField;
@@ -49,6 +57,7 @@ export interface IParamsWatchlistService {
   movieEntryRepositoryRead: IMovieEntryRepositoryRead;
   userRepositoryRead: IUserRepositoryRead;
   genreRepositoryRead: IGenreRepositoryRead;
+  storageProvider: IStorageProvider;
   clock: IClock;
 }
 
@@ -61,4 +70,6 @@ export interface IWatchlistService {
     params: IParamsUpdateWatchlistItem,
   ): Promise<IWatchlistItem>;
   removeWatchlistItem(id: string, userId: string): Promise<void>;
+  uploadPoster(params: IParamsUploadWatchlistPoster): Promise<IWatchlistItem>;
+  removePoster(id: string, userId: string): Promise<IWatchlistItem>;
 }

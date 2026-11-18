@@ -17,6 +17,8 @@ export interface IWatchlistItem {
   title: string;
   normalizedTitle: string;
   posterUrl?: string;
+  // Only uploaded posters live in our storage; an external posterUrl has none.
+  posterPublicId?: string;
   releaseYear?: number;
   priority: EWatchlistPriority;
   note?: string;
@@ -35,6 +37,7 @@ export interface IParamsWatchlistItem {
   tmdbId?: number;
   title: string;
   posterUrl?: string;
+  posterPublicId?: string;
   releaseYear?: number;
   priority?: EWatchlistPriority;
   note?: string;
@@ -76,7 +79,7 @@ export type IWatchlistItemData = Omit<IWatchlistItem, '_id' | 'priority'> & {
 
 export type IWatchlistItemResponse = Omit<
   IWatchlistItem,
-  '_id' | 'normalizedTitle'
+  '_id' | 'normalizedTitle' | 'posterPublicId'
 > & {
   id: string;
 };

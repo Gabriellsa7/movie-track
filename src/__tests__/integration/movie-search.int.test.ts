@@ -127,3 +127,50 @@ describe('When we search without a token', () => {
     expect(statusCode).toBe(401);
   });
 });
+
+describe('When we get the details of a TMDB movie', () => {
+  const getDetails = (tmdbId: number | string) =>
+    supertest(movieSearchApp.app)
+      .get(`/tmdb/movies/${tmdbId}`)
+      .set('Authorization', authHeaderFor(newObjectId()));
+
+  it('should return 200 with the director and runtime', async () => {
+    fakeMovieCatalogProvider.getMovieDetails.mockResolvedValue({
+      tmdbId: 598,
+      director: 'Fernando Meirelles',
+      durationMinutes: 130,
+    });
+
+    const { body, statusCode } = await getDetails(598);
+
+    expect(statusCode).toBe(200);
+    expect(body).toEqual({
+      tmdbId: 598,
+      director: 'Fernando Meirelles',
+      durationMinutes: 130,
+    });
+  });
+
+  it('should return 404 TMDB_MOVIE_NOT_FOUND for an unknown movie', async () => {
+    fakeMovieCatalogProvider.getMovieDetails.mockResolvedValue(null);
+
+    const { body, statusCode } = await getDetails(999999);
+
+    expect(statusCode).toBe(404);
+    expect(body.code).toBe('TMDB_MOVIE_NOT_FOUND');
+  });
+
+  it('should return 400 for an id that is not a number', async () => {
+    const { statusCode } = await getDetails('abc');
+
+    expect(statusCode).toBe(400);
+  });
+
+  it('should return 401 without a token', async () => {
+    const { statusCode } = await supertest(movieSearchApp.app).get(
+      '/tmdb/movies/598',
+    );
+
+    expect(statusCode).toBe(401);
+  });
+});

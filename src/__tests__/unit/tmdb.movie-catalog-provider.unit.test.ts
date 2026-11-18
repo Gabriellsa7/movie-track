@@ -136,3 +136,60 @@ describe('When TMDB cannot be reached', () => {
     });
   });
 });
+
+describe('When we get the details of a TMDB movie', () => {
+  it('should ask for the credits in English and return the directors and runtime', async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse({
+        id: 598,
+        runtime: 130,
+        credits: {
+          crew: [
+            { job: 'Director', name: 'Fernando Meirelles' },
+            { job: 'Writer', name: 'Bráulio Mantovani' },
+            { job: 'Director', name: ' Kátia Lund ' },
+            { job: 'Director', name: 'Fernando Meirelles' },
+          ],
+        },
+      }),
+    );
+
+    const details = await provider.getMovieDetails(598);
+
+    const [url] = fetchMock.mock.calls[0];
+    expect(url.origin + url.pathname).toBe(
+      'https://api.themoviedb.org/3/movie/598',
+    );
+    expect(url.searchParams.get('language')).toBe('en-US');
+    expect(url.searchParams.get('append_to_response')).toBe('credits');
+    expect(details).toEqual({
+      tmdbId: 598,
+      director: 'Fernando Meirelles, Kátia Lund',
+      durationMinutes: 130,
+    });
+  });
+
+  it('should leave out a missing runtime and director', async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse({ id: 2, runtime: 0, credits: { crew: [] } }),
+    );
+
+    await expect(provider.getMovieDetails(2)).resolves.toEqual({ tmdbId: 2 });
+  });
+
+  it('should return null when TMDB does not have the movie', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({}, 404));
+
+    await expect(provider.getMovieDetails(999)).resolves.toBeNull();
+    expect(warnSpy).not.toHaveBeenCalled();
+  });
+
+  it('should throw 503 MOVIE_CATALOG_UNAVAILABLE when TMDB fails', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({}, 500));
+
+    await expect(provider.getMovieDetails(598)).rejects.toMatchObject({
+      status: 503,
+      code: 'MOVIE_CATALOG_UNAVAILABLE',
+    });
+  });
+});

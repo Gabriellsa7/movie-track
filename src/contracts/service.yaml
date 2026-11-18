@@ -1354,6 +1354,127 @@ paths:
         default:
           $ref: '#/components/responses/UnexpectedError'
 
+  /tmdb/movies/{tmdbId}:
+    get:
+      tags:
+        - Movie search
+      summary: Get the director and runtime of a TMDB movie
+      operationId: getTmdbMovieDetails
+      description: >
+        What a search result lacks, to prefill a movie or watchlist item after picking it:
+        director (several joined by commas) and durationMinutes. Each is left out when TMDB
+        does not have it.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tmdbId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          example: 598
+      responses:
+        '200':
+          description: The movie details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MovieSearchDetails'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: TMDB has no movie with this id (TMDB_MOVIE_NOT_FOUND)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: 'Movie not found in TMDB'
+                status: 404
+                code: 'TMDB_MOVIE_NOT_FOUND'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '503':
+          description: TMDB did not answer or rejected the request (MOVIE_CATALOG_UNAVAILABLE)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: 'Movie catalog unavailable'
+                status: 503
+                code: 'MOVIE_CATALOG_UNAVAILABLE'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+
+  /watchlist/{id}/poster:
+    parameters:
+      - $ref: '#/components/parameters/WatchlistItemId'
+    put:
+      tags:
+        - Watchlist
+      summary: Upload the poster of a movie in my watchlist
+      operationId: uploadWatchlistItemPoster
+      description: >
+        Stores the image in Cloudinary and sets it as the poster, replacing (and deleting)
+        any previous uploaded poster. JPEG, PNG or WebP, up to 5 MB. When the item is marked
+        as watched, the movie keeps this poster.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PosterUpload'
+      responses:
+        '200':
+          description: Poster uploaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WatchlistItem'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/WatchlistItemNotFound'
+        '422':
+          $ref: '#/components/responses/InvalidPoster'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+    delete:
+      tags:
+        - Watchlist
+      summary: Remove the poster of a movie in my watchlist
+      operationId: removeWatchlistItemPoster
+      description: Clears the poster and deletes the uploaded file. A no-op when there is no poster.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Poster removed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WatchlistItem'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/WatchlistItemNotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        default:
+          $ref: '#/components/responses/UnexpectedError'
+
   /watchlist/{id}/watched:
     parameters:
       - $ref: '#/components/parameters/WatchlistItemId'
@@ -2173,6 +2294,20 @@ components:
           items:
             type: string
           description: Ids from GET /genres; TMDB genres outside that list are left out
+    MovieSearchDetails:
+      type: object
+      additionalProperties: false
+      required:
+        - tmdbId
+      properties:
+        tmdbId:
+          type: integer
+        director:
+          type: string
+          example: 'Fernando Meirelles, Kátia Lund'
+        durationMinutes:
+          type: integer
+          example: 130
     MovieSearchPage:
       type: object
       additionalProperties: false

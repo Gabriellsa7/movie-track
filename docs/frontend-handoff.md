@@ -135,6 +135,7 @@ title and year) cannot be logged twice (409 `MOVIE_ALREADY_LOGGED`).
 | Next movies section       | `GET /watchlist?planned=true&sort=plannedFor`                                 | Soonest first                                                                                                                                                                                                                                  |
 | Edit                      | `PUT /watchlist/{id}`                                                         | Only the fields sent; `null` clears dates and optional data, `""` clears texts                                                                                                                                                                 |
 | Remove                    | `DELETE /watchlist/{id}`                                                      |                                                                                                                                                                                                                                                |
+| Poster upload             | `PUT /watchlist/{id}/poster` (multipart field `poster`) / `DELETE`            | Same rules as the movie poster; marking the item as watched gives the movie this poster                                                                                                                                                        |
 | **"I watched it" button** | `POST /watchlist/{id}/watched` `{ rating, review?, watchedAt?, isFavorite? }` | Creates the movie from the item and removes the item (201 with the movie). If the item lacks `synopsis`, `releaseYear` or `genreIds`, it answers 422 `INCOMPLETE_MOVIE` naming them: ask for them on the same screen and send them in the body |
 
 A movie already in the watchlist (409 `ALREADY_IN_WATCHLIST`) or already
@@ -147,6 +148,10 @@ watched (409 `MOVIE_ALREADY_LOGGED`) cannot be added again.
 `genreIds` **already converted to our genre ids**, ready to send to
 `POST /movies` or `POST /watchlist`. Pages hold 20 results. 503
 `MOVIE_CATALOG_UNAVAILABLE` when TMDB is down: let the user type the data.
+
+After the user picks a result, `GET /tmdb/movies/{tmdbId}` returns its
+`director` and `durationMinutes` (each left out when TMDB lacks it), which the
+search does not have.
 
 `GET /genres` (public) lists the 19 genres (`id`, `name` in English) for pickers
 and filters.
