@@ -1304,7 +1304,7 @@ paths:
       summary: Search movies in TMDB
       operationId: searchTmdbMovies
       description: >
-        Searches TMDB by title (pt-BR). Each result has what POST /movies and POST /watchlist
+        Searches TMDB by title (in English). Each result has what POST /movies and POST /watchlist
         need: tmdbId, title, releaseYear, synopsis, posterUrl and genreIds (already translated
         to the ids of GET /genres). TMDB pages always hold up to 20 results.
       security:
@@ -1413,7 +1413,7 @@ paths:
         - Genres
       summary: List the genres
       operationId: listGenres
-      description: Public. The fixed pt-BR list seeded from TMDB, sorted by name. Movies reference these ids in genreIds.
+      description: Public. The fixed English list seeded from TMDB, sorted by name. Movies reference these ids in genreIds.
       responses:
         '200':
           description: Every genre

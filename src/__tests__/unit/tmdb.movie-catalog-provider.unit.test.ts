@@ -52,7 +52,7 @@ afterEach(() => {
 });
 
 describe('When we search movies in TMDB', () => {
-  it('should call the search endpoint in pt-BR with the bearer token', async () => {
+  it('should call the search endpoint in English with the bearer token', async () => {
     await provider.searchMovies({ query: 'cidade de deus', page: 2 });
 
     const [url, init] = fetchMock.mock.calls[0];
@@ -62,7 +62,7 @@ describe('When we search movies in TMDB', () => {
     expect(Object.fromEntries(url.searchParams)).toEqual({
       query: 'cidade de deus',
       page: '2',
-      language: 'pt-BR',
+      language: 'en-US',
       include_adult: 'false',
     });
     expect(init.headers.Authorization).toBe('Bearer tmdb-token');

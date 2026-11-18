@@ -10,7 +10,7 @@ beforeAll(async () => {
 });
 
 describe('When we list the genres', () => {
-  it('should return 200 with every seeded genre sorted by name in pt-BR', async () => {
+  it('should return 200 with every seeded genre sorted by name', async () => {
     const { body, statusCode } = await supertest(app.app).get('/genres');
 
     expect(statusCode).toBe(200);
@@ -18,25 +18,25 @@ describe('When we list the genres', () => {
       .map((genre) => genre.name)
       .filter((name) => SEEDED_NAMES.includes(name));
     expect(seededNames).toEqual([
-      'Ação',
-      'Animação',
-      'Aventura',
-      'Cinema TV',
-      'Comédia',
+      'Action',
+      'Adventure',
+      'Animation',
+      'Comedy',
       'Crime',
-      'Documentário',
+      'Documentary',
       'Drama',
-      'Família',
-      'Fantasia',
-      'Faroeste',
-      'Ficção científica',
-      'Guerra',
-      'História',
-      'Mistério',
-      'Música',
+      'Family',
+      'Fantasy',
+      'History',
+      'Horror',
+      'Music',
+      'Mystery',
       'Romance',
-      'Terror',
+      'Science Fiction',
       'Thriller',
+      'TV Movie',
+      'War',
+      'Western',
     ]);
   });
 
