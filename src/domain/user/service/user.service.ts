@@ -18,6 +18,7 @@ import {
   IParamsUserService,
   IUserService,
 } from '../interfaces/user.service.interface';
+import { DEFAULT_LANGUAGE, ELanguage } from '../../common/language';
 import { ErrorHandler } from '../../common/decorators/error-handler.decorator';
 import { ConflictError } from '../../errors/conflict.error';
 import { NotFoundError } from '../../errors/not-found.error';
@@ -103,7 +104,11 @@ export class UserService implements IUserService {
     const verificationToken = this.startEmailVerification(user);
     const createdUser = await this.userRepositoryWrite.createUser(user);
 
-    await this.trySendEmailVerification(createdUser, verificationToken);
+    await this.trySendEmailVerification(
+      createdUser,
+      verificationToken,
+      params.language,
+    );
     return User.toUserPrivate(createdUser);
   }
 
@@ -171,13 +176,20 @@ export class UserService implements IUserService {
       throw this.userNotFoundError();
     }
     if (verificationToken) {
-      await this.trySendEmailVerification(updatedUser, verificationToken);
+      await this.trySendEmailVerification(
+        updatedUser,
+        verificationToken,
+        params.language,
+      );
     }
     return User.toUserPrivate(updatedUser);
   }
 
   @ErrorHandler()
-  async resendEmailVerification(id: string): Promise<void> {
+  async resendEmailVerification(
+    id: string,
+    language: ELanguage = DEFAULT_LANGUAGE,
+  ): Promise<void> {
     const user = new User(await this.findExistingUser(id));
     if (user.emailVerified) {
       throw new ConflictError(
@@ -193,7 +205,7 @@ export class UserService implements IUserService {
     if (!updatedUser) {
       throw this.userNotFoundError();
     }
-    await this.sendEmailVerification(updatedUser, verificationToken);
+    await this.sendEmailVerification(updatedUser, verificationToken, language);
   }
 
   @ErrorHandler()
@@ -325,11 +337,16 @@ export class UserService implements IUserService {
     return token;
   }
 
-  private sendEmailVerification(user: IUser, token: string): Promise<void> {
+  private sendEmailVerification(
+    user: IUser,
+    token: string,
+    language: ELanguage,
+  ): Promise<void> {
     return this.accountMailer.sendEmailVerification({
       to: user.email,
       name: user.name,
       token,
+      language,
     });
   }
 
@@ -337,9 +354,10 @@ export class UserService implements IUserService {
   private async trySendEmailVerification(
     user: IUser,
     token: string,
+    language: ELanguage = DEFAULT_LANGUAGE,
   ): Promise<void> {
     try {
-      await this.sendEmailVerification(user, token);
+      await this.sendEmailVerification(user, token, language);
     } catch (error) {
       Logger.warn('Failed to send the e-mail verification', {
         eventName: 'user.email_verification.send_failed',

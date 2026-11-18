@@ -1,6 +1,9 @@
+import { ELanguage } from '../language';
+
 export interface IParamsSearchCatalog {
   query: string;
   page: number;
+  language: ELanguage;
 }
 
 export interface ICatalogMovie {
@@ -30,5 +33,8 @@ export interface ICatalogMovieDetails {
 export interface IMovieCatalogProvider {
   searchMovies(params: IParamsSearchCatalog): Promise<ICatalogSearchPage>;
   // null when TMDB has no movie with this id.
-  getMovieDetails(tmdbId: number): Promise<ICatalogMovieDetails | null>;
+  getMovieDetails(
+    tmdbId: number,
+    language: ELanguage,
+  ): Promise<ICatalogMovieDetails | null>;
 }

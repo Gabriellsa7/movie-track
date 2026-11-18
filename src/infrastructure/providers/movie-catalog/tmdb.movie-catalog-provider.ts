@@ -1,4 +1,5 @@
 import { Logger } from 'traceability';
+import { ELanguage } from '../../../domain/common/language';
 import {
   ICatalogMovie,
   ICatalogMovieDetails,
@@ -10,8 +11,10 @@ import { ServiceUnavailableError } from '../../../domain/errors/service-unavaila
 
 const TMDB_API_URL = 'https://api.themoviedb.org/3';
 const TMDB_POSTER_URL = 'https://image.tmdb.org/t/p/w500';
-// Genres are seeded in English, so titles and synopses come in the same language.
-const TMDB_LANGUAGE = 'en-US';
+const TMDB_LANGUAGES: Record<ELanguage, string> = {
+  [ELanguage.EN]: 'en-US',
+  [ELanguage.PT_BR]: 'pt-BR',
+};
 const TMDB_PAGE_SIZE = 20;
 const REQUEST_TIMEOUT_MILLISECONDS = 5000;
 const NOT_FOUND_STATUS = 404;
@@ -58,11 +61,12 @@ export class TmdbMovieCatalogProvider implements IMovieCatalogProvider {
   async searchMovies({
     query,
     page,
+    language,
   }: IParamsSearchCatalog): Promise<ICatalogSearchPage> {
     const url = new URL(`${TMDB_API_URL}/search/movie`);
     url.searchParams.set('query', query);
     url.searchParams.set('page', String(page));
-    url.searchParams.set('language', TMDB_LANGUAGE);
+    url.searchParams.set('language', TMDB_LANGUAGES[language]);
     url.searchParams.set('include_adult', 'false');
 
     const body = await this.request<ITmdbSearchResponse>(url);
@@ -74,9 +78,12 @@ export class TmdbMovieCatalogProvider implements IMovieCatalogProvider {
     };
   }
 
-  async getMovieDetails(tmdbId: number): Promise<ICatalogMovieDetails | null> {
+  async getMovieDetails(
+    tmdbId: number,
+    language: ELanguage,
+  ): Promise<ICatalogMovieDetails | null> {
     const url = new URL(`${TMDB_API_URL}/movie/${tmdbId}`);
-    url.searchParams.set('language', TMDB_LANGUAGE);
+    url.searchParams.set('language', TMDB_LANGUAGES[language]);
     url.searchParams.set('append_to_response', 'credits');
 
     const body = await this.request<ITmdbMovieDetails | null>(url, {

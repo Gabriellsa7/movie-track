@@ -1,7 +1,10 @@
+import { ELanguage } from '../language';
+
 export interface IParamsAccountEmail {
   to: string;
   name: string;
   token: string;
+  language: ELanguage;
 }
 
 export interface IAccountMailer {

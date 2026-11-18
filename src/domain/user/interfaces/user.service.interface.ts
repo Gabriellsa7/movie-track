@@ -1,3 +1,4 @@
+import { ELanguage } from '../../common/language';
 import { IAccountMailer } from '../../common/providers/account-mailer.provider';
 import { ISecureTokenProvider } from '../../common/providers/secure-token.provider';
 import {
@@ -23,6 +24,8 @@ export interface IParamsCreateUser {
   name: string;
   email: string;
   password: string;
+  // Language of the confirmation e-mail.
+  language?: ELanguage;
 }
 
 export interface IParamsUpdateUser {
@@ -30,6 +33,8 @@ export interface IParamsUpdateUser {
   userData: Partial<Pick<IUser, 'name' | 'email'>>;
   // Required only to change the e-mail.
   currentPassword?: string;
+  // Language of the confirmation e-mail sent when the e-mail changes.
+  language?: ELanguage;
 }
 
 export interface IParamsChangePassword {
@@ -80,5 +85,5 @@ export interface IUserService {
   getPublicProfile(id: string): Promise<IUserPublicProfile>;
   uploadAvatar(params: IParamsUploadAvatar): Promise<IUserPrivate>;
   removeAvatar(id: string): Promise<IUserPrivate>;
-  resendEmailVerification(id: string): Promise<void>;
+  resendEmailVerification(id: string, language?: ELanguage): Promise<void>;
 }

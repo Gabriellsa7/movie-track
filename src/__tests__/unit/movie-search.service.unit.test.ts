@@ -1,3 +1,4 @@
+import { ELanguage } from '../../domain/common/language';
 import { Logger } from 'traceability';
 import {
   ICatalogSearchPage,
@@ -53,15 +54,17 @@ beforeEach(() => {
 });
 
 describe('When we search movies in the catalog', () => {
-  it('should search with the trimmed query and keep the page metadata', async () => {
+  it('should search with the trimmed query in the language asked and keep the page metadata', async () => {
     const result = await movieSearchService.searchMovies({
       query: '  cidade de deus ',
       page: 2,
+      language: ELanguage.PT_BR,
     });
 
     expect(movieCatalogProvider.searchMovies).toHaveBeenCalledWith({
       query: 'cidade de deus',
       page: 2,
+      language: ELanguage.PT_BR,
     });
     expect(result).toMatchObject({ total: 2, page: 1, limit: 20 });
   });
@@ -70,6 +73,7 @@ describe('When we search movies in the catalog', () => {
     const result = await movieSearchService.searchMovies({
       query: 'cidade',
       page: 1,
+      language: ELanguage.EN,
     });
 
     expect(result.items).toEqual([
@@ -92,7 +96,7 @@ describe('When we search movies in the catalog', () => {
   });
 
   it('should look the genres up once, without repeated ids', async () => {
-    await movieSearchService.searchMovies({ query: 'cidade', page: 1 });
+    await movieSearchService.searchMovies({ query: 'cidade', page: 1, language: ELanguage.EN });
 
     expect(genreRepositoryRead.findGenresByTmdbIds).toHaveBeenCalledTimes(1);
     expect(genreRepositoryRead.findGenresByTmdbIds).toHaveBeenCalledWith([
@@ -113,6 +117,7 @@ describe('When the catalog finds no movies', () => {
     const result = await movieSearchService.searchMovies({
       query: 'xyzxyz',
       page: 1,
+      language: ELanguage.EN,
     });
 
     expect(result.items).toEqual([]);
@@ -130,7 +135,7 @@ describe('When the genre repository fails unexpectedly', () => {
       .mockImplementation(() => Logger);
 
     await expect(
-      movieSearchService.searchMovies({ query: 'cidade', page: 1 }),
+      movieSearchService.searchMovies({ query: 'cidade', page: 1, language: ELanguage.EN }),
     ).rejects.toThrow('database down');
     expect(errorSpy).toHaveBeenCalledWith(
       'Unexpected error in MovieSearchService.searchMovies',
@@ -148,18 +153,23 @@ describe('When we get the details of a TMDB movie', () => {
       durationMinutes: 130,
     });
 
-    await expect(movieSearchService.getMovieDetails(598)).resolves.toEqual({
+    await expect(
+      movieSearchService.getMovieDetails(598, ELanguage.PT_BR),
+    ).resolves.toEqual({
       tmdbId: 598,
       director: 'Fernando Meirelles',
       durationMinutes: 130,
     });
-    expect(movieCatalogProvider.getMovieDetails).toHaveBeenCalledWith(598);
+    expect(movieCatalogProvider.getMovieDetails).toHaveBeenCalledWith(
+      598,
+      ELanguage.PT_BR,
+    );
   });
 
   it('should throw 404 TMDB_MOVIE_NOT_FOUND when TMDB does not know it', async () => {
     movieCatalogProvider.getMovieDetails.mockResolvedValue(null);
 
-    await expect(movieSearchService.getMovieDetails(1)).rejects.toMatchObject({
+    await expect(movieSearchService.getMovieDetails(1, ELanguage.EN)).rejects.toMatchObject({
       status: 404,
       code: 'TMDB_MOVIE_NOT_FOUND',
     });

@@ -72,7 +72,16 @@ describe('When we search a movie in TMDB', () => {
     expect(fakeMovieCatalogProvider.searchMovies).toHaveBeenCalledWith({
       query: 'cidade',
       page: 1,
+      language: 'en',
     });
+  });
+
+  it('should search in Portuguese when the app asks for it', async () => {
+    await search({ query: 'cidade' }).set('Accept-Language', 'pt-BR');
+
+    expect(fakeMovieCatalogProvider.searchMovies).toHaveBeenCalledWith(
+      expect.objectContaining({ language: 'pt-BR' }),
+    );
   });
 });
 

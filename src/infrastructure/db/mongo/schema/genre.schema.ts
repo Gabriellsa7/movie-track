@@ -16,6 +16,10 @@ export const genreSchema = new mongoose.Schema<IMGenre>(
       required: true,
       unique: true,
     },
+    translatedNames: {
+      type: { 'pt-BR': String },
+      _id: false,
+    },
   },
   { versionKey: false },
 );

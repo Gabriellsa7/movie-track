@@ -1,3 +1,4 @@
+import { ELanguage } from '../../domain/common/language';
 import { ISecureTokenProvider } from '../../domain/common/providers/secure-token.provider';
 import { IAccountMailer } from '../../domain/common/providers/account-mailer.provider';
 import { Logger } from 'traceability';
@@ -756,6 +757,7 @@ describe('When a user signs up', () => {
       to: 'whitebeard@email.com',
       name: 'Whitebeard',
       token: 'plain-token',
+      language: ELanguage.EN,
     });
     expect(createdUser.emailVerified).toBe(false);
     expect(createdUser).not.toHaveProperty('emailVerificationTokenHash');
@@ -812,6 +814,7 @@ describe('When a user changes the e-mail', () => {
       to: 'new@email.com',
       name: A_USER.name,
       token: 'plain-token',
+      language: ELanguage.EN,
     });
   });
 

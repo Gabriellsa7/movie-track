@@ -1,3 +1,4 @@
+import { ELanguage } from '../../domain/common/language';
 import { Logger } from 'traceability';
 import { ServiceUnavailableError } from '../../domain/errors/service-unavailable.error';
 import {
@@ -50,10 +51,7 @@ describe('When we build account e-mail links and contents', () => {
   });
 
   it('should escape the name in the HTML and keep the link in both versions', () => {
-    const email = emailVerificationEmail(
-      '<script>alert(1)</script>',
-      'https://app.example.com/verify-email?token=x&y=1',
-    );
+    const email = emailVerificationEmail('<script>alert(1)</script>', 'https://app.example.com/verify-email?token=x&y=1', ELanguage.PT_BR);
 
     expect(email.subject).toBe('Confirme seu e-mail no Movie Track');
     expect(email.html).not.toContain('<script>');
@@ -67,10 +65,27 @@ describe('When we build account e-mail links and contents', () => {
   });
 
   it('should explain the reset link expires in 1 hour', () => {
-    const email = passwordResetEmail('Whitebeard', 'https://app/reset');
+    const email = passwordResetEmail('Whitebeard', 'https://app/reset', ELanguage.PT_BR);
 
     expect(email.subject).toBe('Redefina sua senha no Movie Track');
     expect(email.text).toContain('1 hora');
+  });
+});
+
+describe('When the e-mails go to someone using the app in English', () => {
+  it('should write the confirmation and the reset in English', () => {
+    const confirmation = emailVerificationEmail(
+      'Whitebeard',
+      'https://app/verify',
+      ELanguage.EN,
+    );
+    const reset = passwordResetEmail('Whitebeard', 'https://app/reset', ELanguage.EN);
+
+    expect(confirmation.subject).toBe('Confirm your e-mail on Movie Track');
+    expect(confirmation.text).toContain('Hi, Whitebeard!');
+    expect(confirmation.html).toContain('>Confirm e-mail</a>');
+    expect(reset.subject).toBe('Reset your password on Movie Track');
+    expect(reset.text).toContain('1 hour');
   });
 });
 
@@ -93,6 +108,7 @@ describe('When we send account e-mails through Resend', () => {
       to: 'whitebeard@email.com',
       name: 'Whitebeard',
       token: 'plain-token',
+      language: ELanguage.PT_BR,
     });
 
     const [url, init] = fetchMock.mock.calls[0];
@@ -115,6 +131,7 @@ describe('When we send account e-mails through Resend', () => {
       to: 'whitebeard@email.com',
       name: 'Whitebeard',
       token: 'plain-token',
+      language: ELanguage.PT_BR,
     });
 
     const body = JSON.parse(fetchMock.mock.calls[0][1].body);
@@ -129,7 +146,12 @@ describe('When we send account e-mails through Resend', () => {
     );
 
     await expect(
-      mailer.sendEmailVerification({ to: 'a@b.com', name: 'A', token: 't' }),
+      mailer.sendEmailVerification({
+        to: 'a@b.com',
+        name: 'A',
+        token: 't',
+        language: ELanguage.PT_BR,
+      }),
     ).rejects.toMatchObject({ status: 503, code: 'EMAIL_UNAVAILABLE' });
     expect(warnSpy).toHaveBeenCalledWith('Resend request failed', {
       eventName: 'resend.request_failed',
@@ -143,7 +165,12 @@ describe('When we send account e-mails through Resend', () => {
     fetchMock.mockRejectedValue(new Error('The operation was aborted'));
 
     await expect(
-      mailer.sendPasswordReset({ to: 'a@b.com', name: 'A', token: 't' }),
+      mailer.sendPasswordReset({
+        to: 'a@b.com',
+        name: 'A',
+        token: 't',
+        language: ELanguage.PT_BR,
+      }),
     ).rejects.toBeInstanceOf(ServiceUnavailableError);
     expect(warnSpy).toHaveBeenCalledWith('Resend request failed', {
       eventName: 'resend.request_failed',
@@ -155,7 +182,12 @@ describe('When we send account e-mails through Resend', () => {
     fetchMock.mockResolvedValue(new Response('Bad gateway', { status: 502 }));
 
     await expect(
-      mailer.sendPasswordReset({ to: 'a@b.com', name: 'A', token: 't' }),
+      mailer.sendPasswordReset({
+        to: 'a@b.com',
+        name: 'A',
+        token: 't',
+        language: ELanguage.PT_BR,
+      }),
     ).rejects.toMatchObject({ code: 'EMAIL_UNAVAILABLE' });
   });
 });
@@ -168,11 +200,13 @@ describe('When we send account e-mails without Resend configured', () => {
       to: 'whitebeard@email.com',
       name: 'Whitebeard',
       token: 'plain-token',
+      language: ELanguage.PT_BR,
     });
     await mailer.sendPasswordReset({
       to: 'whitebeard@email.com',
       name: 'Whitebeard',
       token: 'reset-token',
+      language: ELanguage.PT_BR,
     });
 
     expect(warnSpy).toHaveBeenCalledWith(

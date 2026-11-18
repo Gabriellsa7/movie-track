@@ -14,6 +14,7 @@ import cors from 'cors';
 import { readFileSync } from 'fs';
 import { load } from 'js-yaml';
 import swaggerUi, { JsonObject } from 'swagger-ui-express';
+import { languageMiddleware } from './middlewares/language.middleware';
 import { errorHandlerMiddleware } from './middlewares/error-handler.middleware';
 
 const MAX_UPLOAD_FILE_BYTES = 5 * 1024 * 1024;
@@ -36,6 +37,7 @@ export class Server {
     express.urlencoded({ limit: '3mb', extended: true }),
     ContextAsyncHooks.getExpressMiddlewareTracking(),
     helmet(),
+    languageMiddleware,
   ];
   constructor(appInit: {
     port: number;

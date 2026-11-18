@@ -1,3 +1,4 @@
+import { ELanguage } from '../../domain/common/language';
 import mongoose from 'mongoose';
 import '../../../jest/setup-integration-tests';
 import {
@@ -268,6 +269,7 @@ describe('When we compute the stats of a user', () => {
     const stats = await movieEntryRepositoryRead.getUserStats(
       userId,
       new Date('2026-01-01T00:00:00.000Z'),
+      ELanguage.EN,
     );
 
     expect(stats).toEqual({
@@ -287,7 +289,7 @@ describe('When we compute the stats of a user', () => {
 
   it('should return empty stats for a user without entries', async () => {
     await expect(
-      movieEntryRepositoryRead.getUserStats(newObjectId(), new Date(0)),
+      movieEntryRepositoryRead.getUserStats(newObjectId(), new Date(0), ELanguage.EN),
     ).resolves.toMatchObject({ totalMovies: 0, averageRating: null });
   });
 
@@ -316,6 +318,7 @@ describe('When we compute the stats of a user', () => {
     const stats = await movieEntryRepositoryRead.getUserStats(
       userId,
       new Date(0),
+      ELanguage.EN,
     );
     const [summary] = await movieEntryRepositoryRead.getSummariesByUserIds([
       userId,

@@ -22,6 +22,11 @@ it"** on a watchlist item to move it to the log with a rating, search movies in
 - **CORS:** browsers may call the API only from the origins in `CORS_ORIGINS`
   (defaults to `APP_URL`, `http://localhost:5173` locally). The `RateLimit`,
   `RateLimit-Policy` and `Retry-After` headers are readable from browser code.
+- **Language:** send `Accept-Language: pt-BR` (any `pt` tag) for Portuguese;
+  anything else is English. It sets the genre names (`GET /genres`, top
+  genres in the stats), the TMDB titles and synopses (`/tmdb/*`) and the
+  language of the account e-mails triggered by that request (sign-up, e-mail
+  change, resend, forgot password).
 - **JSON everywhere**, except the two uploads (`multipart/form-data`).
 - **Ids** are 24-character hex strings (MongoDB ObjectIds). A malformed id in
   the URL returns 400.

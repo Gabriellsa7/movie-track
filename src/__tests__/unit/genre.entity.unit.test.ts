@@ -1,3 +1,4 @@
+import { ELanguage } from '../../domain/common/language';
 import { Genre } from '../../domain/genre/genre.entity';
 import { IGenre } from '../../domain/genre/interfaces/genre.interface';
 
@@ -25,7 +26,7 @@ describe('When we create a genre entity', () => {
 
 describe('When we map a genre to the response shape', () => {
   it('should expose only the id and the name', () => {
-    expect(Genre.toGenreResponse(A_GENRE)).toEqual({
+    expect(Genre.toGenreResponse(A_GENRE, ELanguage.EN)).toEqual({
       id: 'genre-1',
       name: 'Drama',
     });

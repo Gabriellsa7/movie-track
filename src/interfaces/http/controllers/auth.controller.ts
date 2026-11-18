@@ -99,7 +99,10 @@ export class AuthController implements IController {
     next: NextFunction,
   ): Promise<void> => {
     try {
-      await this.authService.requestPasswordReset(req.body.email);
+      await this.authService.requestPasswordReset(
+        req.body.email,
+        req.language,
+      );
       res.status(204).send();
     } catch (error) {
       next(error);

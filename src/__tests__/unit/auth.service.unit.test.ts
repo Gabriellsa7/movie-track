@@ -1,3 +1,4 @@
+import { ELanguage } from '../../domain/common/language';
 import { AuthService } from '../../domain/auth/service/auth.service';
 import { IUserRepositoryRead } from '../../domain/user/repository/user.repository.read';
 import { IUser } from '../../domain/user/interfaces/user.interface';
@@ -373,6 +374,7 @@ describe('When we ask for a password reset', () => {
       to: A_USER.email,
       name: A_USER.name,
       token: 'plain-token',
+      language: ELanguage.EN,
     });
   });
 
