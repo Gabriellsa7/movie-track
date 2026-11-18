@@ -3,6 +3,7 @@ const DEFAULT_JWT_EXPIRES_IN = '1h';
 const DEFAULT_REFRESH_TOKEN_EXPIRES_IN = '7d';
 // Resend's shared sender works without a domain, but only delivers to the account owner's address.
 const DEFAULT_EMAIL_FROM = 'Movie Track <onboarding@resend.dev>';
+const DEFAULT_APP_URL = 'http://localhost:5173';
 
 function parseList(value: string | undefined): Array<string> {
   return (value ?? '')
@@ -30,14 +31,18 @@ export const env = {
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || DEFAULT_JWT_EXPIRES_IN,
   refreshTokenExpiresIn:
     process.env.REFRESH_TOKEN_EXPIRES_IN || DEFAULT_REFRESH_TOKEN_EXPIRES_IN,
-  cloudinaryCloudName: requireEnv('CLOUDINARY_CLOUD_NAME'),
-  cloudinaryApiKey: requireEnv('CLOUDINARY_API_KEY'),
-  cloudinaryApiSecret: requireEnv('CLOUDINARY_API_SECRET'),
-  tmdbAccessToken: requireEnv('TMDB_ACCESS_TOKEN'),
+  // Optional: without them the server still boots, but uploads answer 503 STORAGE_UNAVAILABLE.
+  cloudinaryCloudName: process.env.CLOUDINARY_CLOUD_NAME || undefined,
+  cloudinaryApiKey: process.env.CLOUDINARY_API_KEY || undefined,
+  cloudinaryApiSecret: process.env.CLOUDINARY_API_SECRET || undefined,
+  // Optional: without it the movie search answers 503 MOVIE_CATALOG_UNAVAILABLE.
+  tmdbAccessToken: process.env.TMDB_ACCESS_TOKEN || undefined,
   // Where the front-end runs; e-mail links point to its /verify-email and /reset-password pages.
-  appUrl: requireEnv('APP_URL'),
+  appUrl: process.env.APP_URL || DEFAULT_APP_URL,
   // Browser origins allowed by CORS, comma-separated; defaults to APP_URL. Native apps don't need it.
-  corsOrigins: parseList(process.env.CORS_ORIGINS || process.env.APP_URL),
+  corsOrigins: parseList(
+    process.env.CORS_ORIGINS || process.env.APP_URL || DEFAULT_APP_URL,
+  ),
   // Optional: without it e-mails are logged instead of sent (see LogAccountMailer).
   resendApiKey: process.env.RESEND_API_KEY || undefined,
   emailFrom: process.env.EMAIL_FROM || DEFAULT_EMAIL_FROM,

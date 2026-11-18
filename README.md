@@ -138,7 +138,8 @@ For poster uploads, copy the cloud name, API key and API secret from
 **Settings > API Keys** in the Cloudinary console into `CLOUDINARY_CLOUD_NAME`,
 `CLOUDINARY_API_KEY` and `CLOUDINARY_API_SECRET`. For movie search, copy the
 **API Read Access Token** from **Settings > API** on themoviedb.org into
-`TMDB_ACCESS_TOKEN`. The app does not boot without them.
+`TMDB_ACCESS_TOKEN`. They are optional: without them the server still boots, but
+uploads and the movie search answer 503 (a warning is logged at startup).
 
 Behind a reverse proxy (Render, Railway, Fly.io…), set `TRUST_PROXY_HOPS=1` so
 the login rate limit sees each client's IP instead of the proxy's.
