@@ -132,15 +132,26 @@ describe('When we load the environment configuration', () => {
     });
   });
 
-  it('should throw when APP_URL is missing', () => {
+  it('should boot without the optional integrations, defaulting APP_URL', () => {
     process.env = { ...ORIGINAL_ENV, DATABASE_URI: 'mongodb://localhost/test' };
-    delete process.env.APP_URL;
+    for (const name of [
+      'APP_URL',
+      'CORS_ORIGINS',
+      'CLOUDINARY_CLOUD_NAME',
+      'CLOUDINARY_API_KEY',
+      'CLOUDINARY_API_SECRET',
+      'TMDB_ACCESS_TOKEN',
+    ]) {
+      delete process.env[name];
+    }
 
     jest.isolateModules(() => {
-      expect(() =>
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        require('../../infrastructure/config/env'),
-      ).toThrow('Missing required environment variable: APP_URL');
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { env } = require('../../infrastructure/config/env');
+      expect(env.appUrl).toBe('http://localhost:5173');
+      expect(env.corsOrigins).toEqual(['http://localhost:5173']);
+      expect(env.cloudinaryApiKey).toBeUndefined();
+      expect(env.tmdbAccessToken).toBeUndefined();
     });
   });
 

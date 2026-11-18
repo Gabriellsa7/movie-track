@@ -4,6 +4,7 @@ import { toErrorResponse } from './error-response.mapper';
 
 const SERVICE_UNAVAILABLE = 503;
 const FIRST_SERVER_ERROR = 500;
+const FIRST_CLIENT_ERROR = 400;
 
 export const errorHandlerMiddleware: ErrorRequestHandler = (
   err: unknown,
@@ -25,6 +26,16 @@ export const errorHandlerMiddleware: ErrorRequestHandler = (
       method: req.method,
       path: req.path,
       stack: error.stack,
+    });
+  } else if (response.status >= FIRST_CLIENT_ERROR) {
+    // Only codes and field names are logged, never the request body (it may carry passwords).
+    Logger.warn(response.message, {
+      eventName: 'http.client_error',
+      status: response.status,
+      code: response.code,
+      method: req.method,
+      path: req.path,
+      fieldErrors: response.errors,
     });
   }
 

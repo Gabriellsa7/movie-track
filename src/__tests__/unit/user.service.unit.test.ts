@@ -142,6 +142,7 @@ describe('When we create a user', () => {
 
   it('should throw ConflictError when the email is already in use', async () => {
     userRepositoryRead.findUserByEmail.mockResolvedValue(A_USER);
+    const warnSpy = jest.spyOn(Logger, 'warn').mockImplementation(() => Logger);
 
     await expect(
       userService.createUser({
@@ -154,6 +155,14 @@ describe('When we create a user', () => {
       'whitebeard@email.com',
     );
     expect(userRepositoryWrite.createUser).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalledWith(
+      'Sign-up failed',
+      expect.objectContaining({
+        eventName: 'user.sign_up.failed',
+        reason: 'email_taken',
+      }),
+    );
+    warnSpy.mockRestore();
   });
 });
 

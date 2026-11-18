@@ -187,6 +187,7 @@ describe('When the error handler middleware answers', () => {
   let res: Response;
   let next: jest.MockedFunction<NextFunction>;
   let loggerError: jest.SpyInstance;
+  let loggerWarn: jest.SpyInstance;
 
   beforeEach(() => {
     res = {
@@ -196,17 +197,29 @@ describe('When the error handler middleware answers', () => {
     } as unknown as Response;
     next = jest.fn();
     loggerError = jest.spyOn(Logger, 'error').mockImplementation(() => Logger);
+    loggerWarn = jest.spyOn(Logger, 'warn').mockImplementation(() => Logger);
   });
 
   afterEach(() => {
     loggerError.mockRestore();
+    loggerWarn.mockRestore();
   });
 
-  it('should not log client errors', () => {
+  it('should log client errors as warnings with their code', () => {
     errorHandlerMiddleware(new NotFoundError(), req, res, next);
 
     expect(res.status).toHaveBeenCalledWith(404);
     expect(loggerError).not.toHaveBeenCalled();
+    expect(loggerWarn).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        eventName: 'http.client_error',
+        status: 404,
+        code: 'NOT_FOUND',
+        method: 'GET',
+        path: '/users',
+      }),
+    );
   });
 
   it('should log an unavailable database as a dependency error', () => {

@@ -142,6 +142,32 @@ describe('When we log in', () => {
     ).rejects.toMatchObject({ code: 'INVALID_CREDENTIALS' });
     expect(tokenProvider.generateAccessToken).not.toHaveBeenCalled();
   });
+
+  it('should log the real reason of a failed login', async () => {
+    const warnSpy = jest.spyOn(Logger, 'warn').mockImplementation(() => Logger);
+    userRepositoryRead.findUserByEmail.mockResolvedValueOnce(null);
+    await expect(
+      authService.login({ email: 'nobody@email.com', password: 'secret123' }),
+    ).rejects.toMatchObject({ code: 'INVALID_CREDENTIALS' });
+
+    userRepositoryRead.findUserByEmail.mockResolvedValueOnce(A_USER);
+    passwordHasher.compare.mockResolvedValueOnce(false);
+    await expect(
+      authService.login({ email: A_USER.email, password: 'wrong123' }),
+    ).rejects.toMatchObject({ code: 'INVALID_CREDENTIALS' });
+
+    expect(warnSpy).toHaveBeenNthCalledWith(1, 'Login failed', {
+      eventName: 'auth.login.failed',
+      reason: 'user_not_found',
+      userId: undefined,
+    });
+    expect(warnSpy).toHaveBeenNthCalledWith(2, 'Login failed', {
+      eventName: 'auth.login.failed',
+      reason: 'wrong_password',
+      userId: A_USER._id,
+    });
+    warnSpy.mockRestore();
+  });
 });
 
 describe('When we refresh the tokens', () => {

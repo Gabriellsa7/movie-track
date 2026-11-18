@@ -64,6 +64,7 @@ export class AuthService implements IAuthService {
       User.normalizeEmail(params.email),
     );
     if (!user) {
+      this.logLoginFailure('user_not_found');
       throw this.invalidCredentialsError();
     }
 
@@ -72,6 +73,7 @@ export class AuthService implements IAuthService {
       user.passwordHash,
     );
     if (!matches) {
+      this.logLoginFailure('wrong_password', user._id);
       throw this.invalidCredentialsError();
     }
 
@@ -224,6 +226,18 @@ export class AuthService implements IAuthService {
         sessionVersion: user.sessionVersion ?? 0,
       }),
     };
+  }
+
+  // The client only sees INVALID_CREDENTIALS (so accounts can't be probed); the log keeps the real reason.
+  private logLoginFailure(
+    reason: 'user_not_found' | 'wrong_password',
+    userId?: string,
+  ): void {
+    Logger.warn('Login failed', {
+      eventName: 'auth.login.failed',
+      reason,
+      userId,
+    });
   }
 
   private invalidCredentialsError(): UnauthorizedError {
